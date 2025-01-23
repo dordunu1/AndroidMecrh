@@ -92,7 +92,16 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
       await ref.read(paymentServiceProvider).launchPaymentPage(paymentUrl);
 
       // Verify payment and create seller profile
-      await ref.read(sellerServiceProvider).verifyPayment(reference);
+      await ref.read(sellerServiceProvider).verifyPayment(
+        reference,
+        {
+          'storeName': _storeNameController.text,
+          'storeDescription': _storeDescriptionController.text,
+          'country': _countryController.text,
+          'shippingInfo': _shippingInfoController.text,
+          'paymentInfo': _paymentInfoController.text,
+        },
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

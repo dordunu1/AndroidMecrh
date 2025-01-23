@@ -16,9 +16,13 @@ class SellerService {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
-  Future<Seller?> getSellerProfile(String sellerId) async {
-    final doc = await _firestore.collection('sellers').doc(sellerId).get();
-    if (!doc.exists) return null;
+  Future<Seller> getSellerProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    final doc = await _firestore.collection('sellers').doc(user.uid).get();
+    if (!doc.exists) throw Exception('Seller profile not found');
+    
     return Seller.fromMap(doc.data()!, doc.id);
   }
 
@@ -589,9 +593,31 @@ class SellerService {
     }
   }
 
-  Future<void> verifyPayment(String reference) async {
+  Future<void> verifyPayment(String reference, Map<String, dynamic> sellerData) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
+
+    // Create seller profile
+    await _firestore.collection('sellers').doc(user.uid).set({
+      'userId': user.uid,
+      'email': user.email,
+      'storeName': sellerData['storeName'] ?? 'My Store',
+      'description': sellerData['storeDescription'] ?? '',
+      'address': '',
+      'city': '',
+      'state': '',
+      'country': sellerData['country'] ?? '',
+      'zip': '',
+      'phone': '',
+      'shippingInfo': sellerData['shippingInfo'] ?? '',
+      'paymentInfo': sellerData['paymentInfo'] ?? '',
+      'isVerified': false,
+      'createdAt': DateTime.now().toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
+      'balance': 0.0,
+      'averageRating': 0.0,
+      'reviewCount': 0,
+    });
 
     // Update user document to mark as seller
     await _firestore.collection('users').doc(user.uid).update({
