@@ -1,0 +1,225 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/chat_message.dart';
+import '../models/chat_conversation.dart';
+
+final chatServiceProvider = Provider<ChatService>((ref) {
+  return ChatService(
+    FirebaseFirestore.instance,
+    FirebaseAuth.instance,
+  );
+});
+
+class ChatService {
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+
+  ChatService(this._firestore, this._auth);
+
+  Future<List<ChatConversation>> getConversations({String? search}) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      Query query = _firestore.collection('conversations').where(
+        'participants',
+        arrayContains: user.uid,
+      );
+
+      final snapshot = await query.get();
+
+      final conversations = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return ChatConversation.fromMap(data);
+      }).toList();
+
+      if (search != null && search.isNotEmpty) {
+        final searchLower = search.toLowerCase();
+        return conversations.where((conversation) {
+          return conversation.otherParticipantName.toLowerCase().contains(searchLower);
+        }).toList();
+      }
+
+      return conversations;
+    } catch (e) {
+      throw Exception('Failed to get conversations: $e');
+    }
+  }
+
+  Stream<List<ChatConversation>> watchConversations() {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    return _firestore
+        .collection('conversations')
+        .where('participants', arrayContains: user.uid)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return ChatConversation.fromMap(data);
+      }).toList();
+    });
+  }
+
+  Future<ChatConversation> createConversation({
+    required String otherUserId,
+    required String otherUserName,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      // Check if conversation already exists
+      final existingConversation = await _firestore
+          .collection('conversations')
+          .where('participants', arrayContains: user.uid)
+          .get();
+
+      for (final doc in existingConversation.docs) {
+        final participants = List<String>.from(doc.data()['participants'] as List);
+        if (participants.contains(otherUserId)) {
+          final data = doc.data();
+          data['id'] = doc.id;
+          return ChatConversation.fromMap(data);
+        }
+      }
+
+      // Create new conversation
+      final conversationRef = _firestore.collection('conversations').doc();
+      final conversation = {
+        'participants': [user.uid, otherUserId],
+        'participantNames': {
+          user.uid: user.displayName ?? 'Unknown',
+          otherUserId: otherUserName,
+        },
+        'lastMessage': null,
+        'lastMessageTime': null,
+        'unreadCounts': {
+          user.uid: 0,
+          otherUserId: 0,
+        },
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+
+      await conversationRef.set(conversation);
+
+      conversation['id'] = conversationRef.id;
+      return ChatConversation.fromMap(conversation);
+    } catch (e) {
+      throw Exception('Failed to create conversation: $e');
+    }
+  }
+
+  Stream<List<ChatMessage>> watchMessages(String conversationId) {
+    return _firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return ChatMessage.fromMap(data);
+      }).toList();
+    });
+  }
+
+  Future<void> sendMessage({
+    required String conversationId,
+    required String content,
+    String? imageUrl,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final conversationRef = _firestore.collection('conversations').doc(conversationId);
+      final conversation = await conversationRef.get();
+      if (!conversation.exists) throw Exception('Conversation not found');
+
+      final participants = List<String>.from(conversation.data()!['participants'] as List);
+      final otherUserId = participants.firstWhere((id) => id != user.uid);
+
+      final batch = _firestore.batch();
+
+      // Add message
+      final messageRef = conversationRef.collection('messages').doc();
+      batch.set(messageRef, {
+        'senderId': user.uid,
+        'content': content,
+        'imageUrl': imageUrl,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+
+      // Update conversation
+      final unreadCounts = Map<String, int>.from(conversation.data()!['unreadCounts'] as Map);
+      unreadCounts[otherUserId] = (unreadCounts[otherUserId] ?? 0) + 1;
+
+      batch.update(conversationRef, {
+        'lastMessage': content,
+        'lastMessageTime': DateTime.now().toIso8601String(),
+        'unreadCounts': unreadCounts,
+      });
+
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to send message: $e');
+    }
+  }
+
+  Future<void> markAsRead(String conversationId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final conversationRef = _firestore.collection('conversations').doc(conversationId);
+      final conversation = await conversationRef.get();
+      if (!conversation.exists) throw Exception('Conversation not found');
+
+      final unreadCounts = Map<String, int>.from(conversation.data()!['unreadCounts'] as Map);
+      unreadCounts[user.uid] = 0;
+
+      await conversationRef.update({
+        'unreadCounts': unreadCounts,
+      });
+    } catch (e) {
+      throw Exception('Failed to mark conversation as read: $e');
+    }
+  }
+
+  Future<void> deleteConversation(String conversationId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final conversationRef = _firestore.collection('conversations').doc(conversationId);
+      final conversation = await conversationRef.get();
+      if (!conversation.exists) throw Exception('Conversation not found');
+
+      final participants = List<String>.from(conversation.data()!['participants'] as List);
+      if (!participants.contains(user.uid)) {
+        throw Exception('Not authorized to delete this conversation');
+      }
+
+      // Delete all messages
+      final messages = await conversationRef.collection('messages').get();
+      final batch = _firestore.batch();
+      for (final message in messages.docs) {
+        batch.delete(message.reference);
+      }
+
+      // Delete conversation
+      batch.delete(conversationRef);
+
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to delete conversation: $e');
+    }
+  }
+} 
