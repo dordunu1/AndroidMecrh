@@ -135,7 +135,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       await ref.read(authServiceProvider).signOut();
       if (mounted) {
-        // TODO: Navigate to login screen
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/login',
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -257,12 +260,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Text(
                         _user!.isAdmin
                             ? 'Admin'
-                            : _user!.isSeller
+                            : _user!.sellerId != null
                                 ? 'Seller'
                                 : 'Buyer',
                         style: const TextStyle(fontSize: 16),
                       ),
-                      if (!_user!.isSeller && !_user!.isAdmin) ...[
+                      if (_user!.sellerId == null && !_user!.isAdmin) ...[
                         const SizedBox(height: 16),
                         CustomButton(
                           onPressed: () {

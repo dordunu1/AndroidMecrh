@@ -101,7 +101,10 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
             duration: Duration(seconds: 5),
           ),
         );
-        Navigator.pop(context);
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/seller-home',
+          (route) => false,
+        );
       }
     } catch (e) {
       if (mounted) {

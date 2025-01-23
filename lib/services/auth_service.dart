@@ -81,6 +81,12 @@ class AuthService {
 
   Future<void> signOut() async {
     try {
+      // Sign out from Google if signed in with Google
+      final googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.signOut();
+      }
+      // Sign out from Firebase
       await _auth.signOut();
     } catch (e) {
       throw _handleAuthError(e);
