@@ -24,18 +24,14 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
     }
 
     // Products collection
     match /products/{productId} {
       allow read: if true;
       allow create: if isSeller();
-      allow update: if isSeller() && 
-        resource.data.sellerId == request.auth.uid;
-      allow delete: if isSeller() && 
+      allow update, delete: if isSeller() && 
         resource.data.sellerId == request.auth.uid;
     }
 
@@ -48,31 +44,19 @@ service cloud.firestore {
       );
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
-        resource.data.buyerId == request.auth.uid || 
         resource.data.sellerId == request.auth.uid ||
         isAdmin()
       );
-      allow delete: if isAdmin();
     }
 
-    // Reviews collection
-    match /reviews/{reviewId} {
+    // Sellers collection
+    match /sellers/{sellerId} {
       allow read: if true;
-      allow create: if isAuthenticated();
-      allow update: if isOwner(resource.data.userId) || isAdmin();
-      allow delete: if isOwner(resource.data.userId) || isAdmin();
-    }
-
-    // Refunds collection
-    match /refunds/{refundId} {
-      allow read: if isAuthenticated() && (
-        resource.data.buyerId == request.auth.uid || 
-        resource.data.sellerId == request.auth.uid ||
+      allow create: if isAuthenticated() && sellerId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        sellerId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
     }
 
     // Withdrawals collection
@@ -81,9 +65,31 @@ service cloud.firestore {
         resource.data.sellerId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isSeller();
+      allow create: if isSeller() && 
+        request.resource.data.sellerId == request.auth.uid;
       allow update: if isAdmin();
-      allow delete: if isAdmin();
+    }
+
+    // Refunds collection
+    match /refunds/{refundId} {
+      allow read: if isAuthenticated() && (
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.sellerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.sellerId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // Reviews collection
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
     // Conversations collection

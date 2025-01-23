@@ -260,12 +260,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Text(
                         _user!.isAdmin
                             ? 'Admin'
-                            : _user!.sellerId != null
+                            : (_user!.isSeller || _user!.sellerId != null)
                                 ? 'Seller'
                                 : 'Buyer',
                         style: const TextStyle(fontSize: 16),
                       ),
-                      if (_user!.sellerId == null && !_user!.isAdmin) ...[
+                      if (!_user!.isAdmin && !_user!.isSeller && _user!.sellerId == null) ...[
                         const SizedBox(height: 16),
                         CustomButton(
                           onPressed: () {

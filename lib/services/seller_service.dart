@@ -13,14 +13,8 @@ final sellerServiceProvider = Provider<SellerService>((ref) {
 });
 
 class SellerService {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
-
-  SellerService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
 
   Future<Seller?> getSellerProfile(String sellerId) async {
     final doc = await _firestore.collection('sellers').doc(sellerId).get();
@@ -597,14 +591,10 @@ class SellerService {
 
   Future<void> verifyPayment(String reference) async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception('User not found');
+    if (user == null) throw Exception('User not authenticated');
 
-    // Get the user document
-    final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) throw Exception('User document not found');
-
-    // Update user document with seller status
-    await userDoc.reference.update({
+    // Update user document to mark as seller
+    await _firestore.collection('users').doc(user.uid).update({
       'isSeller': true,
       'sellerId': user.uid,
       'sellerSince': FieldValue.serverTimestamp(),

@@ -10,6 +10,7 @@ class MerchUser {
   final bool isAdmin;
   final bool isSeller;
   final String? sellerId;
+  final DateTime? sellerSince;
   final List<ShippingAddress> shippingAddresses;
   final ShippingAddress? defaultShippingAddress;
   final DateTime createdAt;
@@ -25,6 +26,7 @@ class MerchUser {
     this.isAdmin = false,
     this.isSeller = false,
     this.sellerId,
+    this.sellerSince,
     this.shippingAddresses = const [],
     this.defaultShippingAddress,
     required this.createdAt,
@@ -58,6 +60,9 @@ class MerchUser {
       isAdmin: map['isAdmin'] ?? false,
       isSeller: map['isSeller'] ?? false,
       sellerId: map['sellerId'],
+      sellerSince: map['sellerSince'] != null
+          ? (map['sellerSince'] as Timestamp).toDate()
+          : null,
       shippingAddresses: addresses,
       defaultShippingAddress: defaultAddress,
       createdAt: map['createdAt'] is Timestamp 
@@ -83,6 +88,7 @@ class MerchUser {
       'isAdmin': isAdmin,
       'isSeller': isSeller,
       'sellerId': sellerId,
+      'sellerSince': sellerSince != null ? Timestamp.fromDate(sellerSince!) : null,
       'shippingAddresses': shippingAddresses.map((addr) => addr.toMap()).toList(),
       'defaultShippingAddress': defaultShippingAddress?.toMap(),
       'createdAt': Timestamp.fromDate(createdAt),
@@ -99,6 +105,7 @@ class MerchUser {
     bool? isAdmin,
     bool? isSeller,
     String? sellerId,
+    DateTime? sellerSince,
     List<ShippingAddress>? shippingAddresses,
     ShippingAddress? defaultShippingAddress,
     DateTime? lastLoginAt,
@@ -113,6 +120,7 @@ class MerchUser {
       isAdmin: isAdmin ?? this.isAdmin,
       isSeller: isSeller ?? this.isSeller,
       sellerId: sellerId ?? this.sellerId,
+      sellerSince: sellerSince ?? this.sellerSince,
       shippingAddresses: shippingAddresses ?? this.shippingAddresses,
       defaultShippingAddress: defaultShippingAddress ?? this.defaultShippingAddress,
       createdAt: createdAt,

@@ -157,7 +157,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/signup');
+                Navigator.pushNamed(context, Routes.register);
               },
               child: const Text('Don\'t have an account? Sign up'),
             ),

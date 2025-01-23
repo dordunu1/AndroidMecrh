@@ -1,0 +1,44 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isSeller() {
+      return isAuthenticated() && 
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isSeller == true;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Allow users to upload their profile photos
+    match /users/{userId}/photos/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Allow sellers to upload product images
+    match /products/{productId}/images/{fileName} {
+      allow read: if true;
+      allow create: if isSeller();
+      allow update, delete: if isSeller() && 
+        firestore.get(/databases/(default)/documents/products/$(productId)).data.sellerId == request.auth.uid;
+    }
+
+    // Allow general product images
+    match /products/images/{fileName} {
+      allow read: if true;
+      allow write: if isSeller() || isAdmin();
+    }
+
+    // Allow user uploads
+    match /users/photos/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+  }
+} 
