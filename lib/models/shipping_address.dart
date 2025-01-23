@@ -1,84 +1,67 @@
 class ShippingAddress {
   final String id;
-  final String address;
+  final String name;
+  final String street;
   final String city;
   final String state;
-  final String country;
-  final String zip;
-  final String phone;
-  final String? name;
-  final String? email;
+  final String zipCode;
+  final String? phone;
 
   ShippingAddress({
     required this.id,
-    required this.address,
+    required this.name,
+    required this.street,
     required this.city,
     required this.state,
-    required this.country,
-    required this.zip,
-    required this.phone,
-    this.name,
-    this.email,
+    required this.zipCode,
+    this.phone,
   });
 
-  // Getters for compatibility
-  String get street => address;
-  String get zipCode => zip;
-
-  factory ShippingAddress.fromMap(Map<String, dynamic> map) {
+  factory ShippingAddress.fromMap(Map<String, dynamic> map, String id) {
     return ShippingAddress(
-      id: map['id'] ?? '',
-      address: map['address'] ?? '',
+      id: id,
+      name: map['name'] ?? '',
+      street: map['street'] ?? '',
       city: map['city'] ?? '',
       state: map['state'] ?? '',
-      country: map['country'] ?? '',
-      zip: map['zip'] ?? '',
-      phone: map['phone'] ?? '',
-      name: map['name'] as String?,
-      email: map['email'] as String?,
+      zipCode: map['zipCode'] ?? '',
+      phone: map['phone'],
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
-      'address': address,
+      'name': name,
+      'street': street,
       'city': city,
       'state': state,
-      'country': country,
-      'zip': zip,
+      'zipCode': zipCode,
       'phone': phone,
-      'name': name,
-      'email': email,
     };
   }
 
   @override
   String toString() {
-    return '$address, $city, $state $zip, $country';
+    return '$street, $city, $state $zipCode';
   }
 
   ShippingAddress copyWith({
     String? id,
-    String? address,
+    String? name,
+    String? street,
     String? city,
     String? state,
-    String? country,
-    String? zip,
+    String? zipCode,
     String? phone,
-    String? name,
-    String? email,
   }) {
     return ShippingAddress(
       id: id ?? this.id,
-      address: address ?? this.address,
+      name: name ?? this.name,
+      street: street ?? this.street,
       city: city ?? this.city,
       state: state ?? this.state,
-      country: country ?? this.country,
-      zip: zip ?? this.zip,
+      zipCode: zipCode ?? this.zipCode,
       phone: phone ?? this.phone,
-      name: name ?? this.name,
-      email: email ?? this.email,
     );
   }
 } 

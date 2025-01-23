@@ -17,12 +17,14 @@ import 'routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   await dotenv.load(fileName: ".env");
   
-  // Initialize Firebase - it will automatically use the configuration from google-services.json
-  await Firebase.initializeApp();
-  
-  runApp(const ProviderScope(child: MerchApp()));
+  runApp(
+    const ProviderScope(
+      child: MerchApp(),
+    ),
+  );
 }
 
 class MerchApp extends ConsumerWidget {

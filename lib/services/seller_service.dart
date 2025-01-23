@@ -1,24 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide User;
 import '../models/seller.dart';
 import '../models/order.dart' as app_order;
 import '../models/withdrawal.dart';
 import '../models/product.dart';
 import '../models/refund.dart';
+import '../models/user.dart';
 
 final sellerServiceProvider = Provider<SellerService>((ref) {
-  return SellerService(
-    FirebaseFirestore.instance,
-    FirebaseAuth.instance,
-  );
+  return SellerService();
 });
 
 class SellerService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
 
-  SellerService(this._firestore, this._auth);
+  SellerService({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _auth = auth ?? FirebaseAuth.instance;
 
   Future<Seller?> getSellerProfile(String sellerId) async {
     final doc = await _firestore.collection('sellers').doc(sellerId).get();
@@ -128,12 +130,27 @@ class SellerService {
     }
   }
 
-  Future<void> createSellerProfile(Seller seller) async {
+  Future<void> createSellerProfile(Map<String, dynamic> data) async {
     try {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      await _firestore.collection('sellers').doc(user.uid).set(seller.toMap());
+      // Create seller document
+      await _firestore.collection('sellers').doc(user.uid).set({
+        ...data,
+        'userId': user.uid,
+        'email': user.email,
+        'isVerified': false,
+        'status': 'pending',
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+
+      // Update user document with seller role
+      await _firestore.collection('users').doc(user.uid).update({
+        'isSeller': true,
+        'sellerId': user.uid,
+      });
     } catch (e) {
       throw Exception('Failed to create seller profile: $e');
     }
@@ -548,5 +565,74 @@ class SellerService {
     }
 
     return refunds;
+  }
+
+  Future<bool> isSellerVerified() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final doc = await _firestore.collection('sellers').doc(user.uid).get();
+      if (!doc.exists) return false;
+
+      return doc.data()?['isVerified'] == true;
+    } catch (e) {
+      throw Exception('Failed to check seller verification: $e');
+    }
+  }
+
+  Future<String?> getSellerStatus() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final doc = await _firestore.collection('sellers').doc(user.uid).get();
+      if (!doc.exists) return null;
+
+      return doc.data()?['status'] as String?;
+    } catch (e) {
+      throw Exception('Failed to get seller status: $e');
+    }
+  }
+
+  Future<void> verifyPayment(String reference) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not found');
+
+    // Get the user document
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    if (!userDoc.exists) throw Exception('User document not found');
+
+    // Update user document with seller status
+    await userDoc.reference.update({
+      'isSeller': true,
+      'sellerId': user.uid,
+      'sellerSince': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<List<MerchUser>> getSellersByIds(List<String> sellerIds) async {
+    if (sellerIds.isEmpty) return [];
+
+    final sellerDocs = await _firestore
+        .collection('users')
+        .where('isSeller', isEqualTo: true)
+        .where(FieldPath.documentId, whereIn: sellerIds)
+        .get();
+
+    return sellerDocs.docs
+        .map((doc) => MerchUser.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
+  Future<MerchUser?> getSellerById(String sellerId) async {
+    final sellerDoc = await _firestore
+        .collection('users')
+        .where('isSeller', isEqualTo: true)
+        .where(FieldPath.documentId, isEqualTo: sellerId)
+        .get();
+
+    if (sellerDoc.docs.isEmpty) return null;
+    return MerchUser.fromMap(sellerDoc.docs.first.data(), sellerDoc.docs.first.id);
   }
 } 

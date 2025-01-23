@@ -2,11 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../models/merch_user.dart';
+import '../../models/user.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../buyer/become_seller_screen.dart';
+import '../../services/buyer_service.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -19,9 +21,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   File? _photoFile;
   String? _existingPhotoUrl;
-  bool _isLoading = true;
+  bool _isLoading = false;
   bool _isSaving = false;
   String? _error;
   MerchUser? _user;
@@ -29,40 +32,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _loadUser();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadProfile() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+  Future<void> _loadUser() async {
+    setState(() => _isLoading = true);
     try {
-      final user = await ref.read(authServiceProvider).getCurrentUser();
-      if (mounted) {
-        setState(() {
-          _user = user;
-          _nameController.text = user?.name ?? '';
-          _emailController.text = user?.email ?? '';
-          _existingPhotoUrl = user?.photoUrl;
-          _isLoading = false;
-        });
-      }
+      final user = await ref.read(buyerServiceProvider).getCurrentUser();
+      setState(() {
+        _user = user;
+        _nameController.text = user.name ?? '';
+        _emailController.text = user.email;
+        _phoneController.text = user.phone ?? '';
+        _existingPhotoUrl = user.photoUrl;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading user: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -74,11 +71,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _saveProfile() async {
+  Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
-
     try {
       String? photoUrl = _existingPhotoUrl;
 
@@ -91,27 +87,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         photoUrl = urls.first;
       }
 
-      // Update user profile
-      await ref.read(authServiceProvider).updateProfile({
-        'name': _nameController.text,
-        if (photoUrl != null) 'photoUrl': photoUrl,
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-      }
+      final updatedUser = _user!.copyWith(
+        name: _nameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+        photoUrl: photoUrl,
+      );
+      
+      await ref.read(buyerServiceProvider).updateProfile(updatedUser);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating profile: $e')),
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      setState(() => _isSaving = false);
     }
   }
 
@@ -172,6 +165,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
 
+    if (_user == null) {
+      return const Center(child: Text('Error loading profile'));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
@@ -182,119 +179,114 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Profile Photo
-            Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundImage: _photoFile != null
-                        ? FileImage(_photoFile!)
-                        : _existingPhotoUrl != null
-                            ? NetworkImage(_existingPhotoUrl!)
-                            : null,
-                    child: _photoFile == null && _existingPhotoUrl == null
-                        ? Icon(
-                            Icons.person,
-                            size: 60,
-                            color: theme.colorScheme.onPrimary,
-                          )
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: IconButton(
-                      onPressed: _pickPhoto,
-                      icon: const Icon(Icons.camera_alt),
-                      style: IconButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Name
-            CustomTextField(
-              controller: _nameController,
-              label: 'Name',
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your name';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Email (read-only)
-            CustomTextField(
-              controller: _emailController,
-              label: 'Email',
-              readOnly: true,
-              enabled: false,
-            ),
-            const SizedBox(height: 16),
-
-            // Role Info
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Account Type',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _user?.isSeller == true
-                          ? 'Seller Account'
-                          : _user?.isAdmin == true
-                              ? 'Admin Account'
-                              : 'Buyer Account',
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                    if (_user?.isSeller == true) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Seller ID: ${_user?.sellerId}',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Save Button
-            CustomButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              child: _isSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Personal Information',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    )
-                  : const Text('Save Changes'),
-            ),
-          ],
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: _nameController,
+                        label: 'Name',
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your name';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          if (!value.contains('@')) {
+                            return 'Please enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: _phoneController,
+                        label: 'Phone',
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your phone number';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Account Type',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _user!.isAdmin
+                            ? 'Admin'
+                            : _user!.isSeller
+                                ? 'Seller'
+                                : 'Buyer',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      if (!_user!.isSeller && !_user!.isAdmin) ...[
+                        const SizedBox(height: 16),
+                        CustomButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const BecomeSellerScreen(),
+                              ),
+                            );
+                          },
+                          text: 'Become a Seller',
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              CustomButton(
+                onPressed: _isSaving ? null : _updateProfile,
+                text: _isSaving ? 'Updating...' : 'Update Profile',
+              ),
+            ],
+          ),
         ),
       ),
     );

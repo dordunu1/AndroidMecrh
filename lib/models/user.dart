@@ -1,15 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'shipping_address.dart';
 
 class MerchUser {
   final String id;
   final String email;
   final String? name;
+  final String? phone;
   final String? photoUrl;
   final bool isAdmin;
   final bool isSeller;
   final String? sellerId;
-  final List<Map<String, dynamic>> shippingAddresses;
-  final Map<String, dynamic>? defaultShippingAddress;
+  final List<ShippingAddress> shippingAddresses;
+  final ShippingAddress? defaultShippingAddress;
   final DateTime createdAt;
   final DateTime? lastLoginAt;
   final Map<String, dynamic>? preferences;
@@ -18,6 +20,7 @@ class MerchUser {
     required this.id,
     required this.email,
     this.name,
+    this.phone,
     this.photoUrl,
     this.isAdmin = false,
     this.isSeller = false,
@@ -30,16 +33,33 @@ class MerchUser {
   });
 
   factory MerchUser.fromMap(Map<String, dynamic> map, String id) {
+    final addresses = (map['shippingAddresses'] as List<dynamic>? ?? [])
+        .asMap()
+        .entries
+        .map((entry) => ShippingAddress.fromMap(
+              Map<String, dynamic>.from(entry.value),
+              entry.key.toString(),
+            ))
+        .toList();
+
+    final defaultAddress = map['defaultShippingAddress'] != null
+        ? ShippingAddress.fromMap(
+            Map<String, dynamic>.from(map['defaultShippingAddress']),
+            map['defaultShippingAddress']['id'] ?? '0',
+          )
+        : null;
+
     return MerchUser(
       id: id,
       email: map['email'] ?? '',
       name: map['name'],
+      phone: map['phone'],
       photoUrl: map['photoUrl'],
       isAdmin: map['isAdmin'] ?? false,
       isSeller: map['isSeller'] ?? false,
       sellerId: map['sellerId'],
-      shippingAddresses: List<Map<String, dynamic>>.from(map['shippingAddresses'] ?? []),
-      defaultShippingAddress: map['defaultShippingAddress'],
+      shippingAddresses: addresses,
+      defaultShippingAddress: defaultAddress,
       createdAt: map['createdAt'] is Timestamp 
           ? (map['createdAt'] as Timestamp).toDate()
           : map['createdAt'] is String 
@@ -58,12 +78,13 @@ class MerchUser {
     return {
       'email': email,
       'name': name,
+      'phone': phone,
       'photoUrl': photoUrl,
       'isAdmin': isAdmin,
       'isSeller': isSeller,
       'sellerId': sellerId,
-      'shippingAddresses': shippingAddresses,
-      'defaultShippingAddress': defaultShippingAddress,
+      'shippingAddresses': shippingAddresses.map((addr) => addr.toMap()).toList(),
+      'defaultShippingAddress': defaultShippingAddress?.toMap(),
       'createdAt': Timestamp.fromDate(createdAt),
       'lastLoginAt': lastLoginAt != null ? Timestamp.fromDate(lastLoginAt!) : null,
       'preferences': preferences,
@@ -73,12 +94,13 @@ class MerchUser {
   MerchUser copyWith({
     String? email,
     String? name,
+    String? phone,
     String? photoUrl,
     bool? isAdmin,
     bool? isSeller,
     String? sellerId,
-    List<Map<String, dynamic>>? shippingAddresses,
-    Map<String, dynamic>? defaultShippingAddress,
+    List<ShippingAddress>? shippingAddresses,
+    ShippingAddress? defaultShippingAddress,
     DateTime? lastLoginAt,
     Map<String, dynamic>? preferences,
   }) {
@@ -86,6 +108,7 @@ class MerchUser {
       id: id,
       email: email ?? this.email,
       name: name ?? this.name,
+      phone: phone ?? this.phone,
       photoUrl: photoUrl ?? this.photoUrl,
       isAdmin: isAdmin ?? this.isAdmin,
       isSeller: isSeller ?? this.isSeller,

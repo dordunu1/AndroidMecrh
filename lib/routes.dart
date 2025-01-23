@@ -6,6 +6,7 @@ import 'screens/buyer/buyer_navigation_screen.dart';
 import 'screens/seller/seller_navigation_screen.dart';
 import 'screens/admin/admin_navigation_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/buyer/become_seller_screen.dart';
 
 class Routes {
   static const String splash = '/';
@@ -15,6 +16,7 @@ class Routes {
   static const String buyerHome = '/buyer-home';
   static const String sellerHome = '/seller-home';
   static const String adminHome = '/admin-home';
+  static const String becomeSeller = '/become-seller';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -25,6 +27,7 @@ class Routes {
       buyerHome: (context) => const BuyerNavigationScreen(),
       sellerHome: (context) => const SellerNavigationScreen(),
       adminHome: (context) => const AdminNavigationScreen(),
+      becomeSeller: (context) => const BecomeSellerScreen(),
     };
   }
 } 

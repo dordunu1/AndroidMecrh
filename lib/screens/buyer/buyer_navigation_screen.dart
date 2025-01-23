@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'product_list_screen.dart';
 import 'buyer_orders_screen.dart';
 import 'buyer_refunds_screen.dart';
-import '../profile_screen.dart';
+import '../profile/profile_screen.dart';
 
 class BuyerNavigationScreen extends ConsumerStatefulWidget {
   const BuyerNavigationScreen({super.key});

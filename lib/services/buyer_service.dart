@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide User;
+import '../models/user.dart';
+import '../models/cart_item.dart';
 import '../models/order.dart' as app_order;
 import '../models/refund.dart';
 import '../models/product.dart';
-import '../models/cart_item.dart';
-import '../models/merch_user.dart';
 import '../models/shipping_address.dart';
 
 final buyerServiceProvider = Provider<BuyerService>((ref) {
@@ -253,10 +253,7 @@ class BuyerService {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
       if (!userDoc.exists) throw Exception('User profile not found');
 
-      final buyer = MerchUser.fromMap({
-        ...userDoc.data()!,
-        'id': userDoc.id,
-      });
+      final buyer = MerchUser.fromMap(userDoc.data()!, userDoc.id);
 
       // Get shipping address
       final address = buyer.shippingAddresses.firstWhere(
@@ -399,10 +396,7 @@ class BuyerService {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
       if (!userDoc.exists) throw Exception('User profile not found');
 
-      final buyer = MerchUser.fromMap({
-        ...userDoc.data()!,
-        'id': userDoc.id,
-      });
+      final buyer = MerchUser.fromMap(userDoc.data()!, userDoc.id);
 
       await _firestore.collection('refunds').add({
         'orderId': orderId,
@@ -422,20 +416,23 @@ class BuyerService {
   }
 
   Future<MerchUser> getCurrentUser() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (!doc.exists) throw Exception('User profile not found');
-
-      return MerchUser.fromMap({
-        ...doc.data()!,
-        'id': doc.id,
-      });
-    } catch (e) {
-      throw Exception('Failed to get user profile: $e');
+    final userDoc = await _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .get();
+    
+    if (!userDoc.exists) {
+      throw Exception('User not found');
     }
+
+    return MerchUser.fromMap(userDoc.data()!, userDoc.id);
+  }
+
+  Future<void> updateProfile(MerchUser user) async {
+    await _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .update(user.toMap());
   }
 
   Future<void> addShippingAddress(ShippingAddress address) async {
@@ -450,17 +447,11 @@ class BuyerService {
         userDoc.data()!['shippingAddresses'] as List? ?? [],
       );
 
-      final newAddress = {
-        ...address.toMap(),
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
-      };
-
-      addresses.add(newAddress);
+      addresses.add(address.toMap());
 
       await _firestore.collection('users').doc(user.uid).update({
         'shippingAddresses': addresses,
-        if (addresses.length == 1)
-          'defaultShippingAddress': newAddress,
+        'defaultShippingAddress': addresses.isNotEmpty ? addresses.first : null,
       });
     } catch (e) {
       throw Exception('Failed to add shipping address: $e');
