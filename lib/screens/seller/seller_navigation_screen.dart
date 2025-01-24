@@ -4,7 +4,7 @@ import 'seller_dashboard_screen.dart';
 import 'seller_orders_screen.dart';
 import 'seller_products_screen.dart';
 import 'seller_withdrawals_screen.dart';
-import '../profile_screen.dart';
+import 'seller_profile_screen.dart';
 
 class SellerNavigationScreen extends ConsumerStatefulWidget {
   const SellerNavigationScreen({super.key});
@@ -21,7 +21,7 @@ class _SellerNavigationScreenState extends ConsumerState<SellerNavigationScreen>
     SellerOrdersScreen(),
     SellerProductsScreen(),
     SellerWithdrawalsScreen(),
-    ProfileScreen(),
+    SellerProfileScreen(),
   ];
 
   @override

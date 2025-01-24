@@ -5,8 +5,11 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/seller.dart';
 import '../../services/seller_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/common/custom_list_tile.dart';
+import '../../routes.dart';
 
 class SellerProfileScreen extends ConsumerStatefulWidget {
   const SellerProfileScreen({super.key});
@@ -16,34 +19,16 @@ class SellerProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _storeNameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _countryController = TextEditingController();
-  final _shippingInfoController = TextEditingController();
-  final _paymentInfoController = TextEditingController();
-  File? _logoFile;
-  File? _bannerFile;
-  String? _existingLogo;
-  String? _existingBanner;
   bool _isLoading = true;
-  bool _isSaving = false;
+  bool _darkMode = false;
   String? _error;
+  Seller? _seller;
+  String? _sellerStatus;
 
   @override
   void initState() {
     super.initState();
     _loadSellerProfile();
-  }
-
-  @override
-  void dispose() {
-    _storeNameController.dispose();
-    _descriptionController.dispose();
-    _countryController.dispose();
-    _shippingInfoController.dispose();
-    _paymentInfoController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadSellerProfile() async {
@@ -53,16 +38,27 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     });
 
     try {
+      // First check seller status
+      _sellerStatus = await ref.read(sellerServiceProvider).getSellerStatus();
+      
+      if (_sellerStatus == null) {
+        // Create initial seller profile
+        await ref.read(sellerServiceProvider).verifyPayment('', {
+          'storeName': 'My Store',
+          'storeDescription': '',
+          'country': '',
+          'shippingInfo': '',
+          'paymentInfo': '',
+        });
+      }
+
+      // Now load the seller profile
       final seller = await ref.read(sellerServiceProvider).getSellerProfile();
       if (mounted) {
-        _storeNameController.text = seller.storeName;
-        _descriptionController.text = seller.description ?? '';
-        _countryController.text = seller.country ?? '';
-        _shippingInfoController.text = seller.shippingInfo ?? '';
-        _paymentInfoController.text = seller.paymentInfo ?? '';
-        _existingLogo = seller.logo;
-        _existingBanner = seller.banner;
-        setState(() => _isLoading = false);
+        setState(() {
+          _seller = seller;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -74,267 +70,278 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     }
   }
 
-  Future<void> _pickLogo() async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() => _logoFile = File(image.path));
-    }
-  }
-
-  Future<void> _pickBanner() async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() => _bannerFile = File(image.path));
-    }
-  }
-
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSaving = true);
-
-    try {
-      String? logoUrl = _existingLogo;
-      String? bannerUrl = _existingBanner;
-
-      // Upload new logo if selected
-      if (_logoFile != null) {
-        final urls = await ref.read(storageServiceProvider).uploadFiles(
-          [_logoFile!],
-          'sellers/logos',
-        );
-        logoUrl = urls.first;
-      }
-
-      // Upload new banner if selected
-      if (_bannerFile != null) {
-        final urls = await ref.read(storageServiceProvider).uploadFiles(
-          [_bannerFile!],
-          'sellers/banners',
-        );
-        bannerUrl = urls.first;
-      }
-
-      // Update seller profile
-      await ref.read(sellerServiceProvider).updateSellerProfile({
-        'storeName': _storeNameController.text,
-        'description': _descriptionController.text,
-        'country': _countryController.text,
-        'shippingInfo': _shippingInfoController.text,
-        'paymentInfo': _paymentInfoController.text,
-        if (logoUrl != null) 'logo': logoUrl,
-        if (bannerUrl != null) 'banner': bannerUrl,
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    // Show error message if there's an error
     if (_error != null) {
-      return Center(
-        child: Text(
-          _error!,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.error,
+      return Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: colorScheme.error,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Error Loading Profile',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _loadSellerProfile,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text(
+                      'Retry',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
+    // Show profile screen if seller profile exists
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Store Profile'),
-      ),
-      body: Form(
-        key: _formKey,
+      body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(16),
           children: [
-            // Logo
-            AspectRatio(
-              aspectRatio: 1,
-              child: Card(
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: _pickLogo,
-                  child: _logoFile != null
-                      ? Image.file(
-                          _logoFile!,
-                          fit: BoxFit.cover,
-                        )
-                      : _existingLogo != null
-                          ? Image.network(
-                              _existingLogo!,
-                              fit: BoxFit.cover,
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_photo_alternate,
-                                  size: 48,
-                                  color: theme.colorScheme.primary,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Add Store Logo',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Banner
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Card(
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: _pickBanner,
-                  child: _bannerFile != null
-                      ? Image.file(
-                          _bannerFile!,
-                          fit: BoxFit.cover,
-                        )
-                      : _existingBanner != null
-                          ? Image.network(
-                              _existingBanner!,
-                              fit: BoxFit.cover,
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_photo_alternate,
-                                  size: 48,
-                                  color: theme.colorScheme.primary,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Add Store Banner',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Store Name
-            CustomTextField(
-              controller: _storeNameController,
-              label: 'Store Name',
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your store name';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Description
-            CustomTextField(
-              controller: _descriptionController,
-              label: 'Description',
-              maxLines: 5,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your store description';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Country
-            CustomTextField(
-              controller: _countryController,
-              label: 'Country',
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your country';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Shipping Info
-            CustomTextField(
-              controller: _shippingInfoController,
-              label: 'Shipping Information',
-              maxLines: 3,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your shipping information';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Payment Info
-            CustomTextField(
-              controller: _paymentInfoController,
-              label: 'Payment Information',
-              maxLines: 3,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your payment information';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Save Button
-            CustomButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              child: _isSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white,
+            // Profile Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: colorScheme.primary,
+                    backgroundImage: _seller?.logo != null
+                        ? NetworkImage(_seller!.logo!)
+                        : null,
+                    child: _seller?.logo == null
+                        ? Icon(
+                            Icons.store,
+                            size: 40,
+                            color: colorScheme.onPrimary,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _seller?.storeName ?? 'My Store',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _seller?.email ?? '',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  if (_sellerStatus != null && _sellerStatus != 'approved') ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _sellerStatus == 'pending'
+                            ? Colors.orange.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        _sellerStatus == 'pending'
+                            ? 'Pending Verification'
+                            : 'Not Verified',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: _sellerStatus == 'pending'
+                              ? Colors.orange
+                              : Colors.red,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    )
-                  : const Text('Save Changes'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Store Settings Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Store Settings',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.store),
+              title: 'Edit Store Profile',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.editProfile);
+              },
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: 'Shipping Information',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.shippingAddresses);
+              },
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.payment_outlined),
+              title: 'Payment Information',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.paymentMethods);
+              },
+            ),
+
+            // App Settings Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'App Settings',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.dark_mode_outlined),
+              title: 'Dark Mode',
+              trailing: Switch(
+                value: _darkMode,
+                onChanged: (value) {
+                  setState(() => _darkMode = value);
+                  // TODO: Implement theme switching
+                },
+              ),
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.notifications_outlined),
+              title: 'Notifications',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.notificationsSettings);
+              },
+            ),
+
+            // Legal Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Legal',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: 'Privacy Policy',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.privacyPolicy);
+              },
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: 'Terms & Conditions',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.termsConditions);
+              },
+            ),
+
+            // Logout Button
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Logout'),
+                      content: const Text('Are you sure you want to logout?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(
+                            'Logout',
+                            style: TextStyle(
+                              color: colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirmed == true) {
+                    await ref.read(authServiceProvider).signOut();
+                    if (mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        Routes.login,
+                        (route) => false,
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
           ],
         ),

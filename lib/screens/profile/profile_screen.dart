@@ -9,6 +9,8 @@ import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../buyer/become_seller_screen.dart';
 import '../../services/buyer_service.dart';
+import '../../widgets/common/custom_list_tile.dart';
+import '../../routes.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -28,6 +30,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isSaving = false;
   String? _error;
   MerchUser? _user;
+  bool _darkMode = false;
 
   @override
   void initState() {
@@ -108,51 +111,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _signOut() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await ref.read(authServiceProvider).signOut();
-      if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/login',
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
+    
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -173,123 +135,184 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            onPressed: _signOut,
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Personal Information',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        controller: _nameController,
-                        label: 'Name',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your name';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        controller: _emailController,
-                        label: 'Email',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your email';
-                          }
-                          if (!value.contains('@')) {
-                            return 'Please enter a valid email';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        controller: _phoneController,
-                        label: 'Phone',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your phone number';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
+      body: SafeArea(
+        child: ListView(
+          children: [
+            // Profile Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.pink,
+                    child: Icon(
+                      Icons.person,
+                      size: 40,
+                      color: Colors.white,
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _user!.name ?? '',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _user!.email,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Account Settings Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Account Settings',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Account Type',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.person_outline),
+              title: 'Edit Profile',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.editProfile);
+              },
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: 'Shipping Addresses',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.shippingAddresses);
+              },
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.payment_outlined),
+              title: 'Payment Methods',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.paymentMethods);
+              },
+            ),
+
+            // App Settings Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'App Settings',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.dark_mode_outlined),
+              title: 'Dark Mode',
+              trailing: Switch(
+                value: _darkMode,
+                onChanged: (value) {
+                  setState(() => _darkMode = value);
+                  // TODO: Implement theme switching
+                },
+              ),
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.notifications_outlined),
+              title: 'Notifications',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.notificationsSettings);
+              },
+            ),
+
+            // Legal Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Legal',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: 'Privacy Policy',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.privacyPolicy);
+              },
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: 'Terms & Conditions',
+              onTap: () {
+                Navigator.pushNamed(context, Routes.termsConditions);
+              },
+            ),
+
+            // Logout Button
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Logout'),
+                      content: const Text('Are you sure you want to logout?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _user!.isAdmin
-                            ? 'Admin'
-                            : (_user!.isSeller || _user!.sellerId != null)
-                                ? 'Seller'
-                                : 'Buyer',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      if (!_user!.isAdmin && !_user!.isSeller && _user!.sellerId == null) ...[
-                        const SizedBox(height: 16),
-                        CustomButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const BecomeSellerScreen(),
-                              ),
-                            );
-                          },
-                          text: 'Become a Seller',
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(
+                            'Logout',
+                            style: TextStyle(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
                         ),
                       ],
-                    ],
+                    ),
+                  );
+
+                  if (confirmed == true) {
+                    await ref.read(authServiceProvider).signOut();
+                    if (mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        Routes.login,
+                        (route) => false,
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              CustomButton(
-                onPressed: _isSaving ? null : _updateProfile,
-                text: _isSaving ? 'Updating...' : 'Update Profile',
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
