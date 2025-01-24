@@ -7,12 +7,15 @@ import '../../services/buyer_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import 'product_details_screen.dart';
 
-final productsProvider = FutureProvider.autoDispose
-    .family<List<Product>, Map<String, dynamic>>((ref, params) async {
+final productsProvider = StreamProvider.autoDispose
+    .family<List<Product>, Map<String, dynamic>>((ref, params) {
   final category = params['category'] as String?;
   final search = params['search'] as String?;
   final sortBy = params['sortBy'] as String?;
-  return ref.read(buyerServiceProvider).getProducts(
+  
+  ref.keepAlive();
+  
+  return ref.read(buyerServiceProvider).getProductsStream(
         category: category,
         search: search,
         sortBy: sortBy,
@@ -31,6 +34,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   String? _selectedCategory;
   String? _selectedSortBy;
   Timer? _searchDebounce;
+  bool _isLoading = true;
+  List<Product> _products = [];
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProducts();
+  }
 
   @override
   void dispose() {
@@ -42,22 +54,49 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 500), () {
-      setState(() {});
+      _loadProducts();
     });
+  }
+
+  Future<void> _loadProducts() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final products = await ref.read(buyerServiceProvider).getProducts(
+        category: _selectedCategory,
+        search: _searchController.text.isEmpty ? null : _searchController.text,
+        sortBy: _selectedSortBy,
+      );
+
+      if (mounted) {
+        setState(() {
+          _products = products;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final products = ref.watch(productsProvider({
-      'category': _selectedCategory,
-      'search': _searchController.text,
-      'sortBy': _selectedSortBy,
-    }));
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Shop'),
         actions: [
+          IconButton(
+            onPressed: _loadProducts,
+            icon: const Icon(Icons.refresh),
+          ),
           IconButton(
             onPressed: () {
               // TODO: Navigate to cart screen
@@ -90,6 +129,29 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           setState(() {
                             _selectedCategory = null;
                           });
+                          _loadProducts();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _FilterChip(
+                        label: 'Clothing',
+                        selected: _selectedCategory == 'clothing',
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedCategory = selected ? 'clothing' : null;
+                          });
+                          _loadProducts();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _FilterChip(
+                        label: 'Accessories',
+                        selected: _selectedCategory == 'accessories',
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedCategory = selected ? 'accessories' : null;
+                          });
+                          _loadProducts();
                         },
                       ),
                       const SizedBox(width: 8),
@@ -98,19 +160,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                         selected: _selectedCategory == 'electronics',
                         onSelected: (selected) {
                           setState(() {
-                            _selectedCategory =
-                                selected ? 'electronics' : null;
+                            _selectedCategory = selected ? 'electronics' : null;
                           });
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Fashion',
-                        selected: _selectedCategory == 'fashion',
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCategory = selected ? 'fashion' : null;
-                          });
+                          _loadProducts();
                         },
                       ),
                       const SizedBox(width: 8),
@@ -121,26 +173,29 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           setState(() {
                             _selectedCategory = selected ? 'home' : null;
                           });
+                          _loadProducts();
                         },
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Beauty',
-                        selected: _selectedCategory == 'beauty',
+                        label: 'Art',
+                        selected: _selectedCategory == 'art',
                         onSelected: (selected) {
                           setState(() {
-                            _selectedCategory = selected ? 'beauty' : null;
+                            _selectedCategory = selected ? 'art' : null;
                           });
+                          _loadProducts();
                         },
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Sports',
-                        selected: _selectedCategory == 'sports',
+                        label: 'Collectibles',
+                        selected: _selectedCategory == 'collectibles',
                         onSelected: (selected) {
                           setState(() {
-                            _selectedCategory = selected ? 'sports' : null;
+                            _selectedCategory = selected ? 'collectibles' : null;
                           });
+                          _loadProducts();
                         },
                       ),
                     ],
@@ -158,6 +213,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           setState(() {
                             _selectedSortBy = null;
                           });
+                          _loadProducts();
                         },
                       ),
                       const SizedBox(width: 8),
@@ -168,6 +224,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           setState(() {
                             _selectedSortBy = selected ? 'price_asc' : null;
                           });
+                          _loadProducts();
                         },
                       ),
                       const SizedBox(width: 8),
@@ -178,6 +235,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           setState(() {
                             _selectedSortBy = selected ? 'price_desc' : null;
                           });
+                          _loadProducts();
                         },
                       ),
                       const SizedBox(width: 8),
@@ -188,6 +246,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           setState(() {
                             _selectedSortBy = selected ? 'popularity' : null;
                           });
+                          _loadProducts();
                         },
                       ),
                     ],
@@ -197,80 +256,79 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             ),
           ),
           Expanded(
-            child: products.when(
-              data: (data) {
-                if (data.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.search_off_outlined,
-                          size: 64,
-                          color: Colors.grey,
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading products',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _error!,
+                              style: Theme.of(context).textTheme.bodySmall,
+                              textAlign: TextAlign.center,
+                            ),
+                            TextButton(
+                              onPressed: _loadProducts,
+                              child: const Text('Retry'),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No products found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey,
+                      )
+                    : _products.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shopping_bag_outlined,
+                                  size: 64,
+                                  color: Theme.of(context).disabledColor,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No products found',
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                ),
+                                if (_selectedCategory != null || _searchController.text.isNotEmpty)
+                                  TextButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedCategory = null;
+                                        _searchController.clear();
+                                      });
+                                      _loadProducts();
+                                    },
+                                    child: const Text('Clear filters'),
+                                  ),
+                              ],
+                            ),
+                          )
+                        : GridView.builder(
+                            padding: const EdgeInsets.all(12),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.75,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
+                            itemCount: _products.length,
+                            itemBuilder: (context, index) {
+                              final product = _products[index];
+                              return _ProductCard(product: product);
+                            },
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: data.length,
-                  itemBuilder: (context, index) {
-                    final product = data[index];
-                    return _ProductCard(
-                      product: product,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                ProductDetailsScreen(product: product),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (error, stackTrace) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Error: $error',
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        ref.invalidate(productsProvider);
-                      },
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -307,70 +365,125 @@ class _FilterChip extends StatelessWidget {
 
 class _ProductCard extends StatelessWidget {
   final Product product;
-  final VoidCallback onTap;
 
   const _ProductCard({
     required this.product,
-    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Card(
+      elevation: 2,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductDetailsScreen(product: product),
+            ),
+          );
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: CachedNetworkImage(
-                imageUrl: product.images.first,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: CircularProgressIndicator(),
+            Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: CachedNetworkImage(
+                    imageUrl: product.images.first,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.error),
+                    ),
                   ),
                 ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.error),
-                ),
-              ),
+                if (product.hasDiscount)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.error,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '-${product.discountPercent.toInt()}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     product.name,
-                    style: const TextStyle(
+                    style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     'by ${product.sellerName}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '\$${product.price.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 4),
+                  if (product.discountedPrice != null) ...[
+                    Text(
+                      '₵${product.discountedPrice?.toStringAsFixed(2)}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '₵${product.price.toStringAsFixed(2)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        decoration: TextDecoration.lineThrough,
+                        color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                      ),
+                    ),
+                  ] else
+                    Text(
+                      '₵${product.price.toStringAsFixed(2)}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                 ],
               ),
             ),

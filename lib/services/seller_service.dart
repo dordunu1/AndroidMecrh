@@ -470,9 +470,20 @@ class SellerService {
 
   Future<void> createProduct(Product product) async {
     try {
+      // Get seller profile to get the store name
+      final seller = await getSellerProfile();
+      
+      // Extract main category from subCategory if category is empty
+      String category = product.category;
+      if (category.isEmpty && product.subCategory != null) {
+        category = product.subCategory!.split(' - ').first.toLowerCase();
+      }
+      
       final docRef = await _firestore.collection('products').add({
         ...product.toMap(),
         'sellerId': _auth.currentUser!.uid,
+        'sellerName': seller.storeName,
+        'category': category,
         'createdAt': DateTime.now().toIso8601String(),
       });
 

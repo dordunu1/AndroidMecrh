@@ -137,20 +137,6 @@ class RecentOrdersList extends StatelessWidget {
                                 order.sellerName,
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
-                              if (order.sellerFlag != null) ...[
-                                const SizedBox(width: 4),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(2),
-                                  child: CachedNetworkImage(
-                                    imageUrl: order.sellerFlag!,
-                                    width: 16,
-                                    height: 12,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (context, url, error) =>
-                                        const SizedBox(),
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ],

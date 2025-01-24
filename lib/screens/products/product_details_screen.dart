@@ -171,29 +171,6 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                               widget.product.sellerName,
                               style: theme.textTheme.titleMedium,
                             ),
-                            if (widget.product.sellerFlag != null)
-                              Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(2),
-                                    child: CachedNetworkImage(
-                                      imageUrl: widget.product.sellerFlag!,
-                                      width: 16,
-                                      height: 12,
-                                      fit: BoxFit.cover,
-                                      errorWidget: (context, url, error) =>
-                                          const SizedBox(),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'International Seller',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.outline,
-                                    ),
-                                  ),
-                                ],
-                              ),
                           ],
                         ),
                       ),

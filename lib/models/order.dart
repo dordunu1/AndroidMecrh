@@ -52,7 +52,6 @@ class Order {
 
   // Additional getters for compatibility
   String get flag => status;
-  String get sellerFlag => status;
 
   factory Order.fromMap(Map<String, dynamic> map, String id) {
     return Order(

@@ -25,8 +25,8 @@ class Product {
   final String? discountEndsAt;
   final double? discountedPrice;
   final int soldCount;
-
-  int get stock => stockQuantity;
+  final double rating;
+  final int reviewCount;
 
   Product({
     required this.id,
@@ -53,6 +53,8 @@ class Product {
     this.discountEndsAt,
     this.discountedPrice,
     this.soldCount = 0,
+    this.rating = 0.0,
+    this.reviewCount = 0,
   });
 
   factory Product.fromMap(Map<String, dynamic> map, String id) {
@@ -89,6 +91,8 @@ class Product {
       discountEndsAt: getTimestampString(map['discountEndsAt']),
       discountedPrice: (map['discountedPrice'] ?? 0.0).toDouble(),
       soldCount: map['soldCount'] ?? 0,
+      rating: (map['rating'] ?? 0.0).toDouble(),
+      reviewCount: map['reviewCount'] ?? 0,
     );
   }
 
@@ -117,6 +121,8 @@ class Product {
       'discountEndsAt': discountEndsAt,
       'discountedPrice': discountedPrice,
       'soldCount': soldCount,
+      'rating': rating,
+      'reviewCount': reviewCount,
     };
   }
 
@@ -145,6 +151,8 @@ class Product {
     String? discountEndsAt,
     double? discountedPrice,
     int? soldCount,
+    double? rating,
+    int? reviewCount,
   }) {
     return Product(
       id: id ?? this.id,
@@ -171,6 +179,8 @@ class Product {
       discountEndsAt: discountEndsAt ?? this.discountEndsAt,
       discountedPrice: discountedPrice ?? this.discountedPrice,
       soldCount: soldCount ?? this.soldCount,
+      rating: rating ?? this.rating,
+      reviewCount: reviewCount ?? this.reviewCount,
     );
   }
 } 

@@ -61,19 +61,6 @@ class TopSellersList extends StatelessWidget {
                         seller['name'] ?? 'Unknown Store',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      if (seller['flag'] != null) ...[
-                        const SizedBox(width: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: CachedNetworkImage(
-                            imageUrl: seller['flag'],
-                            width: 16,
-                            height: 12,
-                            fit: BoxFit.cover,
-                            errorWidget: (context, url, error) => const SizedBox(),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                   Text(

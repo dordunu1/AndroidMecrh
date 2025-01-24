@@ -58,7 +58,7 @@ class BuyerService {
       final product = Product.fromMap(productDoc.data()!, productDoc.id);
 
       if (!product.isActive) throw Exception('Product is not available');
-      if (quantity > product.stock) throw Exception('Not enough stock');
+      if (quantity > product.stockQuantity) throw Exception('Not enough stock');
 
       final cartRef = _firestore.collection('carts').doc(user.uid);
       final cartDoc = await cartRef.get();
@@ -77,7 +77,7 @@ class BuyerService {
         if (existingItemIndex != -1) {
           final existingQuantity = items[existingItemIndex]['quantity'] as int;
           final newQuantity = existingQuantity + quantity;
-          if (newQuantity > product.stock) throw Exception('Not enough stock');
+          if (newQuantity > product.stockQuantity) throw Exception('Not enough stock');
           items[existingItemIndex]['quantity'] = newQuantity;
         } else {
           items.add({
@@ -108,7 +108,7 @@ class BuyerService {
 
       final product = Product.fromMap(productDoc.data()!, productDoc.id);
 
-      if (quantity > product.stock) throw Exception('Not enough stock');
+      if (quantity > product.stockQuantity) throw Exception('Not enough stock');
 
       final cartRef = _firestore.collection('carts').doc(user.uid);
       final cartDoc = await cartRef.get();
@@ -557,13 +557,92 @@ class BuyerService {
     String? search,
     String? sortBy,
   }) async {
-    var query = _firestore.collection('products')
-      .where('isActive', isEqualTo: true);
+    try {
+      print('BuyerService.getProducts called with:');
+      print('  category: $category');
+      print('  search: $search');
+      print('  sortBy: $sortBy');
 
-    if (category != null && category.isNotEmpty) {
-      query = query.where('category', isEqualTo: category);
+      var query = _firestore.collection('products')
+          .where('isActive', isEqualTo: true);
+
+      // Add sorting
+      if (sortBy != null) {
+        switch (sortBy) {
+          case 'price_asc':
+            query = query.orderBy('price', descending: false);
+            break;
+          case 'price_desc':
+            query = query.orderBy('price', descending: true);
+            break;
+          case 'newest':
+            query = query.orderBy('createdAt', descending: true);
+            break;
+          default:
+            query = query.orderBy('createdAt', descending: true);
+        }
+      } else {
+        query = query.orderBy('createdAt', descending: true);
+      }
+
+      print('Executing Firestore query...');
+      final snapshot = await query.get();
+      print('Query returned ${snapshot.docs.length} documents');
+
+      final allProducts = snapshot.docs
+          .map((doc) => Product.fromMap(doc.data(), doc.id))
+          .toList();
+      
+      print('Converted to ${allProducts.length} Product objects');
+      print('Products before filtering:');
+      for (var product in allProducts) {
+        print('  - ${product.name} (category: ${product.category}, stock: ${product.stockQuantity})');
+      }
+
+      // Filter products by category (case-insensitive) and stock
+      final products = allProducts
+          .where((product) => 
+            product.stockQuantity > 0 && 
+            (category == null || 
+             category.isEmpty || 
+             product.category.toLowerCase() == category.toLowerCase()))
+          .toList();
+
+      print('After filtering:');
+      print('  - ${products.length} products remaining');
+      for (var product in products) {
+        print('  - ${product.name} (category: ${product.category}, stock: ${product.stockQuantity})');
+      }
+
+      if (search != null && search.isNotEmpty) {
+        final searchLower = search.toLowerCase();
+        return products.where((product) =>
+          product.name.toLowerCase().contains(searchLower) ||
+          product.description.toLowerCase().contains(searchLower)
+        ).toList();
+      }
+
+      return products;
+    } catch (e) {
+      print('Error in getProducts: $e');
+      throw Exception('Failed to fetch products: $e');
     }
+  }
 
+  Stream<List<Product>> getProductsStream({
+    String? category,
+    String? search,
+    String? sortBy,
+  }) {
+    print('BuyerService.getProductsStream called with:');
+    print('  category: $category');
+    print('  search: $search');
+    print('  sortBy: $sortBy');
+
+    var query = _firestore.collection('products')
+        .where('isActive', isEqualTo: true);
+
+    // Add sorting
     if (sortBy != null) {
       switch (sortBy) {
         case 'price_asc':
@@ -582,20 +661,45 @@ class BuyerService {
       query = query.orderBy('createdAt', descending: true);
     }
 
-    final snapshot = await query.get();
-    final products = snapshot.docs.map((doc) {
-      return Product.fromMap(doc.data(), doc.id);
-    }).toList();
+    print('Starting Firestore stream...');
+    return query.snapshots().map((snapshot) {
+      print('Stream received ${snapshot.docs.length} documents');
 
-    if (search != null && search.isNotEmpty) {
-      final searchLower = search.toLowerCase();
-      return products.where((product) =>
-        product.name.toLowerCase().contains(searchLower) ||
-        product.description.toLowerCase().contains(searchLower)
-      ).toList();
-    }
+      final allProducts = snapshot.docs
+          .map((doc) => Product.fromMap(doc.data(), doc.id))
+          .toList();
+      
+      print('Converted to ${allProducts.length} Product objects');
+      print('Products before filtering:');
+      for (var product in allProducts) {
+        print('  - ${product.name} (category: ${product.category}, stock: ${product.stockQuantity})');
+      }
 
-    return products;
+      // Filter products by category (case-insensitive) and stock
+      final products = allProducts
+          .where((product) => 
+            product.stockQuantity > 0 && 
+            (category == null || 
+             category.isEmpty || 
+             product.category.toLowerCase() == category.toLowerCase()))
+          .toList();
+
+      print('After filtering:');
+      print('  - ${products.length} products remaining');
+      for (var product in products) {
+        print('  - ${product.name} (category: ${product.category}, stock: ${product.stockQuantity})');
+      }
+
+      if (search != null && search.isNotEmpty) {
+        final searchLower = search.toLowerCase();
+        return products.where((product) =>
+          product.name.toLowerCase().contains(searchLower) ||
+          product.description.toLowerCase().contains(searchLower)
+        ).toList();
+      }
+
+      return products;
+    });
   }
 
   Future<Product> getProduct(String productId) async {

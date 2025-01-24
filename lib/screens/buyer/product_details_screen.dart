@@ -170,7 +170,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                       ),
                       const SizedBox(width: 16),
                       Text(
-                        '${widget.product.stock} in stock',
+                        '${widget.product.stockQuantity} in stock',
                         style: TextStyle(
                           color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
@@ -231,7 +231,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                               ),
                             ),
                             IconButton(
-                              onPressed: _quantity < widget.product.stock
+                              onPressed: _quantity < widget.product.stockQuantity
                                   ? () {
                                       setState(() {
                                         _quantity++;
