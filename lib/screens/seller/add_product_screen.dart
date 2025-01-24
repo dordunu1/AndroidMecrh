@@ -632,7 +632,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                             decoration: const InputDecoration(
                               labelText: 'Price',
                               border: OutlineInputBorder(),
-                              prefixText: '\$',
+                              prefixText: 'GH₵',
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -768,7 +768,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                 children: [
                                   const Text('Original Price:'),
                                   Text(
-                                    '\$${double.parse(_priceController.text)}',
+                                    'GH₵${double.parse(_priceController.text)}',
                                     style: const TextStyle(
                                       decoration: TextDecoration.lineThrough,
                                     ),
@@ -784,7 +784,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                     style: TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                   Text(
-                                    '\$${(double.parse(_priceController.text) * (1 - _discountPercent / 100)).toStringAsFixed(2)}',
+                                    'GH₵${(double.parse(_priceController.text) * (1 - _discountPercent / 100)).toStringAsFixed(2)}',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Theme.of(context).colorScheme.primary,
@@ -821,9 +821,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                       initialValue: _shippingFee.toString(),
                       enabled: false,
                       decoration: const InputDecoration(
-                        labelText: 'Shipping Fee (USD)',
+                        labelText: 'Shipping Fee (GHS)',
                         border: OutlineInputBorder(),
-                        prefixText: '\$',
+                        prefixText: 'GH₵',
                       ),
                     ),
                     const SizedBox(height: 8),

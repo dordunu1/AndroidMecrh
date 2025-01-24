@@ -651,4 +651,14 @@ class SellerService {
     if (sellerDoc.docs.isEmpty) return null;
     return MerchUser.fromMap(sellerDoc.docs.first.data(), sellerDoc.docs.first.id);
   }
+
+  Future<Product> getProduct(String productId) async {
+    try {
+      final doc = await _firestore.collection('products').doc(productId).get();
+      if (!doc.exists) throw Exception('Product not found');
+      return Product.fromMap(doc.data()!, doc.id);
+    } catch (e) {
+      throw Exception('Failed to get product: $e');
+    }
+  }
 } 

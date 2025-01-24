@@ -149,7 +149,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => EditProductScreen(product: product),
+        builder: (context) => EditProductScreen(productId: product.id),
       ),
     );
 
