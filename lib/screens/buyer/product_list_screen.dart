@@ -165,90 +165,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           _loadProducts();
                         },
                       ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Home',
-                        selected: _selectedCategory == 'home',
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCategory = selected ? 'home' : null;
-                          });
-                          _loadProducts();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Art',
-                        selected: _selectedCategory == 'art',
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCategory = selected ? 'art' : null;
-                          });
-                          _loadProducts();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Collectibles',
-                        selected: _selectedCategory == 'collectibles',
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCategory = selected ? 'collectibles' : null;
-                          });
-                          _loadProducts();
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'Latest',
-                        selected: _selectedSortBy == null,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedSortBy = null;
-                          });
-                          _loadProducts();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Price: Low to High',
-                        selected: _selectedSortBy == 'price_asc',
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedSortBy = selected ? 'price_asc' : null;
-                          });
-                          _loadProducts();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Price: High to Low',
-                        selected: _selectedSortBy == 'price_desc',
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedSortBy = selected ? 'price_desc' : null;
-                          });
-                          _loadProducts();
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Most Popular',
-                        selected: _selectedSortBy == 'popularity',
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedSortBy = selected ? 'popularity' : null;
-                          });
-                          _loadProducts();
-                        },
-                      ),
                     ],
                   ),
                 ),
@@ -263,12 +179,6 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                            const SizedBox(height: 16),
                             Text(
                               'Error loading products',
                               style: Theme.of(context).textTheme.titleMedium,
@@ -319,7 +229,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                             padding: const EdgeInsets.all(12),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
-                              childAspectRatio: 0.75,
+                              childAspectRatio: 0.65,
                               crossAxisSpacing: 12,
                               mainAxisSpacing: 12,
                             ),
@@ -436,55 +346,55 @@ class _ProductCard extends StatelessWidget {
                   ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    product.name,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'by ${product.sellerName}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  if (product.discountedPrice != null) ...[
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      '₵${product.discountedPrice?.toStringAsFixed(2)}',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: theme.colorScheme.primary,
+                      product.name,
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
-                      '₵${product.price.toStringAsFixed(2)}',
+                      'by ${product.sellerName}',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        decoration: TextDecoration.lineThrough,
                         color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ] else
-                    Text(
-                      '₵${product.price.toStringAsFixed(2)}',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
+                    const Spacer(),
+                    if (product.hasDiscount) ...[
+                      Text(
+                        'GH₵${product.discountedPrice?.toStringAsFixed(2)}',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                ],
+                      Text(
+                        'GH₵${product.price.toStringAsFixed(2)}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                        ),
+                      ),
+                    ] else
+                      Text(
+                        'GH₵${product.price.toStringAsFixed(2)}',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],

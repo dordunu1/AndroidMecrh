@@ -7,68 +7,94 @@ class ProductGridItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   const ProductGridItem({
-    super.key,
+    Key? key,
     required this.product,
     this.onTap,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final discountedPrice = product.hasDiscount && product.discountPercent > 0
+        ? product.price * (1 - product.discountPercent / 100)
+        : null;
 
     return Card(
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
-      onTap: onTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            // Product Image
-              AspectRatio(
-                aspectRatio: 1,
-                  child: CachedNetworkImage(
-                    imageUrl: product.images.first,
-                    fit: BoxFit.cover,
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: CachedNetworkImage(
+                imageUrl: product.images.first,
+                fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
-                  color: theme.colorScheme.surfaceVariant,
-                  child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                  color: Colors.grey[200],
                 ),
                 errorWidget: (context, url, error) => Container(
-                  color: theme.colorScheme.surfaceVariant,
+                  color: Colors.grey[200],
                   child: const Icon(Icons.error),
-                  ),
                 ),
               ),
-
-            Padding(
-              padding: const EdgeInsets.all(8.0),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                  // Product Name
                     Text(
                       product.name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall,
                     ),
-                    const SizedBox(height: 4),
-
-                  // Price
-                    Text(
-                    '\$${product.price.toStringAsFixed(2)}',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (discountedPrice != null) ...[
+                          Text(
+                            '\$${discountedPrice.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '\$${product.price.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              decoration: TextDecoration.lineThrough,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ] else
+                          Text(
+                            '\$${product.price.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                      ],
                     ),
-                  const SizedBox(height: 4),
                   ],
                 ),
               ),
-            ],
+            ),
+          ],
         ),
       ),
     );
