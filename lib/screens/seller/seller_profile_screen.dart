@@ -10,6 +10,7 @@ import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/custom_list_tile.dart';
 import '../../routes.dart';
+import '../../providers/theme_provider.dart';
 
 class SellerProfileScreen extends ConsumerStatefulWidget {
   const SellerProfileScreen({super.key});
@@ -20,7 +21,6 @@ class SellerProfileScreen extends ConsumerStatefulWidget {
 
 class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
   bool _isLoading = true;
-  bool _darkMode = false;
   String? _error;
   Seller? _seller;
   String? _sellerStatus;
@@ -74,6 +74,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = ref.watch(themeProvider) == ThemeMode.dark;
 
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -222,6 +223,14 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
             CustomListTile(
               leading: const Icon(Icons.location_on_outlined),
               title: 'Shipping Information',
+              subtitle: Text(
+                _seller?.shippingInfo ?? 'Not set',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
               onTap: () {
                 Navigator.pushNamed(context, Routes.shippingAddresses);
               },
@@ -229,6 +238,14 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
             CustomListTile(
               leading: const Icon(Icons.payment_outlined),
               title: 'Payment Information',
+              subtitle: Text(
+                _seller?.paymentInfo ?? 'Not set',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
               onTap: () {
                 Navigator.pushNamed(context, Routes.paymentMethods);
               },
@@ -246,13 +263,16 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
               ),
             ),
             CustomListTile(
-              leading: const Icon(Icons.dark_mode_outlined),
+              leading: Icon(
+                isDark ? Icons.dark_mode : Icons.light_mode,
+              ),
               title: 'Dark Mode',
               trailing: Switch(
-                value: _darkMode,
+                value: isDark,
                 onChanged: (value) {
-                  setState(() => _darkMode = value);
-                  // TODO: Implement theme switching
+                  ref
+                      .read(themeProvider.notifier)
+                      .setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
                 },
               ),
             ),

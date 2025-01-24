@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class CustomListTile extends StatelessWidget {
   final Widget leading;
   final String title;
+  final Widget? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -10,6 +11,7 @@ class CustomListTile extends StatelessWidget {
     super.key,
     required this.leading,
     required this.title,
+    this.subtitle,
     this.trailing,
     this.onTap,
   });
@@ -35,11 +37,25 @@ class CustomListTile extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      DefaultTextStyle(
+                        style: theme.textTheme.bodyMedium!.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        child: subtitle!,
+                      ),
+                    ],
+                  ],
                 ),
               ),
               if (trailing != null) ...[
