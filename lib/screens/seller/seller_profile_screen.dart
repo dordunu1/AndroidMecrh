@@ -205,8 +205,9 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
             CustomListTile(
               leading: const Icon(Icons.store),
               title: 'Edit Store Profile',
-              onTap: () {
-                Navigator.pushNamed(context, Routes.editProfile);
+              onTap: () async {
+                await Navigator.pushNamed(context, Routes.editProfile);
+                _loadSellerProfile(); // Refresh profile when returning
               },
             ),
             CustomListTile(
@@ -220,9 +221,6 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
                   color: colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
-              onTap: () {
-                Navigator.pushNamed(context, Routes.shippingAddresses);
-              },
             ),
             CustomListTile(
               leading: const Icon(Icons.payment_outlined),
@@ -235,9 +233,6 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
                   color: colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
-              onTap: () {
-                Navigator.pushNamed(context, Routes.paymentMethods);
-              },
             ),
 
             // App Settings Section

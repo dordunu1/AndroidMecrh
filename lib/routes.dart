@@ -8,8 +8,6 @@ import 'screens/admin/admin_navigation_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/buyer/become_seller_screen.dart';
 import 'screens/seller/edit_profile_screen.dart';
-import 'screens/profile/shipping_addresses_screen.dart';
-import 'screens/profile/payment_methods_screen.dart';
 import 'screens/profile/notifications_settings_screen.dart';
 import 'screens/profile/privacy_policy_screen.dart';
 import 'screens/profile/terms_conditions_screen.dart';
@@ -24,8 +22,6 @@ class Routes {
   static const String adminHome = '/admin-home';
   static const String becomeSeller = '/become-seller';
   static const String editProfile = '/edit-profile';
-  static const String shippingAddresses = '/shipping-addresses';
-  static const String paymentMethods = '/payment-methods';
   static const String notificationsSettings = '/notifications-settings';
   static const String privacyPolicy = '/privacy-policy';
   static const String termsConditions = '/terms-conditions';
@@ -41,8 +37,6 @@ class Routes {
       adminHome: (context) => const AdminNavigationScreen(),
       becomeSeller: (context) => const BecomeSellerScreen(),
       editProfile: (context) => const EditProfileScreen(),
-      shippingAddresses: (context) => const ShippingAddressesScreen(),
-      paymentMethods: (context) => const PaymentMethodsScreen(),
       notificationsSettings: (context) => const NotificationsSettingsScreen(),
       privacyPolicy: (context) => const PrivacyPolicyScreen(),
       termsConditions: (context) => const TermsConditionsScreen(),

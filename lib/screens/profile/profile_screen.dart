@@ -192,14 +192,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               leading: const Icon(Icons.location_on_outlined),
               title: 'Shipping Addresses',
               onTap: () {
-                Navigator.pushNamed(context, Routes.shippingAddresses);
+                Navigator.pushNamed(context, Routes.editProfile);
               },
             ),
             CustomListTile(
               leading: const Icon(Icons.payment_outlined),
               title: 'Payment Methods',
               onTap: () {
-                Navigator.pushNamed(context, Routes.paymentMethods);
+                Navigator.pushNamed(context, Routes.editProfile);
               },
             ),
 
