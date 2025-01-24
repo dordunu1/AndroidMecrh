@@ -102,105 +102,44 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                               child: const Icon(Icons.image_not_supported, size: 64),
                             )
                           else
-                            CachedNetworkImage(
-                              imageUrl: widget.product.images[index],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              placeholder: (context, url) => Container(
-                                color: Colors.grey[300],
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.error),
-                              ),
-                            ),
-                          if (widget.product.hasDiscount)
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    colors: [
-                                      Color(0xFFFF1F8A),
-                                      Color(0xCCFF1F8A),
-                                      Color(0x00FF1F8A),
-                                    ],
-                                    stops: [0.0, 0.5, 1.0],
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                'GHS ${discountedPrice?.toStringAsFixed(2)}',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 24,
-                                                  height: 1,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'GHS ${widget.product.price.toStringAsFixed(2)}',
-                                                style: const TextStyle(
-                                                  color: Colors.white70,
-                                                  decoration: TextDecoration.lineThrough,
-                                                  fontSize: 14,
-                                                  height: 1,
-                                                ),
-                                              ),
-                                            ],
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => Scaffold(
+                                      backgroundColor: Colors.black,
+                                      appBar: AppBar(
+                                        backgroundColor: Colors.black,
+                                        iconTheme: const IconThemeData(color: Colors.white),
+                                      ),
+                                      body: Center(
+                                        child: InteractiveViewer(
+                                          minScale: 0.5,
+                                          maxScale: 4.0,
+                                          child: CachedNetworkImage(
+                                            imageUrl: widget.product.images[index],
+                                            fit: BoxFit.contain,
                                           ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Save GHS ${(widget.product.price - (discountedPrice ?? 0)).toStringAsFixed(2)}',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              height: 1,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        '-${widget.product.discountPercent.toStringAsFixed(0)}%',
-                                        style: const TextStyle(
-                                          color: Color(0xFFFF1F8A),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          height: 1,
                                         ),
                                       ),
                                     ),
-                                  ],
+                                  ),
+                                );
+                              },
+                              child: CachedNetworkImage(
+                                imageUrl: widget.product.images[index],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey[300],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.error),
                                 ),
                               ),
                             ),
@@ -278,28 +217,86 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                       const SizedBox(height: 16),
 
                       // Price Section
-                      if (widget.product.hasDiscount) ...[
-                        Text(
-                          'GHS ${discountedPrice?.toStringAsFixed(2)}',
-                          style: theme.textTheme.headlineSmall?.copyWith(
+                      if (widget.product.hasDiscount)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
                             color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'GHS ${widget.product.price.toStringAsFixed(2)}',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      ] else
-                        Text(
-                          'GHS ${widget.product.price.toStringAsFixed(2)}',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                                        textBaseline: TextBaseline.alphabetic,
+                                        children: [
+                                          Text(
+                                            'GHS ${discountedPrice?.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'GHS ${widget.product.price.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              decoration: TextDecoration.lineThrough,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Save GHS ${(widget.product.price - (discountedPrice ?? 0)).toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.timer_outlined,
+                                          color: Color(0xFFE91E63),
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Ends: Feb 1, 07:59 GMT',
+                                          style: TextStyle(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       const SizedBox(height: 8),
