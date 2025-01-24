@@ -153,18 +153,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  const CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.pink,
-                    child: Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.white,
+                  GestureDetector(
+                    onTap: _pickPhoto,
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.pink,
+                      backgroundImage: _user?.photoUrl != null
+                          ? NetworkImage(_user!.photoUrl!)
+                          : null,
+                      child: _user?.photoUrl == null
+                          ? const Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.white,
+                            )
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _user!.name ?? '',
+                    _user!.name ?? 'No name set',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -194,17 +202,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             CustomListTile(
               leading: const Icon(Icons.person_outline),
               title: 'Edit Profile',
-              onTap: () {
-                Navigator.pushNamed(context, Routes.editProfile);
+              onTap: () async {
+                await Navigator.pushNamed(context, Routes.editProfile);
+                _loadUser(); // Refresh profile after returning
               },
             ),
             CustomListTile(
               leading: const Icon(Icons.location_on_outlined),
               title: 'Shipping Address',
               subtitle: Text(
-                _user?.address != null 
-                  ? '${_user?.address}, ${_user?.city}, ${_user?.state}, ${_user?.country}' 
-                  : 'No shipping address set'
+                _user?.address != null && _user?.city != null
+                    ? '${_user?.address}, ${_user?.city}${_user?.state != null ? ', ${_user?.state}' : ''}${_user?.country != null ? ', ${_user?.country}' : ''}${_user?.zip != null ? ' ${_user?.zip}' : ''}'
+                    : 'No shipping address set',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             CustomListTile(
