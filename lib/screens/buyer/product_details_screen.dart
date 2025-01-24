@@ -10,6 +10,7 @@ import '../../widgets/common/custom_button.dart';
 import '../../models/user.dart';
 import '../../services/auth_service.dart';
 import 'cart_screen.dart';
+import '../../services/seller_service.dart';
 
 class ProductDetailsScreen extends ConsumerStatefulWidget {
   final Product product;
@@ -36,6 +37,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   List<Review>? _reviews;
   MerchUser? _currentUser;
   bool _isLoadingMore = false;
+  String? _sellerCity;
 
   @override
   void initState() {
@@ -45,8 +47,15 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
 
   Future<void> _loadInitialData() async {
     try {
+      // Load current user
       final user = await ref.read(authServiceProvider).getCurrentUser();
       setState(() => _currentUser = user);
+      
+      // Load seller info from sellers collection
+      final seller = await ref.read(sellerServiceProvider).getSellerProfileById(widget.product.sellerId);
+      if (seller != null) {
+        setState(() => _sellerCity = seller.city);
+      }
       
       // Load seller's other products
       final products = await ref.read(productServiceProvider).getProducts(
@@ -66,8 +75,12 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   double _calculateDeliveryFee() {
     if (_currentUser == null) return 70.0; // Default to higher fee if user not loaded
     
-    final buyerCity = _currentUser!.city?.toLowerCase() ?? '';
-    final sellerCity = widget.product.sellerCity?.toLowerCase() ?? '';
+    final buyerCity = _currentUser!.city?.trim().toLowerCase() ?? '';
+    final sellerCity = _sellerCity?.trim().toLowerCase() ?? '';
+    
+    print('Calculating delivery fee:');
+    print('Buyer city: $buyerCity');
+    print('Seller city: $sellerCity');
     
     if (buyerCity == 'kumasi' && sellerCity == 'kumasi') {
       return 50.0;
@@ -458,10 +471,21 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  if (_currentUser?.city != null)
-                                    Text(
-                                      'Delivering to ${_currentUser!.city}',
-                                      style: theme.textTheme.bodySmall,
+                                  if (_currentUser?.city != null || _sellerCity != null)
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (_currentUser?.city != null)
+                                          Text(
+                                            'Delivering to: ${_currentUser!.city}',
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                        if (_sellerCity != null)
+                                          Text(
+                                            'Shipping from: $_sellerCity',
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                      ],
                                     ),
                                 ],
                               ),

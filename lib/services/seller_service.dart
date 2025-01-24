@@ -682,4 +682,15 @@ class SellerService {
       throw Exception('Failed to get product: $e');
     }
   }
+
+  Future<Seller?> getSellerProfileById(String sellerId) async {
+    try {
+      final doc = await _firestore.collection('sellers').doc(sellerId).get();
+      if (!doc.exists) return null;
+      return Seller.fromMap(doc.data()!, doc.id);
+    } catch (e) {
+      print('Failed to get seller profile: $e');
+      return null;
+    }
+  }
 } 
