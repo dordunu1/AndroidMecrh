@@ -11,6 +11,7 @@ import '../buyer/become_seller_screen.dart';
 import '../../services/buyer_service.dart';
 import '../../widgets/common/custom_list_tile.dart';
 import '../../routes.dart';
+import '../../providers/theme_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -36,6 +37,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _loadUser();
+    _darkMode = ref.read(themeProvider.notifier).isDarkMode;
   }
 
   @override
@@ -198,17 +200,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             CustomListTile(
               leading: const Icon(Icons.location_on_outlined),
-              title: 'Shipping Addresses',
-              onTap: () {
-                Navigator.pushNamed(context, Routes.editProfile);
-              },
-            ),
-            CustomListTile(
-              leading: const Icon(Icons.payment_outlined),
-              title: 'Payment Methods',
-              onTap: () {
-                Navigator.pushNamed(context, Routes.editProfile);
-              },
+              title: 'Shipping Address',
+              subtitle: Text(
+                _user?.address != null 
+                  ? '${_user?.address}, ${_user?.city}, ${_user?.state}, ${_user?.country}' 
+                  : 'No shipping address set'
+              ),
             ),
             CustomListTile(
               leading: const Icon(Icons.store_outlined),
@@ -235,13 +232,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             CustomListTile(
-              leading: const Icon(Icons.dark_mode_outlined),
+              leading: Icon(
+                _darkMode ? Icons.dark_mode : Icons.light_mode,
+                color: _darkMode ? Colors.amber : Colors.blueGrey,
+              ),
               title: 'Dark Mode',
               trailing: Switch(
                 value: _darkMode,
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() => _darkMode = value);
-                  // TODO: Implement theme switching
+                  await ref.read(themeProvider.notifier).toggleTheme();
                 },
               ),
             ),
