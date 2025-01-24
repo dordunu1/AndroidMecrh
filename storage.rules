@@ -28,12 +28,6 @@ service firebase.storage {
       allow write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Allow sellers to upload their store banners
-    match /seller_banners/{userId}/{fileName} {
-      allow read: if true;
-      allow write: if isAuthenticated() && request.auth.uid == userId;
-    }
-
     // Allow sellers to upload product images
     match /products/{fileName} {
       allow read: if true;

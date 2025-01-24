@@ -21,7 +21,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _error;
   Seller? _seller;
   File? _logoFile;
-  File? _bannerFile;
   bool _hasChanges = false;
   
   // Controllers
@@ -94,7 +93,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _shippingInfoController.text != _seller?.shippingInfo ||
       _paymentInfoController.text != _seller?.paymentInfo;
 
-    final hasFileChanges = _logoFile != null || _bannerFile != null;
+    final hasFileChanges = _logoFile != null;
 
     setState(() {
       _hasChanges = hasTextChanges || hasFileChanges;
@@ -144,24 +143,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
-  Future<void> _pickBanner() async {
-    try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-      
-      if (pickedFile != null) {
-        setState(() {
-          _bannerFile = File(pickedFile.path);
-          _hasChanges = true;
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking banner: $e')),
-      );
-    }
-  }
-
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -169,7 +150,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     try {
       String? logoUrl = _seller?.logo;
-      String? bannerUrl = _seller?.banner;
       
       // Upload new logo if selected
       if (_logoFile != null) {
@@ -179,20 +159,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         );
       }
 
-      // Upload new banner if selected
-      if (_bannerFile != null) {
-        bannerUrl = await ref.read(storageServiceProvider).uploadSellerFile(
-          _bannerFile!,
-          'banner',
-        );
-      }
-
       // Create updated seller object
       final updatedSeller = _seller!.copyWith(
         storeName: _storeNameController.text,
         description: _descriptionController.text,
         logo: logoUrl,
-        banner: bannerUrl,
         address: _addressController.text,
         city: _cityController.text,
         state: _stateController.text,
@@ -283,90 +254,36 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 Center(
                   child: Stack(
                     children: [
-                      // Banner Image
-                      GestureDetector(
-                        onTap: _pickBanner,
-                        child: Container(
-                          width: double.infinity,
-                          height: 150,
-                          margin: const EdgeInsets.only(bottom: 60),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceVariant,
-                            borderRadius: BorderRadius.circular(12),
-                            image: _bannerFile != null
-                                ? DecorationImage(
-                                    image: FileImage(_bannerFile!),
-                                    fit: BoxFit.cover,
-                                  )
-                                : _seller?.banner != null
-                                    ? DecorationImage(
-                                        image: NetworkImage(_seller!.banner!),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
-                          ),
-                          child: _seller?.banner == null && _bannerFile == null
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.add_photo_alternate_outlined,
-                                        size: 40,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Add Store Banner',
-                                        style: theme.textTheme.bodyLarge?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : null,
-                        ),
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: colorScheme.primary,
+                        backgroundImage: _logoFile != null
+                            ? FileImage(_logoFile!) as ImageProvider
+                            : _seller?.logo != null
+                                ? NetworkImage(_seller!.logo!) as ImageProvider
+                                : null,
+                        child: _seller?.logo == null && _logoFile == null
+                            ? Icon(
+                                Icons.store,
+                                size: 50,
+                                color: colorScheme.onPrimary,
+                              )
+                            : null,
                       ),
-                      // Profile Logo (positioned over banner)
                       Positioned(
-                        left: MediaQuery.of(context).size.width / 2 - 50,
+                        right: 0,
                         bottom: 0,
-                        child: Stack(
-                          children: [
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: colorScheme.primary,
-                              backgroundImage: _logoFile != null
-                                  ? FileImage(_logoFile!) as ImageProvider
-                                  : _seller?.logo != null
-                                      ? NetworkImage(_seller!.logo!) as ImageProvider
-                                      : null,
-                              child: _seller?.logo == null && _logoFile == null
-                                  ? Icon(
-                                      Icons.store,
-                                      size: 50,
-                                      color: colorScheme.onPrimary,
-                                    )
-                                  : null,
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: colorScheme.primary,
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: colorScheme.onPrimary,
                             ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: CircleAvatar(
-                                radius: 18,
-                                backgroundColor: colorScheme.primary,
-                                child: IconButton(
-                                  icon: Icon(
-                                    Icons.camera_alt,
-                                    size: 18,
-                                    color: colorScheme.onPrimary,
-                                  ),
-                                  onPressed: _pickLogo,
-                                ),
-                              ),
-                            ),
-                          ],
+                            onPressed: _pickLogo,
+                          ),
                         ),
                       ),
                     ],
