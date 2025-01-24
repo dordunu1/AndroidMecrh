@@ -56,6 +56,14 @@ class Product {
   });
 
   factory Product.fromMap(Map<String, dynamic> map, String id) {
+    String? getTimestampString(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) {
+        return value.toDate().toIso8601String();
+      }
+      return value.toString();
+    }
+
     return Product(
       id: id,
       sellerId: map['sellerId'] ?? '',
@@ -68,8 +76,8 @@ class Product {
       category: map['category'] ?? '',
       subCategory: map['subCategory'],
       isActive: map['isActive'] ?? true,
-      createdAt: map['createdAt'] ?? '',
-      updatedAt: map['updatedAt'],
+      createdAt: getTimestampString(map['createdAt']) ?? DateTime.now().toIso8601String(),
+      updatedAt: getTimestampString(map['updatedAt']),
       shippingFee: (map['shippingFee'] ?? 0.0).toDouble(),
       shippingInfo: map['shippingInfo'],
       hasVariants: map['hasVariants'] ?? false,
@@ -78,7 +86,7 @@ class Product {
       colorQuantities: Map<String, int>.from(map['colorQuantities'] ?? {}),
       hasDiscount: map['hasDiscount'] ?? false,
       discountPercent: (map['discountPercent'] ?? 0.0).toDouble(),
-      discountEndsAt: map['discountEndsAt'],
+      discountEndsAt: getTimestampString(map['discountEndsAt']),
       discountedPrice: (map['discountedPrice'] ?? 0.0).toDouble(),
       soldCount: map['soldCount'] ?? 0,
     );

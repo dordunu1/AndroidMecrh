@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/product.dart';
-import '../../services/seller_service.dart';
+import '../../services/product_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/common/custom_text_field.dart';
+import 'package:intl/intl.dart';
 
 const CLOTHING_SUBCATEGORIES = {
   "Men's Wear": [
@@ -50,6 +51,38 @@ const ACCESSORIES_SUBCATEGORIES = {
   ]
 };
 
+const SHOE_SIZES = [
+  "US 6 / EU 39",
+  "US 6.5 / EU 39.5",
+  "US 7 / EU 40",
+  "US 7.5 / EU 40.5",
+  "US 8 / EU 41",
+  "US 8.5 / EU 41.5",
+  "US 9 / EU 42",
+  "US 9.5 / EU 42.5",
+  "US 10 / EU 43",
+  "US 10.5 / EU 43.5",
+  "US 11 / EU 44",
+  "US 11.5 / EU 44.5",
+  "US 12 / EU 45",
+  "US 13 / EU 46"
+];
+
+const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+
+const COLORS = [
+  {'name': 'Black', 'value': 0xFF000000},
+  {'name': 'White', 'value': 0xFFFFFFFF},
+  {'name': 'Gray', 'value': 0xFF808080},
+  {'name': 'Red', 'value': 0xFFFF0000},
+  {'name': 'Blue', 'value': 0xFF0000FF},
+  {'name': 'Green', 'value': 0xFF008000},
+  {'name': 'Yellow', 'value': 0xFFFFFF00},
+  {'name': 'Purple', 'value': 0xFF800080},
+  {'name': 'Pink', 'value': 0xFFFFC0CB},
+  {'name': 'Brown', 'value': 0xFFA52A2A}
+];
+
 class EditProductScreen extends ConsumerStatefulWidget {
   final String productId;
 
@@ -71,9 +104,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   final _shippingInfoController = TextEditingController();
   final _discountPercentController = TextEditingController();
   final _discountEndsAtController = TextEditingController();
-  final _selectedSizesController = TextEditingController();
-  final _selectedColorsController = TextEditingController();
-  final _colorQuantitiesController = TextEditingController();
   
   bool _isLoading = true;
   bool _submitting = false;
@@ -114,57 +144,46 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     _shippingInfoController.dispose();
     _discountPercentController.dispose();
     _discountEndsAtController.dispose();
-    _selectedSizesController.dispose();
-    _selectedColorsController.dispose();
-    _colorQuantitiesController.dispose();
     super.dispose();
   }
 
   Future<void> _loadProduct() async {
-    setState(() => _isLoading = true);
-    
     try {
-      // Load product details
-      final product = await ref.read(sellerServiceProvider).getProduct(widget.productId);
+      final product = await ref.read(productServiceProvider).getProduct(widget.productId);
+      _originalProduct = product;
       
-      // Try to load seller's shipping fee, but don't fail if not found
-      double? sellerShippingFee;
-      try {
-        final seller = await ref.read(sellerServiceProvider).getSellerProfile();
-        sellerShippingFee = seller.shippingFee;
-      } catch (e) {
-        // Ignore seller profile errors
-      }
+      _nameController.text = product.name;
+      _descriptionController.text = product.description;
+      _priceController.text = product.price.toString();
+      _stockController.text = product.stockQuantity.toString();
+      _shippingInfoController.text = product.shippingInfo ?? '';
       
-      setState(() {
-        _originalProduct = product;
-        _nameController.text = product.name;
-        _descriptionController.text = product.description;
-        _priceController.text = product.price.toString();
-        _stockController.text = product.stockQuantity.toString();
-        _shippingInfoController.text = product.shippingInfo ?? '';
-        _selectedCategory = product.category;
-        _selectedSubCategory = product.subCategory ?? '';
-        _existingImages = List<String>.from(product.images);
-        _shippingFee = sellerShippingFee ?? product.shippingFee ?? 0.0;
-        _hasVariants = product.hasVariants;
-        _selectedSizes = List<String>.from(product.sizes);
-        _selectedColors = List<String>.from(product.colors);
-        _colorQuantities = Map<String, int>.from(product.colorQuantities);
-        _hasDiscount = product.hasDiscount;
+      if (product.hasDiscount) {
+        _hasDiscount = true;
         _discountPercent = product.discountPercent;
+        _discountPercentController.text = product.discountPercent.toString();
         if (product.discountEndsAt != null) {
           _discountEndsAt = DateTime.parse(product.discountEndsAt!);
           _discountEndsAtController.text = product.discountEndsAt!;
         }
-        if (product.hasDiscount) {
-          _discountPercentController.text = product.discountPercent.toString();
-        }
+      }
+
+      setState(() {
+        _selectedCategory = product.category;
+        _selectedSubCategory = product.subCategory ?? '';
+        _existingImages = List<String>.from(product.images);
+        _shippingFee = product.shippingFee;
+        _hasVariants = product.hasVariants;
+        _selectedSizes = List<String>.from(product.sizes);
+        _selectedColors = List<String>.from(product.colors);
+        _colorQuantities = Map<String, int>.from(product.colorQuantities);
+        _isLoading = false;
       });
     } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
@@ -261,64 +280,21 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     });
   }
 
-  Future<void> _submitForm() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
-    // Additional validations
-    if (_existingImages.isEmpty && _newImages.isEmpty) {
+    
+    if (_selectedCategory.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one product image')),
+        const SnackBar(content: Text('Please select a category')),
       );
       return;
     }
 
-    if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories') {
-      if (_selectedSubCategory.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a product type')),
-        );
-        return;
-      }
-
-      if (_hasVariants) {
-        if (_selectedSizes.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select at least one size')),
-          );
-          return;
-        }
-
-        if (_selectedColors.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select at least one color')),
-          );
-          return;
-        }
-
-        final totalQuantity = _colorQuantities.values.fold(0, (sum, qty) => sum + qty);
-        if (totalQuantity == 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please specify quantities for selected colors')),
-          );
-          return;
-        }
-      }
-    }
-
-    if (_hasDiscount) {
-      if (_discountPercent <= 0 || _discountPercent >= 100) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Discount percentage must be between 0 and 99')),
-        );
-        return;
-      }
-
-      if (_discountEndsAt == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select when the discount ends')),
-        );
-        return;
-      }
+    if (_selectedSubCategory.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a subcategory')),
+      );
+      return;
     }
 
     setState(() => _submitting = true);
@@ -336,46 +312,40 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
       final price = double.parse(_priceController.text);
       final discountedPrice = _hasDiscount ? price * (1 - _discountPercent / 100) : null;
 
-      final updatedProduct = Product(
-        id: widget.productId,
-        sellerId: _originalProduct!.sellerId,
-        sellerName: _originalProduct!.sellerName,
-        name: _nameController.text,
-        description: _descriptionController.text,
-        price: price,
-        stockQuantity: _hasVariants 
-          ? _colorQuantities.values.fold(0, (sum, qty) => sum + qty)
-          : int.parse(_stockController.text),
-        category: _selectedCategory,
-        subCategory: _selectedSubCategory,
-        images: allImages,
-        isActive: _originalProduct!.isActive,
-        createdAt: _originalProduct!.createdAt,
-        updatedAt: DateTime.now().toIso8601String(),
-        shippingFee: _shippingFee,
-        shippingInfo: _shippingInfoController.text,
-        hasVariants: _hasVariants,
-        sizes: _selectedSizes,
-        colors: _selectedColors,
-        colorQuantities: _colorQuantities,
-        hasDiscount: _hasDiscount,
-        discountPercent: _discountPercent,
-        discountEndsAt: _discountEndsAt?.toIso8601String(),
-        discountedPrice: discountedPrice,
-      );
+      final productData = {
+        'sellerId': _originalProduct!.sellerId,
+        'sellerName': _originalProduct!.sellerName,
+        'name': _nameController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'price': price,
+        'stockQuantity': int.parse(_stockController.text),
+        'category': _selectedCategory,
+        'subCategory': _selectedSubCategory,
+        'images': allImages,
+        'isActive': _originalProduct!.isActive,
+        'createdAt': _originalProduct!.createdAt,
+        'updatedAt': DateTime.now().toIso8601String(),
+        'shippingFee': _shippingFee,
+        'shippingInfo': _shippingInfoController.text.trim(),
+        'hasVariants': _hasVariants,
+        'sizes': _selectedSizes,
+        'colors': _selectedColors,
+        'colorQuantities': _colorQuantities,
+        'hasDiscount': _hasDiscount,
+        'discountPercent': _discountPercent,
+        'discountEndsAt': _discountEndsAt?.toIso8601String(),
+        'discountedPrice': discountedPrice,
+      };
 
-      await ref.read(sellerServiceProvider).updateProduct(widget.productId, updatedProduct);
-
+      await ref.read(productServiceProvider).updateProduct(widget.productId, productData);
+      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product updated successfully')),
-        );
-        Navigator.pop(context);
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text(e.toString())),
         );
       }
     } finally {
@@ -575,11 +545,10 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a price';
                 }
-                final price = double.tryParse(value);
-                if (price == null) {
-                  return 'Please enter a valid price';
+                if (double.tryParse(value) == null) {
+                  return 'Please enter a valid number';
                 }
-                if (price <= 0) {
+                if (double.parse(value) <= 0) {
                   return 'Price must be greater than 0';
                 }
                 return null;
@@ -621,6 +590,22 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
               },
             ),
             const SizedBox(height: 16),
+
+            // Shipping Fee (Read-only)
+            TextFormField(
+              initialValue: _shippingFee.toString(),
+              enabled: false,
+              decoration: const InputDecoration(
+                labelText: 'Shipping Fee',
+                border: OutlineInputBorder(),
+                prefixText: 'GH₵',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Shipping fee is set in your store settings',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
 
             // Category
             DropdownButtonFormField<String>(
@@ -687,12 +672,14 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                               label: Text(subItem),
                               onSelected: (selected) {
                                 setState(() {
-                                  _selectedSubCategory = selected ? fullSubCategory : '';
                                   if (selected) {
+                                    _selectedSubCategory = fullSubCategory;
                                     _hasVariants = false;
                                     _selectedSizes = [];
                                     _selectedColors = [];
                                     _colorQuantities = {};
+                                  } else {
+                                    _selectedSubCategory = '';
                                   }
                                 });
                               },
@@ -705,100 +692,365 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
               ),
             const SizedBox(height: 16),
 
-            // Sizes
+            // Variants Section for Clothing and Accessories
             if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
-              CustomTextField(
-                controller: _selectedSizesController,
-                label: 'Sizes',
-                maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter sizes';
-                  }
-                  return null;
-                },
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Product Variants',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(width: 16),
+                          Switch(
+                            value: _hasVariants,
+                            onChanged: (value) {
+                              setState(() {
+                                _hasVariants = value;
+                                if (!value) {
+                                  _selectedSizes = [];
+                                  _selectedColors = [];
+                                  _colorQuantities = {};
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (_hasVariants) ...[
+                        const SizedBox(height: 16),
+                        
+                        // Sizes Section
+                        Text(
+                          'Available Sizes',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ...(isFootwearProduct ? SHOE_SIZES : CLOTHING_SIZES).map((size) {
+                              return FilterChip(
+                                selected: _selectedSizes.contains(size),
+                                label: Text(size),
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedSizes.add(size);
+                                    } else {
+                                      _selectedSizes.remove(size);
+                                    }
+                                  });
+                                },
+                              );
+                            }),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Colors Section
+                        Text(
+                          'Available Colors & Quantities',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 12,
+                          children: COLORS.map((color) {
+                            final colorName = color['name'] as String;
+                            final isSelected = _selectedColors.contains(colorName);
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        _selectedColors.remove(colorName);
+                                        _colorQuantities.remove(colorName);
+                                      } else {
+                                        _selectedColors.add(colorName);
+                                        _colorQuantities[colorName] = 0;
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Color(color['value'] as int),
+                                      border: Border.all(
+                                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+                                        width: isSelected ? 2 : 1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: isSelected
+                                      ? Icon(
+                                          Icons.check,
+                                          color: Color(color['value'] as int).computeLuminance() > 0.5 
+                                            ? Colors.black 
+                                            : Colors.white,
+                                        )
+                                      : null,
+                                  ),
+                                ),
+                                if (isSelected) ...[
+                                  const SizedBox(height: 4),
+                                  SizedBox(
+                                    width: 60,
+                                    child: TextFormField(
+                                      initialValue: _colorQuantities[colorName]?.toString() ?? '0',
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _colorQuantities[colorName] = int.tryParse(value) ?? 0;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             const SizedBox(height: 16),
 
-            // Colors
-            if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
-              CustomTextField(
-                controller: _selectedColorsController,
-                label: 'Colors',
-                maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter colors';
-                  }
-                  return null;
-                },
-              ),
-            const SizedBox(height: 16),
+            // Price and Discount Section
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Price & Discount',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 16),
 
-            // Quantity
-            if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
-              CustomTextField(
-                controller: _colorQuantitiesController,
-                label: 'Quantity',
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter quantity';
-                  }
-                  final quantity = int.tryParse(value);
-                  if (quantity == null) {
-                    return 'Please enter a valid number';
-                  }
-                  if (quantity < 0) {
-                    return 'Quantity cannot be negative';
-                  }
-                  return null;
-                },
-              ),
-            const SizedBox(height: 16),
+                    // Price Field
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _priceController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Price',
+                              border: OutlineInputBorder(),
+                              prefixText: 'GH₵',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a price';
+                              }
+                              if (double.tryParse(value) == null) {
+                                return 'Please enter a valid number';
+                              }
+                              if (double.parse(value) <= 0) {
+                                return 'Price must be greater than 0';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
 
-            // Discount
-            if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
-              CustomTextField(
-                controller: _discountPercentController,
-                label: 'Discount Percent',
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter discount percentage';
-                  }
-                  final discount = double.tryParse(value);
-                  if (discount == null) {
-                    return 'Please enter a valid discount percentage';
-                  }
-                  if (discount < 0 || discount > 100) {
-                    return 'Discount percentage must be between 0 and 100';
-                  }
-                  return null;
-                },
-              ),
-            const SizedBox(height: 16),
+                    // Discount Switch
+                    Row(
+                      children: [
+                        Text(
+                          'Apply Discount',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(width: 16),
+                        Switch(
+                          value: _hasDiscount,
+                          onChanged: (value) {
+                            setState(() {
+                              _hasDiscount = value;
+                              if (!value) {
+                                _discountPercent = 0;
+                                _discountEndsAt = null;
+                                _discountPercentController.text = '';
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
 
-            // Discount Ends At
-            if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
-              CustomTextField(
-                controller: _discountEndsAtController,
-                label: 'Discount Ends At',
-                keyboardType: TextInputType.datetime,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select when the discount ends';
-                  }
-                  return null;
-                },
+                    if (_hasDiscount) ...[
+                      const SizedBox(height: 16),
+                      
+                      // Discount Percentage
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _discountPercentController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Discount Percentage',
+                                border: OutlineInputBorder(),
+                                suffixText: '%',
+                              ),
+                              onChanged: (value) {
+                                final percent = double.tryParse(value) ?? 0;
+                                setState(() {
+                                  _discountPercent = percent.clamp(0, 99);
+                                  if (percent != _discountPercent) {
+                                    _discountPercentController.text = _discountPercent.toString();
+                                  }
+                                });
+                              },
+                              validator: (value) {
+                                if (_hasDiscount) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter a discount percentage';
+                                  }
+                                  final percent = double.tryParse(value);
+                                  if (percent == null) {
+                                    return 'Please enter a valid number';
+                                  }
+                                  if (percent <= 0 || percent >= 100) {
+                                    return 'Percentage must be between 0 and 99';
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Discount End Date
+                      InkWell(
+                        onTap: () async {
+                          final now = DateTime.now();
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: _discountEndsAt ?? now.add(const Duration(days: 1)),
+                            firstDate: now,
+                            lastDate: now.add(const Duration(days: 365)),
+                          );
+                          
+                          if (date != null) {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(_discountEndsAt ?? now.add(const Duration(days: 1))),
+                            );
+                            
+                            if (time != null) {
+                              setState(() {
+                                _discountEndsAt = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                                _discountEndsAtController.text = _discountEndsAt!.toIso8601String();
+                              });
+                            }
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Discount Ends At',
+                            border: const OutlineInputBorder(),
+                            suffixIcon: Icon(
+                              Icons.calendar_today,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          child: Text(
+                            _discountEndsAt != null
+                                ? DateFormat('yyyy-MM-dd HH:mm').format(_discountEndsAt!)
+                                : 'Select date and time',
+                          ),
+                        ),
+                      ),
+
+                      // Discounted Price Preview
+                      if (_discountPercent > 0 && double.tryParse(_priceController.text) != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Original Price:'),
+                                  Text(
+                                    'GH₵${double.parse(_priceController.text)}',
+                                    style: const TextStyle(
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Discounted Price:',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    'GH₵${(double.parse(_priceController.text) * (1 - _discountPercent / 100)).toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
               ),
-            const SizedBox(height: 16),
+            ),
 
             // Submit Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _hasChanges && !_submitting ? _submitForm : null,
+                onPressed: _hasChanges && !_submitting ? _submit : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Theme.of(context).colorScheme.primary,
