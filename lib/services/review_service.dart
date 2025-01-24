@@ -37,7 +37,7 @@ class ReviewService {
       query = query.limit(limit);
 
       final snapshot = await query.get();
-      return snapshot.docs.map((doc) => Review.fromMap(doc.data(), doc.id)).toList();
+      return snapshot.docs.map((doc) => Review.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
     } catch (e) {
       throw Exception('Failed to fetch product reviews: $e');
     }
@@ -71,41 +71,23 @@ class ReviewService {
       query = query.limit(limit);
 
       final snapshot = await query.get();
-      return snapshot.docs.map((doc) => Review.fromMap(doc.data(), doc.id)).toList();
+      return snapshot.docs.map((doc) => Review.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
     } catch (e) {
       throw Exception('Failed to fetch seller reviews: $e');
     }
   }
 
-  Future<Review> addReview(Map<String, dynamic> reviewData) async {
+  Future<void> addReview(Review review) async {
     try {
-      final docRef = await _firestore.collection('reviews').add({
-        ...reviewData,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // Update product rating
-      await _updateProductRating(reviewData['productId']);
-
-      final doc = await docRef.get();
-      return Review.fromMap(doc.data()!, doc.id);
+      await _firestore.collection('reviews').add(review.toMap());
     } catch (e) {
       throw Exception('Failed to add review: $e');
     }
   }
 
-  Future<Review> updateReview(String reviewId, Map<String, dynamic> updates) async {
+  Future<void> updateReview(String reviewId, Review review) async {
     try {
-      await _firestore.collection('reviews').doc(reviewId).update(updates);
-
-      // Update product rating if rating was changed
-      if (updates.containsKey('rating')) {
-        final review = await _firestore.collection('reviews').doc(reviewId).get();
-        await _updateProductRating(review.data()!['productId']);
-      }
-
-      final doc = await _firestore.collection('reviews').doc(reviewId).get();
-      return Review.fromMap(doc.data()!, doc.id);
+      await _firestore.collection('reviews').doc(reviewId).update(review.toMap());
     } catch (e) {
       throw Exception('Failed to update review: $e');
     }
@@ -174,7 +156,7 @@ class ReviewService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => Review.fromMap(doc.data(), doc.id))
+            .map((doc) => Review.fromMap(doc.data() as Map<String, dynamic>, doc.id))
             .toList());
   }
 } 

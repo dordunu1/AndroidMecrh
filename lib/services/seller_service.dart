@@ -470,7 +470,7 @@ class SellerService {
 
   Future<void> createProduct(Product product) async {
     try {
-      // Get seller profile to get the store name
+      // Get seller profile to get the store name and city
       final seller = await getSellerProfile();
       
       // Extract main category from subCategory if category is empty
@@ -483,6 +483,7 @@ class SellerService {
         ...product.toMap(),
         'sellerId': _auth.currentUser!.uid,
         'sellerName': seller.storeName,
+        'sellerCity': seller.city,
         'category': category,
         'createdAt': DateTime.now().toIso8601String(),
       });

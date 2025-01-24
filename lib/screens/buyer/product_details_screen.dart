@@ -3,7 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product.dart';
 import '../../services/buyer_service.dart';
+import '../../services/product_service.dart';
+import '../../services/review_service.dart';
+import '../../models/review.dart';
 import '../../widgets/common/custom_button.dart';
+import '../../models/user.dart';
+import '../../services/auth_service.dart';
 import 'cart_screen.dart';
 
 class ProductDetailsScreen extends ConsumerStatefulWidget {
@@ -26,6 +31,49 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   String? _error;
   String? _selectedSize;
   final _pageController = PageController();
+  bool _isDescriptionExpanded = false;
+  List<Product>? _sellerProducts;
+  List<Review>? _reviews;
+  MerchUser? _currentUser;
+  bool _isLoadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    try {
+      final user = await ref.read(authServiceProvider).getCurrentUser();
+      setState(() => _currentUser = user);
+      
+      // Load seller's other products
+      final products = await ref.read(productServiceProvider).getProducts(
+        sellerId: widget.product.sellerId,
+        limit: 10,
+      );
+      setState(() => _sellerProducts = products.where((p) => p.id != widget.product.id).toList());
+
+      // Load reviews
+      final reviews = await ref.read(reviewServiceProvider).getProductReviews(widget.product.id);
+      setState(() => _reviews = reviews);
+    } catch (e) {
+      print('Error loading initial data: $e');
+    }
+  }
+
+  double _calculateDeliveryFee() {
+    if (_currentUser == null) return 70.0; // Default to higher fee if user not loaded
+    
+    final buyerCity = _currentUser!.city?.toLowerCase() ?? '';
+    final sellerCity = widget.product.sellerCity?.toLowerCase() ?? '';
+    
+    if (buyerCity == 'kumasi' && sellerCity == 'kumasi') {
+      return 50.0;
+    }
+    return 70.0;
+  }
 
   @override
   void dispose() {
@@ -335,19 +383,301 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                         const SizedBox(height: 24),
                       ],
 
-                      // Description
+                      // Description Section
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _isDescriptionExpanded = !_isDescriptionExpanded;
+                          });
+                        },
+                        child: Row(
+                          children: [
+                            Text(
+                              'Description',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            Icon(
+                              _isDescriptionExpanded
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                      AnimatedCrossFade(
+                        firstChild: Text(
+                          widget.product.description,
+                          style: theme.textTheme.bodyMedium,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        secondChild: Text(
+                          widget.product.description,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        crossFadeState: _isDescriptionExpanded
+                            ? CrossFadeState.showSecond
+                            : CrossFadeState.showFirst,
+                        duration: const Duration(milliseconds: 300),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Delivery Fee Section
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.local_shipping_outlined,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Delivery Fee',
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'GHS ${_calculateDeliveryFee().toStringAsFixed(2)}',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (_currentUser?.city != null)
+                                    Text(
+                                      'Delivering to ${_currentUser!.city}',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Reviews Section
                       Text(
-                        'Description',
+                        'Reviews',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.product.description,
-                        style: theme.textTheme.bodyMedium,
-                      ),
+                      const SizedBox(height: 16),
+                      if (_reviews == null)
+                        const Center(child: CircularProgressIndicator())
+                      else if (_reviews!.isEmpty)
+                        Center(
+                          child: Text(
+                            'No reviews yet',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _reviews!.length,
+                          itemBuilder: (context, index) {
+                            final review = _reviews![index];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        if (review.userPhoto != null)
+                                          CircleAvatar(
+                                            backgroundImage: NetworkImage(review.userPhoto!),
+                                            radius: 16,
+                                          )
+                                        else
+                                          CircleAvatar(
+                                            child: Text(review.userName[0].toUpperCase()),
+                                            radius: 16,
+                                          ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                review.userName,
+                                                style: theme.textTheme.titleSmall,
+                                              ),
+                                              Row(
+                                                children: List.generate(
+                                                  5,
+                                                  (index) => Icon(
+                                                    index < review.rating.round()
+                                                        ? Icons.star
+                                                        : Icons.star_border,
+                                                    size: 16,
+                                                    color: theme.colorScheme.primary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          _formatDate(review.createdAt),
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(review.comment),
+                                    if (review.images != null && review.images!.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        height: 80,
+                                        child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: review.images!.length,
+                                          itemBuilder: (context, imageIndex) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(right: 8),
+                                              child: ClipRRect(
+                                                borderRadius: BorderRadius.circular(4),
+                                                child: CachedNetworkImage(
+                                                  imageUrl: review.images![imageIndex],
+                                                  width: 80,
+                                                  height: 80,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                    if (review.sellerResponse != null) ...[
+                                      const SizedBox(height: 16),
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Seller Response',
+                                              style: theme.textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(review.sellerResponse!['comment'] as String),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       const SizedBox(height: 24),
+
+                      // More from this seller
+                      if (_sellerProducts != null && _sellerProducts!.isNotEmpty) ...[
+                        Text(
+                          'More from ${widget.product.sellerName}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 200,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _sellerProducts!.length,
+                            itemBuilder: (context, index) {
+                              final product = _sellerProducts![index];
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProductDetailsScreen(
+                                        product: product,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  width: 160,
+                                  margin: const EdgeInsets.only(right: 16),
+                                  child: Card(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: const BorderRadius.vertical(
+                                            top: Radius.circular(4),
+                                          ),
+                                          child: CachedNetworkImage(
+                                            imageUrl: product.images.first,
+                                            height: 120,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.all(8),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                product.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: theme.textTheme.titleSmall,
+                                              ),
+                                              Text(
+                                                'GHS ${product.price.toStringAsFixed(2)}',
+                                                style: theme.textTheme.bodyMedium?.copyWith(
+                                                  color: theme.colorScheme.primary,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
 
                       // Error Message
                       if (_error != null)
@@ -431,5 +761,24 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()}y ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()}mo ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
   }
 } 
