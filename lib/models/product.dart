@@ -14,7 +14,7 @@ class Product {
   final bool isActive;
   final String createdAt;
   final String? updatedAt;
-  final double shippingFee;
+  final double? shippingFee;
   final String? shippingInfo;
   final bool hasVariants;
   final List<String> sizes;
@@ -42,7 +42,7 @@ class Product {
     required this.isActive,
     required this.createdAt,
     this.updatedAt,
-    required this.shippingFee,
+    this.shippingFee,
     this.shippingInfo,
     this.hasVariants = false,
     this.sizes = const [],

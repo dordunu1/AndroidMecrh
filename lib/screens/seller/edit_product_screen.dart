@@ -116,7 +116,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   String _selectedSubCategory = '';
   List<String> _existingImages = [];
   List<File> _newImages = [];
-  double _shippingFee = 0.0;
   bool _hasVariants = false;
   List<String> _selectedSizes = [];
   List<String> _selectedColors = [];
@@ -172,7 +171,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         _selectedCategory = product.category;
         _selectedSubCategory = product.subCategory ?? '';
         _existingImages = List<String>.from(product.images);
-        _shippingFee = product.shippingFee;
         _hasVariants = product.hasVariants;
         _selectedSizes = List<String>.from(product.sizes);
         _selectedColors = List<String>.from(product.colors);
@@ -204,7 +202,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
       isActive: _originalProduct!.isActive,
       createdAt: _originalProduct!.createdAt,
       updatedAt: DateTime.now().toIso8601String(),
-      shippingFee: _shippingFee,
       shippingInfo: _shippingInfoController.text,
       hasVariants: _hasVariants,
       sizes: _selectedSizes,
@@ -325,7 +322,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         'isActive': _originalProduct!.isActive,
         'createdAt': _originalProduct!.createdAt,
         'updatedAt': DateTime.now().toIso8601String(),
-        'shippingFee': _shippingFee,
         'shippingInfo': _shippingInfoController.text.trim(),
         'hasVariants': _hasVariants,
         'sizes': _selectedSizes,
@@ -590,22 +586,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
               },
             ),
             const SizedBox(height: 16),
-
-            // Shipping Fee (Read-only)
-            TextFormField(
-              initialValue: _shippingFee.toString(),
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: 'Shipping Fee (GHS)',
-                hintText: '0.00',
-                prefixText: 'GHS ',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Shipping fee is set in your store settings',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
 
             // Category
             DropdownButtonFormField<String>(

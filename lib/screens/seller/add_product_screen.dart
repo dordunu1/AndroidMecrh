@@ -144,7 +144,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   String _selectedCategory = '';
   String _selectedSubCategory = '';
   List<File> _selectedImages = [];
-  double _shippingFee = 0.0;
   bool _hasVariants = false;
   List<String> _selectedSizes = [];
   List<String> _selectedColors = [];
@@ -160,7 +159,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSellerPreferences();
   }
 
   @override
@@ -172,22 +170,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _shippingInfoController.dispose();
     _discountPercentController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadSellerPreferences() async {
-    setState(() => _isLoading = true);
-    
-    try {
-      final seller = await ref.read(sellerServiceProvider).getSellerProfile();
-      
-      setState(() {
-        _shippingFee = seller.shippingFee;
-      });
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      setState(() => _isLoading = false);
-    }
   }
 
   Future<void> _pickImages() async {
@@ -816,23 +798,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Shipping Fee (Read-only)
-                    TextFormField(
-                      initialValue: _shippingFee.toString(),
-                      enabled: false,
-                      decoration: const InputDecoration(
-                        labelText: 'Shipping Fee (GHS)',
-                        border: OutlineInputBorder(),
-                        prefixText: 'GHS',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Shipping fee is set in your store settings',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 16),
-
                     // Shipping Information
                     TextFormField(
                       controller: _shippingInfoController,
@@ -1018,7 +983,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         isActive: true,
         createdAt: DateTime.now().toIso8601String(),
         updatedAt: DateTime.now().toIso8601String(),
-        shippingFee: _shippingFee,
         shippingInfo: _shippingInfoController.text,
         hasVariants: _hasVariants,
         sizes: _selectedSizes,
