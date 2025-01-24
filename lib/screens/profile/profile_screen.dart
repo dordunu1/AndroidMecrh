@@ -47,22 +47,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _loadUser() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
     try {
       final user = await ref.read(buyerServiceProvider).getCurrentUser();
-      setState(() {
-        _user = user;
-        _nameController.text = user.name ?? '';
-        _emailController.text = user.email;
-        _phoneController.text = user.phone ?? '';
-        _existingPhotoUrl = user.photoUrl;
-      });
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _nameController.text = user.name ?? '';
+          _emailController.text = user.email;
+          _phoneController.text = user.phone ?? '';
+          _existingPhotoUrl = user.photoUrl;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading user: $e')),
-      );
-    } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load profile. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -200,6 +208,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: 'Payment Methods',
               onTap: () {
                 Navigator.pushNamed(context, Routes.editProfile);
+              },
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.store_outlined),
+              title: 'Become a Seller',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BecomeSellerScreen(),
+                  ),
+                );
               },
             ),
 

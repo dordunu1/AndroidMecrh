@@ -206,7 +206,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
               leading: const Icon(Icons.store),
               title: 'Edit Store Profile',
               onTap: () async {
-                await Navigator.pushNamed(context, Routes.editProfile);
+                await Navigator.pushNamed(context, Routes.editSellerProfile);
                 _loadSellerProfile(); // Refresh profile when returning
               },
             ),

@@ -9,8 +9,14 @@ class MerchUser {
   final String? photoUrl;
   final bool isAdmin;
   final bool isSeller;
+  final bool isBuyer;
   final String? sellerId;
   final DateTime? sellerSince;
+  final String? address;
+  final String? city;
+  final String? state;
+  final String? country;
+  final String? zip;
   final List<ShippingAddress> shippingAddresses;
   final ShippingAddress? defaultShippingAddress;
   final DateTime createdAt;
@@ -25,8 +31,14 @@ class MerchUser {
     this.photoUrl,
     this.isAdmin = false,
     this.isSeller = false,
+    this.isBuyer = true,
     this.sellerId,
     this.sellerSince,
+    this.address,
+    this.city,
+    this.state,
+    this.country,
+    this.zip,
     this.shippingAddresses = const [],
     this.defaultShippingAddress,
     required this.createdAt,
@@ -59,10 +71,16 @@ class MerchUser {
       photoUrl: map['photoUrl'],
       isAdmin: map['isAdmin'] ?? false,
       isSeller: map['isSeller'] ?? false,
+      isBuyer: map['isBuyer'] ?? true,
       sellerId: map['sellerId'],
       sellerSince: map['sellerSince'] != null
           ? (map['sellerSince'] as Timestamp).toDate()
           : null,
+      address: map['address'],
+      city: map['city'],
+      state: map['state'],
+      country: map['country'],
+      zip: map['zip'],
       shippingAddresses: addresses,
       defaultShippingAddress: defaultAddress,
       createdAt: map['createdAt'] is Timestamp 
@@ -71,31 +89,35 @@ class MerchUser {
               ? DateTime.parse(map['createdAt'])
               : DateTime.now(),
       lastLoginAt: map['lastLoginAt'] is Timestamp 
-          ? (map['lastLoginAt'] as Timestamp).toDate() 
-          : map['lastLoginAt'] is String 
-              ? DateTime.parse(map['lastLoginAt'])
-              : null,
-      preferences: map['preferences'],
+          ? (map['lastLoginAt'] as Timestamp).toDate()
+          : null,
+      preferences: map['preferences'] != null
+          ? Map<String, dynamic>.from(map['preferences'])
+          : null,
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'email': email,
-      'name': name,
-      'phone': phone,
-      'photoUrl': photoUrl,
-      'isAdmin': isAdmin,
-      'isSeller': isSeller,
-      'sellerId': sellerId,
-      'sellerSince': sellerSince != null ? Timestamp.fromDate(sellerSince!) : null,
-      'shippingAddresses': shippingAddresses.map((addr) => addr.toMap()).toList(),
-      'defaultShippingAddress': defaultShippingAddress?.toMap(),
-      'createdAt': Timestamp.fromDate(createdAt),
-      'lastLoginAt': lastLoginAt != null ? Timestamp.fromDate(lastLoginAt!) : null,
-      'preferences': preferences,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+    'email': email,
+    'name': name,
+    'phone': phone,
+    'photoUrl': photoUrl,
+    'isAdmin': isAdmin,
+    'isSeller': isSeller,
+    'isBuyer': isBuyer,
+    'sellerId': sellerId,
+    'sellerSince': sellerSince?.toIso8601String(),
+    'address': address,
+    'city': city,
+    'state': state,
+    'country': country,
+    'zip': zip,
+    'shippingAddresses': shippingAddresses.map((addr) => addr.toMap()).toList(),
+    'defaultShippingAddress': defaultShippingAddress?.toMap(),
+    'createdAt': createdAt.toIso8601String(),
+    'lastLoginAt': lastLoginAt?.toIso8601String(),
+    'preferences': preferences,
+  };
 
   MerchUser copyWith({
     String? email,
@@ -104,8 +126,14 @@ class MerchUser {
     String? photoUrl,
     bool? isAdmin,
     bool? isSeller,
+    bool? isBuyer,
     String? sellerId,
     DateTime? sellerSince,
+    String? address,
+    String? city,
+    String? state,
+    String? country,
+    String? zip,
     List<ShippingAddress>? shippingAddresses,
     ShippingAddress? defaultShippingAddress,
     DateTime? lastLoginAt,
@@ -119,8 +147,14 @@ class MerchUser {
       photoUrl: photoUrl ?? this.photoUrl,
       isAdmin: isAdmin ?? this.isAdmin,
       isSeller: isSeller ?? this.isSeller,
+      isBuyer: isBuyer ?? this.isBuyer,
       sellerId: sellerId ?? this.sellerId,
       sellerSince: sellerSince ?? this.sellerSince,
+      address: address ?? this.address,
+      city: city ?? this.city,
+      state: state ?? this.state,
+      country: country ?? this.country,
+      zip: zip ?? this.zip,
       shippingAddresses: shippingAddresses ?? this.shippingAddresses,
       defaultShippingAddress: defaultShippingAddress ?? this.defaultShippingAddress,
       createdAt: createdAt,

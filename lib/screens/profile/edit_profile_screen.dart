@@ -2,10 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../models/seller.dart';
-import '../../services/seller_service.dart';
+import '../../models/user.dart';
+import '../../services/buyer_service.dart';
 import '../../services/storage_service.dart';
-import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -18,121 +17,122 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = true;
+  bool _isSaving = false;
   String? _error;
-  Seller? _seller;
-  File? _logoFile;
+  MerchUser? _user;
+  File? _photoFile;
   bool _hasChanges = false;
+  String? _existingPhotoUrl;
   
   // Controllers
-  final _storeNameController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
   final _countryController = TextEditingController();
   final _zipController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _shippingInfoController = TextEditingController();
-  final _paymentInfoController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadSellerProfile();
+    _loadUser();
     
     // Add listeners to track changes
-    _storeNameController.addListener(_onFieldChanged);
-    _descriptionController.addListener(_onFieldChanged);
+    _nameController.addListener(_onFieldChanged);
+    _emailController.addListener(_onFieldChanged);
+    _phoneController.addListener(_onFieldChanged);
     _addressController.addListener(_onFieldChanged);
     _cityController.addListener(_onFieldChanged);
     _stateController.addListener(_onFieldChanged);
     _countryController.addListener(_onFieldChanged);
     _zipController.addListener(_onFieldChanged);
-    _phoneController.addListener(_onFieldChanged);
-    _shippingInfoController.addListener(_onFieldChanged);
-    _paymentInfoController.addListener(_onFieldChanged);
   }
 
   @override
   void dispose() {
     // Remove listeners
-    _storeNameController.removeListener(_onFieldChanged);
-    _descriptionController.removeListener(_onFieldChanged);
+    _nameController.removeListener(_onFieldChanged);
+    _emailController.removeListener(_onFieldChanged);
+    _phoneController.removeListener(_onFieldChanged);
     _addressController.removeListener(_onFieldChanged);
     _cityController.removeListener(_onFieldChanged);
     _stateController.removeListener(_onFieldChanged);
     _countryController.removeListener(_onFieldChanged);
     _zipController.removeListener(_onFieldChanged);
-    _phoneController.removeListener(_onFieldChanged);
-    _shippingInfoController.removeListener(_onFieldChanged);
-    _paymentInfoController.removeListener(_onFieldChanged);
 
-    _storeNameController.dispose();
-    _descriptionController.dispose();
+    // Dispose controllers
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _addressController.dispose();
     _cityController.dispose();
     _stateController.dispose();
     _countryController.dispose();
     _zipController.dispose();
-    _phoneController.dispose();
-    _shippingInfoController.dispose();
-    _paymentInfoController.dispose();
     super.dispose();
   }
 
   void _onFieldChanged() {
     final hasTextChanges = 
-      _storeNameController.text != _seller?.storeName ||
-      _descriptionController.text != _seller?.description ||
-      _addressController.text != _seller?.address ||
-      _cityController.text != _seller?.city ||
-      _stateController.text != _seller?.state ||
-      _countryController.text != _seller?.country ||
-      _zipController.text != _seller?.zip ||
-      _phoneController.text != _seller?.phone ||
-      _shippingInfoController.text != _seller?.shippingInfo ||
-      _paymentInfoController.text != _seller?.paymentInfo;
+      _nameController.text != _user?.name ||
+      _emailController.text != _user?.email ||
+      _phoneController.text != _user?.phone ||
+      _addressController.text != _user?.address ||
+      _cityController.text != _user?.city ||
+      _stateController.text != _user?.state ||
+      _countryController.text != _user?.country ||
+      _zipController.text != _user?.zip;
 
-    final hasFileChanges = _logoFile != null;
+    final hasFileChanges = _photoFile != null;
 
     setState(() {
       _hasChanges = hasTextChanges || hasFileChanges;
     });
   }
 
-  Future<void> _loadSellerProfile() async {
+  Future<void> _loadUser() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
     try {
-      final seller = await ref.read(sellerServiceProvider).getSellerProfile();
-      setState(() {
-        _seller = seller;
-        _storeNameController.text = seller.storeName;
-        _descriptionController.text = seller.description;
-        _addressController.text = seller.address;
-        _cityController.text = seller.city;
-        _stateController.text = seller.state;
-        _countryController.text = seller.country;
-        _zipController.text = seller.zip;
-        _phoneController.text = seller.phone;
-        _shippingInfoController.text = seller.shippingInfo ?? '';
-        _paymentInfoController.text = seller.paymentInfo ?? '';
-        _isLoading = false;
-      });
+      final user = await ref.read(buyerServiceProvider).getCurrentUser();
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _nameController.text = user.name ?? '';
+          _emailController.text = user.email;
+          _phoneController.text = user.phone ?? '';
+          _addressController.text = user.address ?? '';
+          _cityController.text = user.city ?? '';
+          _stateController.text = user.state ?? '';
+          _countryController.text = user.country ?? '';
+          _zipController.text = user.zip ?? '';
+          _existingPhotoUrl = user.photoUrl;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load profile. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _pickLogo() async {
+  Future<void> _pickPhoto() async {
     try {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       
       if (pickedFile != null) {
         setState(() {
-          _logoFile = File(pickedFile.path);
+          _photoFile = File(pickedFile.path);
           _hasChanges = true;
         });
       }
@@ -146,36 +146,34 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() => _isSaving = true);
 
     try {
-      String? logoUrl = _seller?.logo;
+      String? photoUrl = _user?.photoUrl;
       
-      // Upload new logo if selected
-      if (_logoFile != null) {
-        logoUrl = await ref.read(storageServiceProvider).uploadSellerFile(
-          _logoFile!,
-          'logo',
+      // Upload new photo if selected
+      if (_photoFile != null) {
+        final urls = await ref.read(storageServiceProvider).uploadFiles(
+          [_photoFile!],
+          'users/photos',
         );
+        photoUrl = urls.first;
       }
 
-      // Create updated seller object
-      final updatedSeller = _seller!.copyWith(
-        storeName: _storeNameController.text,
-        description: _descriptionController.text,
-        logo: logoUrl,
+      // Create updated user object
+      final updatedUser = _user!.copyWith(
+        name: _nameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
         address: _addressController.text,
         city: _cityController.text,
         state: _stateController.text,
         country: _countryController.text,
         zip: _zipController.text,
-        phone: _phoneController.text,
-        shippingInfo: _shippingInfoController.text,
-        paymentInfo: _paymentInfoController.text,
-        updatedAt: DateTime.now().toIso8601String(),
+        photoUrl: photoUrl,
       );
 
-      await ref.read(sellerServiceProvider).updateSellerProfile(updatedSeller);
+      await ref.read(buyerServiceProvider).updateProfile(updatedUser);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -190,7 +188,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       );
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isSaving = false);
       }
     }
   }
@@ -228,7 +226,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: _loadSellerProfile,
+                  onPressed: _loadUser,
                   child: const Text('Retry'),
                 ),
               ],
@@ -240,7 +238,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Store Profile'),
+        title: const Text('Edit Profile'),
       ),
       body: SingleChildScrollView(
         child: Form(
@@ -250,21 +248,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Store Logo
+                // Profile Photo
                 Center(
                   child: Stack(
                     children: [
                       CircleAvatar(
                         radius: 50,
                         backgroundColor: colorScheme.primary,
-                        backgroundImage: _logoFile != null
-                            ? FileImage(_logoFile!) as ImageProvider
-                            : _seller?.logo != null
-                                ? NetworkImage(_seller!.logo!) as ImageProvider
+                        backgroundImage: _photoFile != null
+                            ? FileImage(_photoFile!) as ImageProvider
+                            : _user?.photoUrl != null
+                                ? NetworkImage(_user!.photoUrl!) as ImageProvider
                                 : null,
-                        child: _seller?.logo == null && _logoFile == null
+                        child: _user?.photoUrl == null && _photoFile == null
                             ? Icon(
-                                Icons.store,
+                                Icons.person,
                                 size: 50,
                                 color: colorScheme.onPrimary,
                               )
@@ -282,7 +280,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               size: 18,
                               color: colorScheme.onPrimary,
                             ),
-                            onPressed: _pickLogo,
+                            onPressed: _pickPhoto,
                           ),
                         ),
                       ),
@@ -291,9 +289,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Store Information
+                // Personal Information
                 Text(
-                  'Store Information',
+                  'Personal Information',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -301,36 +299,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
-                  controller: _storeNameController,
-                  label: 'Store Name',
+                  controller: _nameController,
+                  label: 'Full Name',
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter store name';
+                      return 'Please enter your name';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
-                  controller: _descriptionController,
-                  label: 'Store Description',
-                  maxLines: 3,
+                  controller: _emailController,
+                  label: 'Email',
+                  enabled: false,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter store description';
+                      return 'Please enter your email';
                     }
                     return null;
                   },
-                ),
-                const SizedBox(height: 24),
-
-                // Contact Information
-                Text(
-                  'Contact Information',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
@@ -339,7 +327,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter phone number';
+                      return 'Please enter your phone number';
                     }
                     return null;
                   },
@@ -357,107 +345,54 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 const SizedBox(height: 16),
                 CustomTextField(
                   controller: _addressController,
-                  label: 'Address',
+                  label: 'Street Address',
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter address';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomTextField(
-                        controller: _cityController,
-                        label: 'City',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter city';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: CustomTextField(
-                        controller: _stateController,
-                        label: 'State',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter state';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomTextField(
-                        controller: _countryController,
-                        label: 'Country',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter country';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: CustomTextField(
-                        controller: _zipController,
-                        label: 'ZIP Code',
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter ZIP code';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Shipping & Payment Information
-                Text(
-                  'Business Information',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _shippingInfoController,
-                  label: 'Shipping Information',
-                  maxLines: 3,
-                  helper: 'Enter your shipping policy and delivery timeframes',
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter shipping information';
+                      return 'Please enter your street address';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(
-                  controller: _paymentInfoController,
-                  label: 'Payment Information',
-                  maxLines: 3,
-                  helper: 'Enter your accepted payment methods and terms',
+                  controller: _cityController,
+                  label: 'City',
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter payment information';
+                      return 'Please enter your city';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  controller: _stateController,
+                  label: 'State/Province',
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your state/province';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  controller: _countryController,
+                  label: 'Country',
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your country';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                CustomTextField(
+                  controller: _zipController,
+                  label: 'ZIP/Postal Code',
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your ZIP/postal code';
                     }
                     return null;
                   },
@@ -466,13 +401,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isLoading || !_hasChanges ? null : _saveProfile,
+                    onPressed: _isSaving || !_hasChanges ? null : _saveProfile,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: colorScheme.primary,
                       foregroundColor: colorScheme.onPrimary,
                     ),
-                    child: _isLoading 
+                    child: _isSaving 
                       ? const CircularProgressIndicator()
                       : const Text('Save Changes', style: TextStyle(fontSize: 16)),
                   ),

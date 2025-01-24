@@ -7,7 +7,8 @@ import 'screens/seller/seller_navigation_screen.dart';
 import 'screens/admin/admin_navigation_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/buyer/become_seller_screen.dart';
-import 'screens/seller/edit_profile_screen.dart';
+import 'screens/seller/seller_edit_profile_screen.dart';
+import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/notifications_settings_screen.dart';
 import 'screens/profile/privacy_policy_screen.dart';
 import 'screens/profile/terms_conditions_screen.dart';
@@ -22,6 +23,7 @@ class Routes {
   static const String adminHome = '/admin-home';
   static const String becomeSeller = '/become-seller';
   static const String editProfile = '/edit-profile';
+  static const String editSellerProfile = '/edit-seller-profile';
   static const String notificationsSettings = '/notifications-settings';
   static const String privacyPolicy = '/privacy-policy';
   static const String termsConditions = '/terms-conditions';
@@ -37,6 +39,7 @@ class Routes {
       adminHome: (context) => const AdminNavigationScreen(),
       becomeSeller: (context) => const BecomeSellerScreen(),
       editProfile: (context) => const EditProfileScreen(),
+      editSellerProfile: (context) => const SellerEditProfileScreen(),
       notificationsSettings: (context) => const NotificationsSettingsScreen(),
       privacyPolicy: (context) => const PrivacyPolicyScreen(),
       termsConditions: (context) => const TermsConditionsScreen(),

@@ -416,16 +416,29 @@ class BuyerService {
   }
 
   Future<MerchUser> getCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
     final userDoc = await _firestore
         .collection('users')
-        .doc(_auth.currentUser!.uid)
+        .doc(user.uid)
         .get();
     
     if (!userDoc.exists) {
       throw Exception('User not found');
     }
 
-    return MerchUser.fromMap(userDoc.data()!, userDoc.id);
+    // Create a map with default values for missing fields
+    final data = {
+      ...userDoc.data()!,
+      'isBuyer': userDoc.data()!['isBuyer'] ?? true,
+      'isAdmin': userDoc.data()!['isAdmin'] ?? false,
+      'isSeller': userDoc.data()!['isSeller'] ?? false,
+      'shippingAddresses': userDoc.data()!['shippingAddresses'] ?? [],
+      'preferences': userDoc.data()!['preferences'] ?? {},
+    };
+
+    return MerchUser.fromMap(data, userDoc.id);
   }
 
   Future<void> updateProfile(MerchUser user) async {

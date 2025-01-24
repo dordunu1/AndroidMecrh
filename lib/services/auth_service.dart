@@ -67,10 +67,23 @@ class AuthService {
       await _firestore.collection('users').doc(credential.user!.uid).set({
         'email': email.trim(),
         'name': email.split('@')[0], // Default name from email
+        'phone': '',
+        'photoUrl': '',
         'isAdmin': false,
         'isSeller': false,
-        'createdAt': FieldValue.serverTimestamp(),
+        'isBuyer': true,
+        'sellerId': null,
+        'sellerSince': null,
+        'address': '',
+        'city': '',
+        'state': '',
+        'country': '',
+        'zip': '',
         'shippingAddresses': [],
+        'defaultShippingAddress': null,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+        'preferences': {},
       });
 
       return credential;
@@ -197,11 +210,23 @@ class AuthService {
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'email': userCredential.user!.email,
         'name': userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
-        'photoUrl': userCredential.user!.photoURL,
+        'phone': userCredential.user!.phoneNumber ?? '',
+        'photoUrl': userCredential.user!.photoURL ?? '',
         'isAdmin': false,
         'isSeller': false,
-        'createdAt': FieldValue.serverTimestamp(),
+        'isBuyer': true,
+        'sellerId': null,
+        'sellerSince': null,
+        'address': '',
+        'city': '',
+        'state': '',
+        'country': '',
+        'zip': '',
         'shippingAddresses': [],
+        'defaultShippingAddress': null,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+        'preferences': {},
       }, SetOptions(merge: true));
 
       return userCredential;
