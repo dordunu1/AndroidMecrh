@@ -21,6 +21,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _error;
   Seller? _seller;
   File? _logoFile;
+  File? _bannerFile;
+  bool _hasChanges = false;
   
   // Controllers
   final _storeNameController = TextEditingController();
@@ -38,10 +40,34 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void initState() {
     super.initState();
     _loadSellerProfile();
+    
+    // Add listeners to track changes
+    _storeNameController.addListener(_onFieldChanged);
+    _descriptionController.addListener(_onFieldChanged);
+    _addressController.addListener(_onFieldChanged);
+    _cityController.addListener(_onFieldChanged);
+    _stateController.addListener(_onFieldChanged);
+    _countryController.addListener(_onFieldChanged);
+    _zipController.addListener(_onFieldChanged);
+    _phoneController.addListener(_onFieldChanged);
+    _shippingInfoController.addListener(_onFieldChanged);
+    _paymentInfoController.addListener(_onFieldChanged);
   }
 
   @override
   void dispose() {
+    // Remove listeners
+    _storeNameController.removeListener(_onFieldChanged);
+    _descriptionController.removeListener(_onFieldChanged);
+    _addressController.removeListener(_onFieldChanged);
+    _cityController.removeListener(_onFieldChanged);
+    _stateController.removeListener(_onFieldChanged);
+    _countryController.removeListener(_onFieldChanged);
+    _zipController.removeListener(_onFieldChanged);
+    _phoneController.removeListener(_onFieldChanged);
+    _shippingInfoController.removeListener(_onFieldChanged);
+    _paymentInfoController.removeListener(_onFieldChanged);
+
     _storeNameController.dispose();
     _descriptionController.dispose();
     _addressController.dispose();
@@ -53,6 +79,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _shippingInfoController.dispose();
     _paymentInfoController.dispose();
     super.dispose();
+  }
+
+  void _onFieldChanged() {
+    final hasTextChanges = 
+      _storeNameController.text != _seller?.storeName ||
+      _descriptionController.text != _seller?.description ||
+      _addressController.text != _seller?.address ||
+      _cityController.text != _seller?.city ||
+      _stateController.text != _seller?.state ||
+      _countryController.text != _seller?.country ||
+      _zipController.text != _seller?.zip ||
+      _phoneController.text != _seller?.phone ||
+      _shippingInfoController.text != _seller?.shippingInfo ||
+      _paymentInfoController.text != _seller?.paymentInfo;
+
+    final hasFileChanges = _logoFile != null || _bannerFile != null;
+
+    setState(() {
+      _hasChanges = hasTextChanges || hasFileChanges;
+    });
   }
 
   Future<void> _loadSellerProfile() async {
@@ -88,11 +134,30 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (pickedFile != null) {
         setState(() {
           _logoFile = File(pickedFile.path);
+          _hasChanges = true;
         });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
+  Future<void> _pickBanner() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      
+      if (pickedFile != null) {
+        setState(() {
+          _bannerFile = File(pickedFile.path);
+          _hasChanges = true;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking banner: $e')),
       );
     }
   }
@@ -104,12 +169,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     try {
       String? logoUrl = _seller?.logo;
+      String? bannerUrl = _seller?.banner;
       
       // Upload new logo if selected
       if (_logoFile != null) {
-        logoUrl = await ref.read(storageServiceProvider).uploadFile(
+        logoUrl = await ref.read(storageServiceProvider).uploadSellerFile(
           _logoFile!,
-          'seller_logos/${_seller!.id}',
+          'logo',
+        );
+      }
+
+      // Upload new banner if selected
+      if (_bannerFile != null) {
+        bannerUrl = await ref.read(storageServiceProvider).uploadSellerFile(
+          _bannerFile!,
+          'banner',
         );
       }
 
@@ -118,6 +192,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         storeName: _storeNameController.text,
         description: _descriptionController.text,
         logo: logoUrl,
+        banner: bannerUrl,
         address: _addressController.text,
         city: _cityController.text,
         state: _stateController.text,
@@ -195,12 +270,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Store Profile'),
-        actions: [
-          TextButton(
-            onPressed: _isLoading ? null : _saveProfile,
-            child: const Text('Save'),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Form(
@@ -214,36 +283,90 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 Center(
                   child: Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: colorScheme.primary,
-                        backgroundImage: _logoFile != null
-                            ? FileImage(_logoFile!) as ImageProvider
-                            : _seller?.logo != null
-                                ? NetworkImage(_seller!.logo!) as ImageProvider
-                                : null,
-                        child: _seller?.logo == null && _logoFile == null
-                            ? Icon(
-                                Icons.store,
-                                size: 50,
-                                color: colorScheme.onPrimary,
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: colorScheme.primary,
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.camera_alt,
-                              size: 18,
-                              color: colorScheme.onPrimary,
-                            ),
-                            onPressed: _pickLogo,
+                      // Banner Image
+                      GestureDetector(
+                        onTap: _pickBanner,
+                        child: Container(
+                          width: double.infinity,
+                          height: 150,
+                          margin: const EdgeInsets.only(bottom: 60),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceVariant,
+                            borderRadius: BorderRadius.circular(12),
+                            image: _bannerFile != null
+                                ? DecorationImage(
+                                    image: FileImage(_bannerFile!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : _seller?.banner != null
+                                    ? DecorationImage(
+                                        image: NetworkImage(_seller!.banner!),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
                           ),
+                          child: _seller?.banner == null && _bannerFile == null
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.add_photo_alternate_outlined,
+                                        size: 40,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Add Store Banner',
+                                        style: theme.textTheme.bodyLarge?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                      // Profile Logo (positioned over banner)
+                      Positioned(
+                        left: MediaQuery.of(context).size.width / 2 - 50,
+                        bottom: 0,
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 50,
+                              backgroundColor: colorScheme.primary,
+                              backgroundImage: _logoFile != null
+                                  ? FileImage(_logoFile!) as ImageProvider
+                                  : _seller?.logo != null
+                                      ? NetworkImage(_seller!.logo!) as ImageProvider
+                                      : null,
+                              child: _seller?.logo == null && _logoFile == null
+                                  ? Icon(
+                                      Icons.store,
+                                      size: 50,
+                                      color: colorScheme.onPrimary,
+                                    )
+                                  : null,
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: colorScheme.primary,
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.camera_alt,
+                                    size: 18,
+                                    color: colorScheme.onPrimary,
+                                  ),
+                                  onPressed: _pickLogo,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -423,25 +546,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   },
                 ),
                 const SizedBox(height: 32),
-
-                // Save Button
                 SizedBox(
                   width: double.infinity,
-                  child: CustomButton(
-                    onPressed: _isLoading ? null : _saveProfile,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text('Save Changes'),
+                  child: ElevatedButton(
+                    onPressed: _isLoading || !_hasChanges ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                    ),
+                    child: _isLoading 
+                      ? const CircularProgressIndicator()
+                      : const Text('Save Changes', style: TextStyle(fontSize: 16)),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
               ],
             ),
           ),

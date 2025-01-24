@@ -155,14 +155,23 @@ class SellerService {
   }
 
   Future<void> updateSellerProfile(Seller seller) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
 
-      await _firestore.collection('sellers').doc(user.uid).update(seller.toMap());
-    } catch (e) {
-      throw Exception('Failed to update seller profile: $e');
-    }
+    await _firestore.collection('sellers').doc(user.uid).update({
+      'storeName': seller.storeName,
+      'description': seller.description,
+      'logo': seller.logo,
+      'address': seller.address,
+      'city': seller.city,
+      'state': seller.state,
+      'country': seller.country,
+      'zip': seller.zip,
+      'phone': seller.phone,
+      'shippingInfo': seller.shippingInfo,
+      'paymentInfo': seller.paymentInfo,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
   }
 
   Future<Map<String, dynamic>> getSellerStats() async {

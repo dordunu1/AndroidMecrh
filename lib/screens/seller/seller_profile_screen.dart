@@ -38,25 +38,14 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     });
 
     try {
-      // First check seller status
-      _sellerStatus = await ref.read(sellerServiceProvider).getSellerStatus();
-      
-      if (_sellerStatus == null) {
-        // Create initial seller profile
-        await ref.read(sellerServiceProvider).verifyPayment('', {
-          'storeName': 'My Store',
-          'storeDescription': '',
-          'country': '',
-          'shippingInfo': '',
-          'paymentInfo': '',
-        });
-      }
-
-      // Now load the seller profile
+      // Load the seller profile first
       final seller = await ref.read(sellerServiceProvider).getSellerProfile();
+      final status = await ref.read(sellerServiceProvider).getSellerStatus();
+      
       if (mounted) {
         setState(() {
           _seller = seller;
+          _sellerStatus = status;
           _isLoading = false;
         });
       }
@@ -160,7 +149,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _seller?.storeName ?? 'My Store',
+                    _seller?.storeName ?? '',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),

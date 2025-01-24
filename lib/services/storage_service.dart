@@ -3,6 +3,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
@@ -10,7 +11,10 @@ final storageServiceProvider = Provider<StorageService>((ref) {
 
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final _uuid = const Uuid();
+
+  String? get currentUserId => _auth.currentUser?.uid;
 
   Future<List<String>> uploadFiles(List<File> files, String path) async {
     try {
@@ -100,6 +104,25 @@ class StorageService {
       await destinationRef.putData(data, metadata);
     } catch (e) {
       throw Exception('Failed to copy file: $e');
+    }
+  }
+
+  Future<String> uploadSellerFile(File file, String type) async {
+    final userId = currentUserId;
+    if (userId == null) throw Exception('User not authenticated');
+    
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}${p.extension(file.path)}';
+      final ref = _storage.ref().child('seller_${type}s/$userId/$fileName');
+      
+      final uploadTask = await ref.putFile(file);
+      if (uploadTask.state == TaskState.success) {
+        return await ref.getDownloadURL();
+      }
+      
+      throw Exception('Failed to upload file');
+    } catch (e) {
+      throw Exception('Failed to upload file: $e');
     }
   }
 

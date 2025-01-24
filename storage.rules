@@ -1,22 +1,35 @@
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isSeller() {
       return isAuthenticated() && 
-        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isSeller == true;
+        firestore.exists(/databases/(default)/documents/sellers/$(request.auth.uid));
     }
-    
+
     function isAdmin() {
       return isAuthenticated() && 
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Allow users to upload their profile photos
-    match /users/{userId}/photos/{fileName} {
+    // Allow users to upload their profile pictures
+    match /profile_pictures/{userId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Allow sellers to upload their store logos
+    match /seller_logos/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Allow sellers to upload their store banners
+    match /seller_banners/{userId}/{fileName} {
       allow read: if true;
       allow write: if isAuthenticated() && request.auth.uid == userId;
     }
