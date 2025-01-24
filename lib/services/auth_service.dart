@@ -47,10 +47,17 @@ class AuthService {
 
   Future<UserCredential> signInWithEmailAndPassword(String email, String password) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
+      final userCredential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
+
+      // Only update lastLoginAt timestamp
+      await _firestore.collection('users').doc(userCredential.user!.uid).update({
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      });
+
+      return userCredential;
     } catch (e) {
       throw _handleAuthError(e);
     }
@@ -206,28 +213,38 @@ class AuthService {
       // Sign in with Firebase
       final userCredential = await _auth.signInWithCredential(credential);
 
-      // Create/update user profile in Firestore
-      await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'email': userCredential.user!.email,
-        'name': userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
-        'phone': userCredential.user!.phoneNumber ?? '',
-        'photoUrl': userCredential.user!.photoURL ?? '',
-        'isAdmin': false,
-        'isSeller': false,
-        'isBuyer': true,
-        'sellerId': null,
-        'sellerSince': null,
-        'address': '',
-        'city': '',
-        'state': '',
-        'country': '',
-        'zip': '',
-        'shippingAddresses': [],
-        'defaultShippingAddress': null,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastLoginAt': FieldValue.serverTimestamp(),
-        'preferences': {},
-      }, SetOptions(merge: true));
+      // Check if this is a new user
+      final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
+      
+      if (!userDoc.exists) {
+        // Create new user profile in Firestore
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+          'email': userCredential.user!.email,
+          'name': userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
+          'phone': userCredential.user!.phoneNumber ?? '',
+          'photoUrl': userCredential.user!.photoURL ?? '',
+          'isAdmin': false,
+          'isSeller': false,
+          'isBuyer': true,
+          'sellerId': null,
+          'sellerSince': null,
+          'address': '',
+          'city': '',
+          'state': '',
+          'country': '',
+          'zip': '',
+          'shippingAddresses': [],
+          'defaultShippingAddress': null,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLoginAt': FieldValue.serverTimestamp(),
+          'preferences': {},
+        });
+      } else {
+        // Only update lastLoginAt for existing users
+        await _firestore.collection('users').doc(userCredential.user!.uid).update({
+          'lastLoginAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       return userCredential;
     } catch (e) {
