@@ -342,7 +342,7 @@ class _ProductCard extends StatelessWidget {
       elevation: 0,
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[900] : Colors.white,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(4),
         side: BorderSide.none,
@@ -373,18 +373,12 @@ class _ProductCard extends StatelessWidget {
                           imageUrl: product.images.first,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
-                            color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[100],
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : null,
-                              ),
-                            ),
+                            color: Colors.grey[100],
+                            child: const Center(child: CircularProgressIndicator()),
                           ),
                           errorWidget: (context, url, error) => Container(
-                            color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[100],
-                            child: Icon(Icons.error, 
-                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.grey
-                            ),
+                            color: Colors.grey[100],
+                            child: const Icon(Icons.error, color: Colors.grey),
                           ),
                         ),
                         if (product.hasDiscount)
@@ -427,9 +421,9 @@ class _ProductCard extends StatelessWidget {
                         product.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                          color: Colors.black,
                         ),
                       ),
                       if (discountedPrice != null)
@@ -437,10 +431,10 @@ class _ProductCard extends StatelessWidget {
                           children: [
                             Text(
                               'GH₵${discountedPrice.toStringAsFixed(2)}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                                color: Colors.black,
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -450,7 +444,7 @@ class _ProductCard extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 10,
                                   decoration: TextDecoration.lineThrough,
-                                  color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey,
+                                  color: Colors.grey,
                                 ),
                               ),
                             ),
@@ -459,10 +453,10 @@ class _ProductCard extends StatelessWidget {
                       else
                         Text(
                           'GH₵${product.price.toStringAsFixed(2)}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                            color: Colors.black,
                           ),
                         ),
                     ],

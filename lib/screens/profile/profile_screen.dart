@@ -11,7 +11,6 @@ import '../buyer/become_seller_screen.dart';
 import '../../services/buyer_service.dart';
 import '../../widgets/common/custom_list_tile.dart';
 import '../../routes.dart';
-import '../../providers/theme_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -31,13 +30,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isSaving = false;
   String? _error;
   MerchUser? _user;
-  bool _darkMode = false;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
-    _darkMode = ref.read(themeProvider.notifier).isDarkMode;
   }
 
   @override
@@ -240,20 +237,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   color: theme.colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
-              ),
-            ),
-            CustomListTile(
-              leading: Icon(
-                _darkMode ? Icons.dark_mode : Icons.light_mode,
-                color: _darkMode ? Colors.amber : Colors.blueGrey,
-              ),
-              title: 'Dark Mode',
-              trailing: Switch(
-                value: _darkMode,
-                onChanged: (value) async {
-                  setState(() => _darkMode = value);
-                  await ref.read(themeProvider.notifier).toggleTheme();
-                },
               ),
             ),
             CustomListTile(
