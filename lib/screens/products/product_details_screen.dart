@@ -118,7 +118,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                       ),
                       const SizedBox(width: 16),
                       Text(
-                        '\$${widget.product.price.toStringAsFixed(2)}',
+                        '₵${widget.product.price.toStringAsFixed(2)}',
                         style: theme.textTheme.headlineSmall?.copyWith(
                           color: theme.colorScheme.primary,
                           fontWeight: FontWeight.bold,
