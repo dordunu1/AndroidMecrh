@@ -7,7 +7,7 @@ import 'screens/seller/seller_navigation_screen.dart';
 import 'screens/admin/admin_navigation_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/buyer/become_seller_screen.dart';
-import 'screens/profile/edit_profile_screen.dart';
+import 'screens/seller/edit_profile_screen.dart';
 import 'screens/profile/shipping_addresses_screen.dart';
 import 'screens/profile/payment_methods_screen.dart';
 import 'screens/profile/notifications_settings_screen.dart';
