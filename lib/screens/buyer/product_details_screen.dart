@@ -119,53 +119,84 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                             ),
                           if (widget.product.hasDiscount)
                             Positioned(
-                              top: 16,
-                              right: 16,
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [
+                                      Color(0xFFFF1F8A),
+                                      Color(0xCCFF1F8A),
+                                      Color(0x00FF1F8A),
+                                    ],
+                                    stops: [0.0, 0.5, 1.0],
+                                  ),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFF4646),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Column(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      'GHS ${discountedPrice?.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'GHS ${discountedPrice?.toStringAsFixed(2)}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 24,
+                                                  height: 1,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'GHS ${widget.product.price.toStringAsFixed(2)}',
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  decoration: TextDecoration.lineThrough,
+                                                  fontSize: 14,
+                                                  height: 1,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Save GHS ${(widget.product.price - (discountedPrice ?? 0)).toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              height: 1,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'GHS ${widget.product.price.toStringAsFixed(2)}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        decoration: TextDecoration.lineThrough,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                        vertical: 2,
+                                        horizontal: 8,
+                                        vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
-                                        borderRadius: BorderRadius.circular(2),
+                                        borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
                                         '-${widget.product.discountPercent.toStringAsFixed(0)}%',
                                         style: const TextStyle(
-                                          color: Color(0xFFFF4646),
+                                          color: Color(0xFFFF1F8A),
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 10,
+                                          fontSize: 14,
+                                          height: 1,
                                         ),
                                       ),
                                     ),
