@@ -10,10 +10,21 @@ class Product {
   final int stockQuantity;
   final List<String> images;
   final String category;
+  final String? subCategory;
   final bool isActive;
   final String createdAt;
   final String? updatedAt;
-  final Map<String, dynamic>? options;
+  final double shippingFee;
+  final String? shippingInfo;
+  final bool hasVariants;
+  final List<String> sizes;
+  final List<String> colors;
+  final Map<String, int> colorQuantities;
+  final bool hasDiscount;
+  final double discountPercent;
+  final String? discountEndsAt;
+  final double? discountedPrice;
+  final int soldCount;
 
   int get stock => stockQuantity;
 
@@ -27,27 +38,49 @@ class Product {
     required this.stockQuantity,
     required this.images,
     required this.category,
+    this.subCategory,
     required this.isActive,
     required this.createdAt,
     this.updatedAt,
-    this.options,
+    required this.shippingFee,
+    this.shippingInfo,
+    this.hasVariants = false,
+    this.sizes = const [],
+    this.colors = const [],
+    this.colorQuantities = const {},
+    this.hasDiscount = false,
+    this.discountPercent = 0,
+    this.discountEndsAt,
+    this.discountedPrice,
+    this.soldCount = 0,
   });
 
   factory Product.fromMap(Map<String, dynamic> map, String id) {
     return Product(
       id: id,
-      sellerId: map['sellerId'] as String,
-      sellerName: map['sellerName'] as String? ?? 'Unknown Seller',
-      name: map['name'] as String,
-      description: map['description'] as String,
-      price: (map['price'] as num).toDouble(),
-      stockQuantity: (map['stockQuantity'] as num).toInt(),
-      images: List<String>.from(map['images'] as List),
-      category: map['category'] as String,
-      isActive: map['isActive'] as bool? ?? true,
-      createdAt: map['createdAt'] as String,
-      updatedAt: map['updatedAt'] as String?,
-      options: map['options'] as Map<String, dynamic>?,
+      sellerId: map['sellerId'] ?? '',
+      sellerName: map['sellerName'] ?? '',
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      price: (map['price'] ?? 0.0).toDouble(),
+      stockQuantity: map['stockQuantity'] ?? 0,
+      images: List<String>.from(map['images'] ?? []),
+      category: map['category'] ?? '',
+      subCategory: map['subCategory'],
+      isActive: map['isActive'] ?? true,
+      createdAt: map['createdAt'] ?? '',
+      updatedAt: map['updatedAt'],
+      shippingFee: (map['shippingFee'] ?? 0.0).toDouble(),
+      shippingInfo: map['shippingInfo'],
+      hasVariants: map['hasVariants'] ?? false,
+      sizes: List<String>.from(map['sizes'] ?? []),
+      colors: List<String>.from(map['colors'] ?? []),
+      colorQuantities: Map<String, int>.from(map['colorQuantities'] ?? {}),
+      hasDiscount: map['hasDiscount'] ?? false,
+      discountPercent: (map['discountPercent'] ?? 0.0).toDouble(),
+      discountEndsAt: map['discountEndsAt'],
+      discountedPrice: (map['discountedPrice'] ?? 0.0).toDouble(),
+      soldCount: map['soldCount'] ?? 0,
     );
   }
 
@@ -61,10 +94,21 @@ class Product {
       'stockQuantity': stockQuantity,
       'images': images,
       'category': category,
+      'subCategory': subCategory,
       'isActive': isActive,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
-      'options': options,
+      'shippingFee': shippingFee,
+      'shippingInfo': shippingInfo,
+      'hasVariants': hasVariants,
+      'sizes': sizes,
+      'colors': colors,
+      'colorQuantities': colorQuantities,
+      'hasDiscount': hasDiscount,
+      'discountPercent': discountPercent,
+      'discountEndsAt': discountEndsAt,
+      'discountedPrice': discountedPrice,
+      'soldCount': soldCount,
     };
   }
 
@@ -78,10 +122,21 @@ class Product {
     int? stockQuantity,
     List<String>? images,
     String? category,
+    String? subCategory,
     bool? isActive,
     String? createdAt,
     String? updatedAt,
-    Map<String, dynamic>? options,
+    double? shippingFee,
+    String? shippingInfo,
+    bool? hasVariants,
+    List<String>? sizes,
+    List<String>? colors,
+    Map<String, int>? colorQuantities,
+    bool? hasDiscount,
+    double? discountPercent,
+    String? discountEndsAt,
+    double? discountedPrice,
+    int? soldCount,
   }) {
     return Product(
       id: id ?? this.id,
@@ -93,10 +148,21 @@ class Product {
       stockQuantity: stockQuantity ?? this.stockQuantity,
       images: images ?? this.images,
       category: category ?? this.category,
+      subCategory: subCategory ?? this.subCategory,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      options: options ?? this.options,
+      shippingFee: shippingFee ?? this.shippingFee,
+      shippingInfo: shippingInfo ?? this.shippingInfo,
+      hasVariants: hasVariants ?? this.hasVariants,
+      sizes: sizes ?? this.sizes,
+      colors: colors ?? this.colors,
+      colorQuantities: colorQuantities ?? this.colorQuantities,
+      hasDiscount: hasDiscount ?? this.hasDiscount,
+      discountPercent: discountPercent ?? this.discountPercent,
+      discountEndsAt: discountEndsAt ?? this.discountEndsAt,
+      discountedPrice: discountedPrice ?? this.discountedPrice,
+      soldCount: soldCount ?? this.soldCount,
     );
   }
 } 

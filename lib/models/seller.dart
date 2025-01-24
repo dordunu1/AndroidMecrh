@@ -21,6 +21,7 @@ class Seller {
   final Map<String, dynamic>? paymentDetails;
   final double averageRating;
   final int reviewCount;
+  final double shippingFee;
 
   Seller({
     required this.id,
@@ -43,6 +44,7 @@ class Seller {
     this.paymentDetails,
     this.averageRating = 0.0,
     this.reviewCount = 0,
+    this.shippingFee = 0.0,
   });
 
   factory Seller.fromMap(Map<String, dynamic> map, String id) {
@@ -61,12 +63,13 @@ class Seller {
       phone: map['phone'] ?? '',
       email: map['email'] ?? '',
       isVerified: map['isVerified'] ?? false,
-      createdAt: map['createdAt'] ?? DateTime.now().toIso8601String(),
+      createdAt: map['createdAt'] ?? '',
       updatedAt: map['updatedAt'],
       balance: (map['balance'] ?? 0.0).toDouble(),
       paymentDetails: map['paymentDetails'],
       averageRating: (map['averageRating'] ?? 0.0).toDouble(),
-      reviewCount: (map['reviewCount'] ?? 0) as int,
+      reviewCount: map['reviewCount'] ?? 0,
+      shippingFee: (map['shippingFee'] ?? 0.0).toDouble(),
     );
   }
 
@@ -91,6 +94,7 @@ class Seller {
       'paymentDetails': paymentDetails,
       'averageRating': averageRating,
       'reviewCount': reviewCount,
+      'shippingFee': shippingFee,
     };
   }
 
@@ -115,6 +119,7 @@ class Seller {
     Map<String, dynamic>? paymentDetails,
     double? averageRating,
     int? reviewCount,
+    double? shippingFee,
   }) {
     return Seller(
       id: id ?? this.id,
@@ -137,6 +142,7 @@ class Seller {
       paymentDetails: paymentDetails ?? this.paymentDetails,
       averageRating: averageRating ?? this.averageRating,
       reviewCount: reviewCount ?? this.reviewCount,
+      shippingFee: shippingFee ?? this.shippingFee,
     );
   }
 } 
