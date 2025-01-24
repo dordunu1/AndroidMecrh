@@ -953,26 +953,23 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       }
 
       if (_hasVariants) {
-        if (_selectedSizes.isEmpty) {
+        // Check if at least one variant type (sizes or colors) is selected
+        if (_selectedSizes.isEmpty && _selectedColors.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select at least one size')),
+            const SnackBar(content: Text('Please select at least one variant (sizes or colors)')),
           );
           return;
         }
 
-        if (_selectedColors.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select at least one color')),
-          );
-          return;
-        }
-
-        final totalQuantity = _colorQuantities.values.fold(0, (sum, qty) => sum + qty);
-        if (totalQuantity == 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please specify quantities for selected colors')),
-          );
-          return;
+        // If colors are selected, validate quantities
+        if (_selectedColors.isNotEmpty) {
+          final totalQuantity = _colorQuantities.values.fold(0, (sum, qty) => sum + qty);
+          if (totalQuantity == 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please specify quantities for selected colors')),
+            );
+            return;
+          }
         }
       }
     }

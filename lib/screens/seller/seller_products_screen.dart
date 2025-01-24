@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/product.dart';
 import '../../services/seller_service.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/product_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'add_product_screen.dart';
 import 'edit_product_screen.dart';
@@ -284,17 +285,56 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                               ),
                             ),
                           )
-                        : ListView.separated(
+                        : GridView.builder(
                             padding: const EdgeInsets.all(16),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.65,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
                             itemCount: _products.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 16),
                             itemBuilder: (context, index) {
                               final product = _products[index];
-                              return _ProductCard(
-                                product: product,
-                                onToggleStatus: () => _toggleProductStatus(product),
-                                onEdit: () => _editProduct(product),
-                                onDelete: () => _deleteProduct(product),
+                              return Stack(
+                                children: [
+                                  ProductCard(
+                                    product: product,
+                                    onTap: () => _editProduct(product),
+                                  ),
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.surface.withOpacity(0.8),
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          child: IconButton(
+                                            icon: Icon(
+                                              product.isActive ? Icons.visibility : Icons.visibility_off,
+                                              color: product.isActive ? Colors.green : Colors.red,
+                                            ),
+                                            onPressed: () => _toggleProductStatus(product),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.surface.withOpacity(0.8),
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          child: IconButton(
+                                            icon: const Icon(Icons.delete, color: Colors.red),
+                                            onPressed: () => _deleteProduct(product),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               );
                             },
                           ),
@@ -326,119 +366,6 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: onSelected,
-    );
-  }
-}
-
-class _ProductCard extends StatelessWidget {
-  final Product product;
-  final VoidCallback onToggleStatus;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _ProductCard({
-    required this.product,
-    required this.onToggleStatus,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Product Image
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: CachedNetworkImage(
-                imageUrl: product.images.first,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: theme.colorScheme.surfaceVariant,
-                  child: const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: theme.colorScheme.surfaceVariant,
-                  child: const Center(
-                    child: Icon(Icons.error),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Product Details
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        product.name,
-                        style: theme.textTheme.titleMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    _StatusChip(isActive: product.isActive),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '\$${product.price.toStringAsFixed(2)}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Stock: ${product.stock}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onToggleStatus,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: product.isActive ? Colors.red : Colors.green,
-                        ),
-                        child: Text(product.isActive ? 'Deactivate' : 'Activate'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: onEdit,
-                      icon: const Icon(Icons.edit),
-                    ),
-                    IconButton(
-                      onPressed: onDelete,
-                      icon: const Icon(Icons.delete),
-                      color: Colors.red,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

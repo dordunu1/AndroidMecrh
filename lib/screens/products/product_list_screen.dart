@@ -5,6 +5,7 @@ import '../../models/product.dart';
 import '../../services/product_service.dart';
 import '../../widgets/products/product_grid_item.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/products/product_card.dart';
 
 final productsProvider = FutureProvider.autoDispose.family<List<Product>, Map<String, dynamic>>(
   (ref, filters) async {
@@ -143,9 +144,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 padding: const EdgeInsets.all(16),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.65,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
                 ),
                 itemCount: _products.length + (_hasMore ? 1 : 0),
                 itemBuilder: (context, index) {
@@ -159,7 +160,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   }
 
                   final product = _products[index];
-                  return ProductGridItem(
+                  return ProductCard(
                     product: product,
                     onTap: () {
                       Navigator.of(context).pushNamed(
