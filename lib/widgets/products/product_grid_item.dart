@@ -63,7 +63,7 @@ class ProductGridItem extends StatelessWidget {
                       children: [
                         if (discountedPrice != null) ...[
                           Text(
-                            '\$${discountedPrice.toStringAsFixed(2)}',
+                            'GHS ${discountedPrice.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -72,7 +72,7 @@ class ProductGridItem extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '\$${product.price.toStringAsFixed(2)}',
+                            'GHS ${product.price.toStringAsFixed(2)}',
                             style: const TextStyle(
                               fontSize: 12,
                               decoration: TextDecoration.lineThrough,
@@ -81,7 +81,7 @@ class ProductGridItem extends StatelessWidget {
                           ),
                         ] else
                           Text(
-                            '\$${product.price.toStringAsFixed(2)}',
+                            'GHS ${product.price.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,

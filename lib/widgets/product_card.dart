@@ -146,7 +146,7 @@ class _ProductCardState extends State<ProductCard> {
                       children: [
                         if (widget.product.hasDiscount) ...[
                           Text(
-                            '₵${widget.product.discountedPrice?.toStringAsFixed(2)}',
+                            'GHS ${widget.product.discountedPrice?.toStringAsFixed(2)}',
                             style: theme.textTheme.titleMedium?.copyWith(
                               color: theme.colorScheme.primary,
                               fontWeight: FontWeight.bold,
@@ -154,7 +154,7 @@ class _ProductCardState extends State<ProductCard> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '₵${widget.product.price.toStringAsFixed(2)}',
+                            'GHS ${widget.product.price.toStringAsFixed(2)}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                               decoration: TextDecoration.lineThrough,
@@ -162,7 +162,7 @@ class _ProductCardState extends State<ProductCard> {
                           ),
                         ] else
                           Text(
-                            '₵${widget.product.price.toStringAsFixed(2)}',
+                            'GHS ${widget.product.price.toStringAsFixed(2)}',
                             style: theme.textTheme.titleMedium?.copyWith(
                               color: theme.colorScheme.primary,
                               fontWeight: FontWeight.bold,

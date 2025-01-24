@@ -337,7 +337,7 @@ class _OrderCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '\$${(item.price * item.quantity).toStringAsFixed(2)}',
+                      'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),

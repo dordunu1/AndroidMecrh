@@ -442,14 +442,14 @@ class _ProductCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   if (product.hasDiscount) ...[
                     Text(
-                      'GH₵${discountedPrice?.toStringAsFixed(2)}',
+                      'GHS ${discountedPrice?.toStringAsFixed(2)}',
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      'GH₵${product.price.toStringAsFixed(2)}',
+                      'GHS ${product.price.toStringAsFixed(2)}',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         decoration: TextDecoration.lineThrough,
@@ -457,7 +457,7 @@ class _ProductCard extends StatelessWidget {
                     ),
                   ] else
                     Text(
-                      'GH₵${product.price.toStringAsFixed(2)}',
+                      'GHS ${product.price.toStringAsFixed(2)}',
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,

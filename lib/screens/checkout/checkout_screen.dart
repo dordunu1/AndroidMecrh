@@ -198,7 +198,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      '₵${(item.price * item.quantity).toStringAsFixed(2)}',
+                                      'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
                                       style: theme.textTheme.bodyMedium?.copyWith(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -217,7 +217,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 style: theme.textTheme.titleMedium,
                               ),
                               Text(
-                                '₵${_calculateTotal().toStringAsFixed(2)}',
+                                'GHS ${_calculateTotal().toStringAsFixed(2)}',
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   color: theme.colorScheme.primary,
                                   fontWeight: FontWeight.bold,

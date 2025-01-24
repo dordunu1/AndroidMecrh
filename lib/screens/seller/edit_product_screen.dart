@@ -596,9 +596,9 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
               initialValue: _shippingFee.toString(),
               enabled: false,
               decoration: const InputDecoration(
-                labelText: 'Shipping Fee',
-                border: OutlineInputBorder(),
-                prefixText: 'GH₵',
+                labelText: 'Shipping Fee (GHS)',
+                hintText: '0.00',
+                prefixText: 'GHS ',
               ),
             ),
             const SizedBox(height: 8),
@@ -858,8 +858,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Price',
-                              border: OutlineInputBorder(),
-                              prefixText: 'GH₵',
+                              hintText: '0.00',
+                              prefixText: 'GHS ',
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -1012,7 +1012,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                                 children: [
                                   const Text('Original Price:'),
                                   Text(
-                                    'GH₵${double.parse(_priceController.text)}',
+                                    'GHS ${double.parse(_priceController.text)}',
                                     style: const TextStyle(
                                       decoration: TextDecoration.lineThrough,
                                     ),
@@ -1028,7 +1028,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                                     style: TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                   Text(
-                                    'GH₵${(double.parse(_priceController.text) * (1 - _discountPercent / 100)).toStringAsFixed(2)}',
+                                    'GHS ${(double.parse(_priceController.text) * (1 - _discountPercent / 100)).toStringAsFixed(2)}',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Theme.of(context).colorScheme.primary,

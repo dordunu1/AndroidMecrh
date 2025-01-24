@@ -314,7 +314,7 @@ class _OrderCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Total: \$${order.total.toStringAsFixed(2)}',
+                  'Total: GHS ${order.total.toStringAsFixed(2)}',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -350,7 +350,7 @@ class _OrderCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '\$${(item.price * item.quantity).toStringAsFixed(2)}',
+                      'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),

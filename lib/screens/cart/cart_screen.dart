@@ -205,7 +205,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       style: theme.textTheme.titleMedium,
                                     ),
                                     Text(
-                                      '\$${_calculateTotal().toStringAsFixed(2)}',
+                                      'GHS ${_calculateTotal().toStringAsFixed(2)}',
                                       style: theme.textTheme.titleLarge?.copyWith(
                                         color: theme.colorScheme.primary,
                                         fontWeight: FontWeight.bold,
@@ -293,7 +293,7 @@ class _CartItemCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '\$${item.price.toStringAsFixed(2)}',
+                        'GHS ${item.price.toStringAsFixed(2)}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: theme.colorScheme.primary,
                           fontWeight: FontWeight.bold,

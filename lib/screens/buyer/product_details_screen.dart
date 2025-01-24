@@ -161,7 +161,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                   Row(
                     children: [
                       Text(
-                        '\$${widget.product.price.toStringAsFixed(2)}',
+                        'GHS ${widget.product.price.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
