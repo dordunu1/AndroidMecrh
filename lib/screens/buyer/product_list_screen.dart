@@ -5,7 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product.dart';
 import '../../services/buyer_service.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/product_skeleton.dart';
 import 'product_details_screen.dart';
+import 'package:shimmer/shimmer.dart';
 
 final productsProvider = StreamProvider.autoDispose
     .family<List<Product>, Map<String, dynamic>>((ref, params) {
@@ -213,7 +215,17 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             // Products Grid
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? GridView.builder(
+                      padding: const EdgeInsets.all(8),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.9,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                      ),
+                      itemCount: 6,
+                      itemBuilder: (context, index) => const ProductSkeleton(),
+                    )
                   : _error != null
                       ? Center(
                           child: Column(
@@ -372,9 +384,12 @@ class _ProductCard extends StatelessWidget {
                         CachedNetworkImage(
                           imageUrl: product.images.first,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[100],
-                            child: const Center(child: CircularProgressIndicator()),
+                          placeholder: (context, url) => Shimmer.fromColors(
+                            baseColor: Colors.grey[300]!,
+                            highlightColor: Colors.grey[100]!,
+                            child: Container(
+                              color: Colors.white,
+                            ),
                           ),
                           errorWidget: (context, url, error) => Container(
                             color: Colors.grey[100],

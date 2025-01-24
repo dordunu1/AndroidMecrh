@@ -6,15 +6,12 @@ class ProductSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
-    final highlightColor = isDark ? Colors.grey[700]! : Colors.grey[100]!;
-
     return Card(
       clipBehavior: Clip.antiAlias,
+      color: Colors.white,
       child: Shimmer.fromColors(
-        baseColor: baseColor,
-        highlightColor: highlightColor,
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -40,28 +37,27 @@ class ProductSkeleton extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Rating placeholder
+                  // Price placeholder
                   Row(
                     children: [
                       Container(
-                        width: 80,
-                        height: 12,
+                        width: 60,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 40,
+                        height: 16,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Price placeholder
-                  Container(
-                    width: 60,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
                   ),
                 ],
               ),
@@ -83,17 +79,16 @@ class ProductGridSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SliverGrid(
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.7,
-        mainAxisSpacing: 16.0,
-        crossAxisSpacing: 16.0,
+        childAspectRatio: 0.9,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
       ),
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => const ProductSkeleton(),
-        childCount: itemCount,
-      ),
+      itemCount: itemCount,
+      itemBuilder: (context, index) => const ProductSkeleton(),
     );
   }
 } 
