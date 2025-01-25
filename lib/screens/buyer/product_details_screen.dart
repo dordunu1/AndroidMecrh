@@ -43,6 +43,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   MerchUser? _currentUser;
   bool _isLoadingMore = false;
   String? _sellerCity;
+  String? _sellerCountry;
   String? _selectedColor;
 
   @override
@@ -60,7 +61,10 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
       // Load seller info from sellers collection
       final seller = await ref.read(sellerServiceProvider).getSellerProfileById(widget.product.sellerId);
       if (seller != null) {
-        setState(() => _sellerCity = seller.city);
+        setState(() {
+          _sellerCity = seller.city;
+          _sellerCountry = seller.country;
+        });
       }
       
       // Load seller's other products
@@ -79,12 +83,12 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   }
 
   double _calculateDeliveryFee() {
-    if (_currentUser == null) return 0.7; // Default to higher fee if user not loaded
+    if (_currentUser == null) return 0.5; // Default to same city fee if user not loaded
     
     final buyerCity = _currentUser!.city?.trim().toLowerCase() ?? '';
     final buyerCountry = _currentUser!.country?.trim().toLowerCase() ?? '';
     final sellerCity = _sellerCity?.trim().toLowerCase() ?? '';
-    final sellerCountry = widget.product.sellerCountry?.trim().toLowerCase() ?? '';
+    final sellerCountry = _sellerCountry?.trim().toLowerCase() ?? '';
     
     print('Calculating delivery fee:');
     print('Buyer city: $buyerCity');
@@ -92,18 +96,18 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     print('Seller city: $sellerCity');
     print('Seller country: $sellerCountry');
     
+    // First check if both are in Ghana
+    if (buyerCountry == 'ghana' && sellerCountry == 'ghana') {
+      // If same city, return 0.5
+      if (buyerCity == sellerCity) {
+        return 0.5;
+      }
+      // Different cities in Ghana
+      return 0.7;
+    }
+    
     // International shipping
-    if (buyerCountry != 'ghana' || sellerCountry != 'ghana') {
-      return 1.0; // Test value for international shipping
-    }
-    
-    // Local shipping - same city
-    if (buyerCity == sellerCity) {
-      return 0.5; // Test value for same city
-    }
-    
-    // Different cities within Ghana
-    return 0.7; // Test value for different cities
+    return 1.0;
   }
 
   @override
