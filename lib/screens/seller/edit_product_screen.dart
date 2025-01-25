@@ -122,6 +122,43 @@ const ART_SUBCATEGORIES = {
   ]
 };
 
+const HOME_SUBCATEGORIES = {
+  "Furniture": [
+    "Sofas & Couches",
+    "Dining Tables",
+    "Beds",
+    "Chairs",
+    "Coffee Tables",
+    "Wardrobes",
+    "TV Stands",
+    "Bookshelves"
+  ],
+  "Home Decor": [
+    "Carpets & Rugs",
+    "Curtains",
+    "Wall Art",
+    "Mirrors",
+    "Throw Pillows",
+    "Vases",
+    "Lighting"
+  ],
+  "Kitchen & Dining": [
+    "Cookware",
+    "Dinnerware",
+    "Kitchen Appliances",
+    "Storage Containers",
+    "Cutlery",
+    "Kitchen Textiles"
+  ],
+  "Bathroom": [
+    "Towels",
+    "Bath Mats",
+    "Shower Curtains",
+    "Bathroom Storage",
+    "Bathroom Accessories"
+  ]
+};
+
 const SHOE_SIZES = [
   "US 6 / EU 39",
   "US 6.5 / EU 39.5",
@@ -967,7 +1004,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
 
             // Subcategories
             if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories' || 
-                _selectedCategory == 'electronics' || _selectedCategory == 'art')
+                _selectedCategory == 'electronics' || _selectedCategory == 'art' ||
+                _selectedCategory == 'home')
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -983,7 +1021,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                       ...(_selectedCategory == 'clothing' ? CLOTHING_SUBCATEGORIES :
                          _selectedCategory == 'accessories' ? ACCESSORIES_SUBCATEGORIES :
                          _selectedCategory == 'electronics' ? ELECTRONICS_SUBCATEGORIES :
-                         _selectedCategory == 'art' ? ART_SUBCATEGORIES : {})
+                         _selectedCategory == 'art' ? ART_SUBCATEGORIES :
+                         _selectedCategory == 'home' ? HOME_SUBCATEGORIES : {})
                         .entries
                         .expand((mainCategory) {
                           return mainCategory.value.map((subItem) {
@@ -1012,54 +1051,105 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
             const SizedBox(height: 16),
 
             // Variants Section
-            if (_hasVariants && _colorQuantities.isNotEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Color Variants',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(width: 16),
+                        Switch(
+                          value: _hasVariants,
+                          onChanged: (value) {
+                            setState(() {
+                              _hasVariants = value;
+                              if (!value) {
+                                _selectedSizes = [];
+                                _colorQuantities = {};
+                              }
+                              _markFieldAsChanged('hasVariants');
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    if (_hasVariants) ...[
+                      const SizedBox(height: 8),
                       Text(
-                        'Color Variants',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _colorQuantities.length,
-                        separatorBuilder: (context, index) => const Divider(),
-                        itemBuilder: (context, index) {
-                          final color = _colorQuantities.keys.elementAt(index);
-                          final quantity = _colorQuantities[color] ?? 0;
-                          return ListTile(
-                            title: Text(color),
-                            subtitle: Text('$quantity in stock'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit),
-                                  onPressed: () => _editColorQuantity(color),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete),
-                                  onPressed: () => _removeColor(color),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Total Stock: ${_colorQuantities.values.fold(0, (sum, quantity) => sum + quantity)}',
+                        'Guide: How to add color variants',
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
+                      const SizedBox(height: 4),
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('1. Upload product images above'),
+                              Text('2. Click the pencil icon (✏️) on each image'),
+                              Text('3. Enter the color name for that variant'),
+                              Text('4. Set the quantity available for each color below'),
+                              Text('Note: Each image should represent a different color variant'),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_colorQuantities.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Color Quantities',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _colorQuantities.length,
+                              separatorBuilder: (context, index) => const Divider(),
+                              itemBuilder: (context, index) {
+                                final color = _colorQuantities.keys.elementAt(index);
+                                final quantity = _colorQuantities[color] ?? 0;
+                                return ListTile(
+                                  title: Text(color),
+                                  subtitle: Text('$quantity in stock'),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit),
+                                        onPressed: () => _editColorQuantity(color),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete),
+                                        onPressed: () => _removeColor(color),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Total Stock: ${_colorQuantities.values.fold(0, (sum, quantity) => sum + quantity)}',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                          ],
+                        ),
                     ],
-                  ),
+                  ],
                 ),
               ),
+            ),
 
             // Price and Discount Section
             Card(

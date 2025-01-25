@@ -49,7 +49,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
               color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 8),
-            const Text('Delivery Fee Info'),
+            const Text('Delivery Fee Information'),
           ],
         ),
         content: SingleChildScrollView(
@@ -77,7 +77,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
               const ListTile(
                 leading: Icon(Icons.shopping_cart),
                 title: Text('Quantity Based'),
-                subtitle: Text('Orders with more than 5 items:\nAdditional GHS 30.00 fee'),
+                subtitle: Text('Orders with more than 5 items:\nAdditional GHS 0.30 fee'),
                 minLeadingWidth: 0,
               ),
               const SizedBox(height: 16),

@@ -153,6 +153,43 @@ const ART_SUBCATEGORIES = {
   ]
 };
 
+const HOME_SUBCATEGORIES = {
+  "Furniture": [
+    "Sofas & Couches",
+    "Dining Tables",
+    "Beds",
+    "Chairs",
+    "Coffee Tables",
+    "Wardrobes",
+    "TV Stands",
+    "Bookshelves"
+  ],
+  "Home Decor": [
+    "Carpets & Rugs",
+    "Curtains",
+    "Wall Art",
+    "Mirrors",
+    "Throw Pillows",
+    "Vases",
+    "Lighting"
+  ],
+  "Kitchen & Dining": [
+    "Cookware",
+    "Dinnerware",
+    "Kitchen Appliances",
+    "Storage Containers",
+    "Cutlery",
+    "Kitchen Textiles"
+  ],
+  "Bathroom": [
+    "Towels",
+    "Bath Mats",
+    "Shower Curtains",
+    "Bathroom Storage",
+    "Bathroom Accessories"
+  ]
+};
+
 const SHOE_SIZES = [
   "US 6 / EU 39",
   "US 6.5 / EU 39.5",
@@ -215,6 +252,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   @override
   void initState() {
     super.initState();
+    // Show guide when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddProductGuide();
+    });
   }
 
   @override
@@ -319,6 +360,93 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               Navigator.pop(context);
             },
             child: const Text('SAVE'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddProductGuide() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            const Text('How to Add a Product'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Follow these steps to add your product:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              Text('1. Upload Product Images (up to 10):'),
+              Padding(
+                padding: EdgeInsets.only(left: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• Click the + button to add images'),
+                    Text('• Each image should show a different color variant'),
+                    Text('• Click the pencil icon (✏️) on each image to set its color'),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12),
+              Text('2. Fill in Basic Details:'),
+              Padding(
+                padding: EdgeInsets.only(left: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• Product name and description'),
+                    Text('• Select category and subcategory'),
+                    Text('• Set base price'),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12),
+              Text('3. Set Up Color Variants:'),
+              Padding(
+                padding: EdgeInsets.only(left: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• Enable color variants toggle'),
+                    Text('• Enter quantity available for each color'),
+                    Text('• Make sure each color matches an uploaded image'),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12),
+              Text('4. Optional Settings:'),
+              Padding(
+                padding: EdgeInsets.only(left: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• Add discount if applicable'),
+                    Text('• Set shipping information'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it, let\'s start!'),
           ),
         ],
       ),
@@ -552,9 +680,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Subcategories for Clothing and Accessories
+                    // Subcategories Section
                     if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories' || 
-                        _selectedCategory == 'electronics' || _selectedCategory == 'art')
+                        _selectedCategory == 'electronics' || _selectedCategory == 'art' ||
+                        _selectedCategory == 'home')
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -570,7 +699,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                               ...(_selectedCategory == 'clothing' ? CLOTHING_SUBCATEGORIES :
                                  _selectedCategory == 'accessories' ? ACCESSORIES_SUBCATEGORIES :
                                  _selectedCategory == 'electronics' ? ELECTRONICS_SUBCATEGORIES :
-                                 _selectedCategory == 'art' ? ART_SUBCATEGORIES : {})
+                                 _selectedCategory == 'art' ? ART_SUBCATEGORIES :
+                                 _selectedCategory == 'home' ? HOME_SUBCATEGORIES : {})
                                 .entries
                                 .expand((mainCategory) {
                                   return mainCategory.value.map((subItem) {
@@ -602,122 +732,63 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Variants Section for Clothing and Accessories
-            if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Product Variants',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(width: 16),
-                          Switch(
-                            value: _hasVariants,
-                            onChanged: (value) {
-                              setState(() {
-                                _hasVariants = value;
-                                if (!value) {
-                                  _selectedSizes = [];
-                                  _selectedColors = [];
-                                  _colorQuantities = {};
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      if (_hasVariants) ...[
-                        const SizedBox(height: 16),
-                        
-                        // Sizes Section
+            // Variants Section - Now shown for all categories
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
                         Text(
-                          'Available Sizes',
-                          style: Theme.of(context).textTheme.titleSmall,
+                          'Color Variants',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            ...(isFootwearProduct ? SHOE_SIZES : CLOTHING_SIZES).map((size) {
-                              return FilterChip(
-                                selected: _selectedSizes.contains(size),
-                                label: Text(size),
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedSizes.add(size);
-                                    } else {
-                                      _selectedSizes.remove(size);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
-                          ],
+                        const SizedBox(width: 16),
+                        Switch(
+                          value: _hasVariants,
+                          onChanged: (value) {
+                            setState(() {
+                              _hasVariants = value;
+                              if (!value) {
+                                _selectedSizes = [];
+                                _selectedColors = [];
+                                _colorQuantities = {};
+                              }
+                            });
+                          },
                         ),
-                        const SizedBox(height: 16),
-
-                        // Color Summary Section
-                        if (_imageColors.isNotEmpty) ...[
-                          Text(
-                            'Color Variants',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: 8),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ..._imageColors.entries.map((entry) => Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(entry.value),
-                                        SizedBox(
-                                          width: 80,
-                                          child: TextFormField(
-                                            initialValue: '${_colorQuantities[entry.value] ?? 0}',
-                                            keyboardType: TextInputType.number,
-                                            textAlign: TextAlign.end,
-                                            decoration: InputDecoration(
-                                              isDense: true,
-                                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                              border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              suffixText: ' pcs',
-                                            ),
-                                            onChanged: (value) {
-                                              final quantity = int.tryParse(value) ?? 0;
-                                              setState(() {
-                                                _colorQuantities[entry.value] = quantity;
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )).toList(),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
+                    ),
+                    if (_hasVariants) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Guide: How to add color variants',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 4),
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('1. Upload product images above'),
+                              Text('2. Click the pencil icon (✏️) on each image'),
+                              Text('3. Enter the color name for that variant'),
+                              Text('4. Set the quantity available for each color below'),
+                              Text('Note: Each image should represent a different color variant'),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                     ],
-                  ),
+                  ],
                 ),
               ),
+            ),
             
             const SizedBox(height: 16),
 
@@ -991,6 +1062,69 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               },
             ),
             const SizedBox(height: 16),
+
+            // Color Summary Section
+            if (_hasVariants && _imageColors.isNotEmpty) ...[
+              Text(
+                'Color Variants',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ..._imageColors.entries.map((entry) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(entry.value),
+                            SizedBox(
+                              width: 120,
+                              child: TextFormField(
+                                initialValue: '${_colorQuantities[entry.value] ?? 0}',
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.end,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  suffixText: ' pcs',
+                                ),
+                                onChanged: (value) {
+                                  final quantity = int.tryParse(value) ?? 0;
+                                  setState(() {
+                                    _colorQuantities[entry.value] = quantity;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      )).toList(),
+                      if (_colorQuantities.isNotEmpty) ...[
+                        const Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Total Stock:'),
+                            Text(
+                              '${_colorQuantities.values.fold(0, (sum, qty) => sum + qty)} pieces',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
 
             // Submit Button
             SizedBox(
