@@ -48,7 +48,77 @@ const ACCESSORIES_SUBCATEGORIES = {
     "Laptop Bags",
     "Headphone Cases",
     "Tablet Covers",
-    "Chargers"
+    "Chargers",
+    "Headphones",
+    "Speakers",
+    "MP3 Players",
+    "Sound Systems",
+    "Audio Cables"
+  ]
+};
+
+const ELECTRONICS_SUBCATEGORIES = {
+  "Computers & Laptops": [
+    "Laptops",
+    "Desktop PCs",
+    "Monitors",
+    "Keyboards",
+    "Mouse",
+    "PC Components",
+    "Storage Devices"
+  ],
+  "Mobile Devices": [
+    "Smartphones",
+    "Tablets",
+    "Smartwatches",
+    "E-readers",
+    "Power Banks"
+  ],
+  "Gaming": [
+    "Gaming Consoles",
+    "Video Games",
+    "Gaming Accessories",
+    "VR Headsets",
+    "Gaming Chairs"
+  ],
+  "Home Electronics": [
+    "TVs",
+    "Home Theater Systems",
+    "Smart Home Devices",
+    "Security Cameras",
+    "Air Conditioners"
+  ]
+};
+
+const ART_SUBCATEGORIES = {
+  "Visual Art": [
+    "Paintings",
+    "Drawings",
+    "Prints",
+    "Photography",
+    "Digital Art",
+    "Sculptures"
+  ],
+  "Handmade Crafts": [
+    "Pottery",
+    "Jewelry",
+    "Textile Art",
+    "Wood Crafts",
+    "Glass Art"
+  ],
+  "Art Supplies": [
+    "Paint & Brushes",
+    "Drawing Materials",
+    "Canvas",
+    "Craft Tools",
+    "Art Paper"
+  ],
+  "Collectible Art": [
+    "Limited Editions",
+    "Art Prints",
+    "Vintage Posters",
+    "Art Books",
+    "Exhibition Pieces"
   ]
 };
 
@@ -98,6 +168,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   String? _error;
   Product? _originalProduct;
   bool _hasChanges = false;
+  Map<String, bool> _changedFields = {};
   
   // Product Data
   String _selectedCategory = '';
@@ -115,6 +186,17 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   bool get isFootwearProduct => 
     _selectedCategory == 'clothing' && 
     _selectedSubCategory.split(' - ')[0] == 'Footwear';
+
+  void _markFieldAsChanged(String field) {
+    setState(() {
+      _changedFields[field] = true;
+      _checkForChanges();
+    });
+  }
+
+  bool _isFieldChanged(String field) {
+    return _changedFields[field] ?? false;
+  }
 
   @override
   void initState() {
@@ -416,62 +498,68 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     );
   }
 
-  Widget _buildColorVariantsSection() {
-    if (!_hasVariants) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 16),
-        Text(
-          'Color Variants',
-          style: Theme.of(context).textTheme.titleSmall,
+  Widget _buildVariantQuantityField(String color, int quantity) {
+    final originalQuantity = _originalProduct?.colorQuantities[color] ?? 0;
+    final hasChanged = quantity != originalQuantity;
+    
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: hasChanged ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+          width: hasChanged ? 2 : 1,
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Click the color icon on each image to specify its color and quantity',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 16),
-        if (_colorQuantities.isNotEmpty) ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        borderRadius: BorderRadius.circular(8),
+        color: hasChanged ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
                 children: [
-                  Text(
-                    'Color Quantities:',
-                    style: Theme.of(context).textTheme.titleSmall,
+                  Icon(
+                    Icons.color_lens,
+                    color: hasChanged ? Theme.of(context).colorScheme.primary : null,
                   ),
-                  const SizedBox(height: 8),
-                  ..._colorQuantities.entries.map((entry) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(entry.key),
-                        Text('${entry.value} pieces'),
-                      ],
+                  const SizedBox(width: 8),
+                  Text(
+                    color,
+                    style: TextStyle(
+                      fontWeight: hasChanged ? FontWeight.bold : FontWeight.normal,
+                      color: hasChanged ? Theme.of(context).colorScheme.primary : null,
                     ),
-                  )),
-                  const Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Total Stock:'),
-                      Text(
-                        '${_colorQuantities.values.fold(0, (sum, qty) => sum + qty)} pieces',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ],
+            SizedBox(
+              width: 100,
+              child: TextFormField(
+                initialValue: quantity.toString(),
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  suffixText: ' pcs',
+                ),
+                onChanged: (value) {
+                  final newQuantity = int.tryParse(value) ?? 0;
+                  setState(() {
+                    _colorQuantities[color] = newQuantity;
+                    _markFieldAsChanged('colorQuantities');
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -652,6 +740,54 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     );
   }
 
+  void _editColorQuantity(String color) async {
+    final controller = TextEditingController(text: _colorQuantities[color].toString());
+    final result = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit Quantity for $color'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Quantity',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final quantity = int.tryParse(controller.text);
+              if (quantity != null && quantity >= 0) {
+                Navigator.pop(context, quantity);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _colorQuantities[color] = result;
+        _markFieldAsChanged('colorQuantities');
+      });
+    }
+  }
+
+  void _removeColor(String color) {
+    setState(() {
+      _colorQuantities.remove(color);
+      _imageColors.removeWhere((key, value) => value == color);
+      _markFieldAsChanged('colorQuantities');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -676,7 +812,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
       ),
       body: Form(
         key: _formKey,
-        onChanged: _checkForChanges,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -714,6 +849,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 }
                 return null;
               },
+              onChanged: (value) => _markFieldAsChanged('name'),
             ),
             const SizedBox(height: 16),
 
@@ -728,6 +864,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 }
                 return null;
               },
+              onChanged: (value) => _markFieldAsChanged('description'),
             ),
             const SizedBox(height: 16),
 
@@ -815,6 +952,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                     _selectedSizes = [];
                     _colorQuantities = {};
                     _imageColors = {};
+                    _markFieldAsChanged('category');
                   });
                 }
               },
@@ -827,8 +965,9 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Subcategories for Clothing and Accessories
-            if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
+            // Subcategories
+            if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories' || 
+                _selectedCategory == 'electronics' || _selectedCategory == 'art')
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -841,7 +980,10 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      ...((_selectedCategory == 'clothing' ? CLOTHING_SUBCATEGORIES : ACCESSORIES_SUBCATEGORIES)
+                      ...(_selectedCategory == 'clothing' ? CLOTHING_SUBCATEGORIES :
+                         _selectedCategory == 'accessories' ? ACCESSORIES_SUBCATEGORIES :
+                         _selectedCategory == 'electronics' ? ELECTRONICS_SUBCATEGORIES :
+                         _selectedCategory == 'art' ? ART_SUBCATEGORIES : {})
                         .entries
                         .expand((mainCategory) {
                           return mainCategory.value.map((subItem) {
@@ -851,92 +993,73 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                               label: Text(subItem),
                               onSelected: (selected) {
                                 setState(() {
+                                  _selectedSubCategory = selected ? fullSubCategory : '';
                                   if (selected) {
-                                    _selectedSubCategory = fullSubCategory;
                                     _hasVariants = false;
                                     _selectedSizes = [];
                                     _colorQuantities = {};
-                                    _imageColors = {};
-                                  } else {
-                                    _selectedSubCategory = '';
                                   }
+                                  _markFieldAsChanged('subCategory');
                                 });
                               },
                             );
-                          });
-                        })),
+                          }).toList();
+                        }).toList(),
                     ],
                   ),
                 ],
               ),
             const SizedBox(height: 16),
 
-            // Variants Section for Clothing and Accessories
-            if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
+            // Variants Section
+            if (_hasVariants && _colorQuantities.isNotEmpty)
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Product Variants',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(width: 16),
-                          Switch(
-                            value: _hasVariants,
-                            onChanged: (value) {
-                              setState(() {
-                                _hasVariants = value;
-                                if (!value) {
-                                  _selectedSizes = [];
-                                  _colorQuantities = {};
-                                  _imageColors = {};
-                                }
-                              });
-                            },
-                          ),
-                        ],
+                      Text(
+                        'Color Variants',
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      if (_hasVariants) ...[
-                        const SizedBox(height: 16),
-                        
-                        // Sizes Section
-                        Text(
-                          'Available Sizes',
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            ...(isFootwearProduct ? SHOE_SIZES : CLOTHING_SIZES).map((size) {
-                              return FilterChip(
-                                selected: _selectedSizes.contains(size),
-                                label: Text(size),
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedSizes.add(size);
-                                    } else {
-                                      _selectedSizes.remove(size);
-                                    }
-                                  });
-                                },
-                              );
-                            }),
-                          ],
-                        ),
-                      ],
+                      const SizedBox(height: 16),
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _colorQuantities.length,
+                        separatorBuilder: (context, index) => const Divider(),
+                        itemBuilder: (context, index) {
+                          final color = _colorQuantities.keys.elementAt(index);
+                          final quantity = _colorQuantities[color] ?? 0;
+                          return ListTile(
+                            title: Text(color),
+                            subtitle: Text('$quantity in stock'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () => _editColorQuantity(color),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () => _removeColor(color),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Total Stock: ${_colorQuantities.values.fold(0, (sum, quantity) => sum + quantity)}',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
                     ],
                   ),
                 ),
               ),
-            const SizedBox(height: 16),
 
             // Price and Discount Section
             Card(

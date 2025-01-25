@@ -88,6 +88,71 @@ const ACCESSORIES_SUBCATEGORIES = {
   ]
 };
 
+const ELECTRONICS_SUBCATEGORIES = {
+  "Computers & Laptops": [
+    "Laptops",
+    "Desktop PCs",
+    "Monitors",
+    "Keyboards",
+    "Mouse",
+    "PC Components",
+    "Storage Devices"
+  ],
+  "Mobile Devices": [
+    "Smartphones",
+    "Tablets",
+    "Smartwatches",
+    "E-readers",
+    "Power Banks"
+  ],
+  "Gaming": [
+    "Gaming Consoles",
+    "Video Games",
+    "Gaming Accessories",
+    "VR Headsets",
+    "Gaming Chairs"
+  ],
+  "Home Electronics": [
+    "TVs",
+    "Home Theater Systems",
+    "Smart Home Devices",
+    "Security Cameras",
+    "Air Conditioners"
+  ]
+};
+
+const ART_SUBCATEGORIES = {
+  "Visual Art": [
+    "Paintings",
+    "Drawings",
+    "Prints",
+    "Photography",
+    "Digital Art",
+    "Sculptures"
+  ],
+  "Handmade Crafts": [
+    "Pottery",
+    "Jewelry",
+    "Textile Art",
+    "Wood Crafts",
+    "Glass Art"
+  ],
+  "Art Supplies": [
+    "Paint & Brushes",
+    "Drawing Materials",
+    "Canvas",
+    "Craft Tools",
+    "Art Paper"
+  ],
+  "Collectible Art": [
+    "Limited Editions",
+    "Art Prints",
+    "Vintage Posters",
+    "Art Books",
+    "Exhibition Pieces"
+  ]
+};
+
 const SHOE_SIZES = [
   "US 6 / EU 39",
   "US 6.5 / EU 39.5",
@@ -141,6 +206,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   final Map<String, String> _imageColors = {};
   final TextEditingController _colorController = TextEditingController();
+  int _currentImageIndex = 0;
 
   bool get isFootwearProduct => 
     _selectedCategory == 'clothing' && 
@@ -168,7 +234,20 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       final images = await ImagePicker().pickMultiImage();
       if (images != null) {
         setState(() {
-          _selectedImages.addAll(images.map((image) => File(image.path)));
+          // Limit to 10 images
+          final remainingSlots = 10 - _selectedImages.length;
+          if (remainingSlots > 0) {
+            _selectedImages.addAll(
+              images.take(remainingSlots).map((image) => File(image.path))
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Maximum 10 images allowed'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
         });
       }
     } catch (e) {
@@ -186,7 +265,64 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   void _removeImage(int index) {
     setState(() {
       _selectedImages.removeAt(index);
+      // Remove color mapping if exists
+      final imageKeys = _imageColors.keys.toList();
+      if (index < imageKeys.length) {
+        _imageColors.remove(imageKeys[index]);
+      }
     });
+  }
+
+  void _showColorEditDialog(int imageIndex) {
+    final imageKey = _selectedImages[imageIndex].path;
+    String? currentColor = _imageColors[imageKey];
+    _colorController.text = currentColor ?? '';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Color'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _colorController,
+              decoration: const InputDecoration(
+                labelText: 'Color Name',
+                hintText: 'e.g., Red, Blue, White',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'This color will be used for variant tracking',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () {
+              final color = _colorController.text.trim();
+              if (color.isNotEmpty) {
+                setState(() {
+                  _imageColors[imageKey] = color;
+                  if (!_selectedColors.contains(color)) {
+                    _selectedColors.add(color);
+                    _colorQuantities[color] = 0; // Initialize quantity
+                  }
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('SAVE'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -221,7 +357,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Add up to 5 images (2MB each)',
+                      'Add up to 10 images (2MB each)',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
@@ -247,62 +383,83 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         ),
                       )
                     else
-                      Column(
-                        children: [
-                          SizedBox(
-                            height: 120,
-                            child: GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 8,
-                                mainAxisSpacing: 8,
-                              ),
-                              itemCount: _selectedImages.length + 1,
+                      SizedBox(
+                        height: 200,
+                        child: Stack(
+                          children: [
+                            PageView.builder(
+                              itemCount: _selectedImages.length + (_selectedImages.length < 10 ? 1 : 0),
+                              onPageChanged: (index) {
+                                setState(() {
+                                  _currentImageIndex = index;
+                                });
+                              },
                               itemBuilder: (context, index) {
                                 if (index == _selectedImages.length) {
-                                  return _buildAddImageButton();
+                                  return Center(
+                                    child: TextButton.icon(
+                                      onPressed: _pickImages,
+                                      icon: const Icon(Icons.add_photo_alternate),
+                                      label: const Text('Add More'),
+                                    ),
+                                  );
                                 }
+
+                                final imageKey = _selectedImages[index].path;
+                                final color = _imageColors[imageKey];
+
                                 return Stack(
                                   children: [
-                                    Image.file(
-                                      _selectedImages[index],
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                    ),
-                                    Positioned(
-                                      right: 4,
-                                      top: 4,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.close),
-                                        onPressed: () => _removeImage(index),
-                                        color: Colors.red,
+                                    Center(
+                                      child: Image.file(
+                                        _selectedImages[index],
+                                        fit: BoxFit.cover,
                                       ),
                                     ),
                                     Positioned(
-                                      left: 4,
-                                      bottom: 4,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.color_lens),
-                                        onPressed: () => _showColorDialog(index),
-                                        color: Theme.of(context).colorScheme.primary,
+                                      top: 8,
+                                      right: 8,
+                                      child: Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit),
+                                            onPressed: () => _showColorEditDialog(index),
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: Colors.white,
+                                              padding: const EdgeInsets.all(8),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete),
+                                            onPressed: () => _removeImage(index),
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: Colors.white,
+                                              padding: const EdgeInsets.all(8),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    if (_imageColors.containsKey(_selectedImages[index].path))
+                                    if (color != null)
                                       Positioned(
-                                        right: 4,
-                                        bottom: 4,
+                                        bottom: 8,
+                                        left: 8,
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: Theme.of(context).colorScheme.surface.withOpacity(0.8),
-                                            borderRadius: BorderRadius.circular(12),
+                                            color: Colors.black54,
+                                            borderRadius: BorderRadius.circular(4),
                                           ),
                                           child: Text(
-                                            _imageColors[_selectedImages[index].path]!,
-                                            style: Theme.of(context).textTheme.bodySmall,
+                                            color,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -310,8 +467,32 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                 );
                               },
                             ),
-                          ),
-                        ],
+                            // Page indicator dots
+                            if (_selectedImages.length > 1)
+                              Positioned(
+                                bottom: 16,
+                                left: 0,
+                                right: 0,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(
+                                    _selectedImages.length + (_selectedImages.length < 10 ? 1 : 0),
+                                    (index) => Container(
+                                      width: 8,
+                                      height: 8,
+                                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: index == _currentImageIndex
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Colors.grey.withOpacity(0.5),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                   ],
                 ),
@@ -372,7 +553,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     const SizedBox(height: 16),
 
                     // Subcategories for Clothing and Accessories
-                    if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories')
+                    if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories' || 
+                        _selectedCategory == 'electronics' || _selectedCategory == 'art')
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -385,7 +567,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              ...((_selectedCategory == 'clothing' ? CLOTHING_SUBCATEGORIES : ACCESSORIES_SUBCATEGORIES)
+                              ...(_selectedCategory == 'clothing' ? CLOTHING_SUBCATEGORIES :
+                                 _selectedCategory == 'accessories' ? ACCESSORIES_SUBCATEGORIES :
+                                 _selectedCategory == 'electronics' ? ELECTRONICS_SUBCATEGORIES :
+                                 _selectedCategory == 'art' ? ART_SUBCATEGORIES : {})
                                 .entries
                                 .expand((mainCategory) {
                                   return mainCategory.value.map((subItem) {
@@ -406,7 +591,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                       },
                                     );
                                   });
-                                })),
+                                }).toList(),
                             ],
                           ),
                         ],
@@ -474,7 +659,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                   });
                                 },
                               );
-                            }),
+                            }).toList(),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -513,28 +698,16 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                               suffixText: ' pcs',
                                             ),
                                             onChanged: (value) {
+                                              final quantity = int.tryParse(value) ?? 0;
                                               setState(() {
-                                                _colorQuantities[entry.value] = int.tryParse(value) ?? 0;
+                                                _colorQuantities[entry.value] = quantity;
                                               });
                                             },
                                           ),
                                         ),
                                       ],
                                     ),
-                                  )),
-                                  if (_colorQuantities.isNotEmpty) ...[
-                                    const Divider(),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text('Total Stock:'),
-                                        Text(
-                                          '${_colorQuantities.values.fold(0, (sum, qty) => sum + qty)} pieces',
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                  )).toList(),
                                 ],
                               ),
                             ),
@@ -937,53 +1110,5 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  Widget _buildAddImageButton() {
-    return InkWell(
-      onTap: _pickImages,
-      child: Container(
-        height: 120,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Center(
-          child: Icon(Icons.add_photo_alternate_outlined, size: 48),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showColorDialog(int imageIndex) async {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Specify Color'),
-        content: TextField(
-          controller: _colorController,
-          decoration: const InputDecoration(
-            labelText: 'Color Name',
-            hintText: 'e.g. Red, Blue, Black',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _imageColors[_selectedImages[imageIndex].path] = _colorController.text;
-              });
-              _colorController.clear();
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
   }
 } 

@@ -25,6 +25,79 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
   Seller? _seller;
   String? _sellerStatus;
 
+  final Map<String, double> _shippingFees = {
+    'Accra': 15.0,
+    'Kumasi': 20.0,
+    'Tamale': 25.0,
+    'Cape Coast': 20.0,
+    'Takoradi': 22.0,
+    'Ho': 23.0,
+    'Koforidua': 18.0,
+    'Sunyani': 24.0,
+    'Wa': 28.0,
+    'Bolgatanga': 30.0,
+  };
+
+  void _showShippingFeesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.local_shipping,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            const Text('Delivery Fee Info'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Delivery fees are calculated as follows:',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 16),
+              const ListTile(
+                leading: Icon(Icons.public),
+                title: Text('International Shipping'),
+                subtitle: Text('GHS 250.00 for stores outside Ghana'),
+                minLeadingWidth: 0,
+              ),
+              const ListTile(
+                leading: Icon(Icons.location_city),
+                title: Text('Local Shipping'),
+                subtitle: Text('Same city: GHS 50.00\nDifferent cities (e.g., Accra to Kumasi): GHS 70.00'),
+                minLeadingWidth: 0,
+              ),
+              const ListTile(
+                leading: Icon(Icons.shopping_cart),
+                title: Text('Quantity Based'),
+                subtitle: Text('Orders with more than 5 items:\nAdditional GHS 30.00 fee'),
+                minLeadingWidth: 0,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Note: Base fee applies for orders with 1-5 items.',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -233,6 +306,16 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
                   color: colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
+            ),
+            CustomListTile(
+              leading: const Icon(Icons.local_shipping),
+              title: 'Delivery Information',
+              trailing: IconButton(
+                icon: const Icon(Icons.info_outline, size: 20),
+                onPressed: _showShippingFeesDialog,
+                tooltip: 'View delivery fee information',
+              ),
+              subtitle: const Text('Click the info icon to view delivery details'),
             ),
 
             // App Settings Section
