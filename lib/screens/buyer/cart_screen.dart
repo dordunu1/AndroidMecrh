@@ -40,15 +40,20 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       sellerItems[item.product.sellerId]!.add(item);
     }
 
-    // Calculate shipping fee for each seller
+    // Calculate delivery fee for each seller
     for (var sellerId in sellerItems.keys) {
       final seller = await ref.read(sellerServiceProvider).getSellerProfileById(sellerId);
       final sellerCity = seller?.city?.trim().toLowerCase() ?? '';
       
+      // Calculate base fee based on cities
       double baseFee = (buyerCity == sellerCity) ? 50.0 : 70.0;
-      // If multiple items from same seller, divide shipping fee by 2
-      if (sellerItems[sellerId]!.length > 1) {
-        baseFee = baseFee / 2;
+      
+      // Calculate total quantity from this seller
+      int totalQuantity = sellerItems[sellerId]!.fold(0, (sum, item) => sum + item.quantity);
+      
+      // Add extra fee if more than 5 items
+      if (totalQuantity > 5) {
+        baseFee += 30.0;
       }
       
       setState(() {
@@ -87,6 +92,27 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         .fold(0, (sum, item) => sum + (item.product.hasDiscount
             ? item.product.price * (1 - item.product.discountPercent / 100) * item.quantity
             : item.product.price * item.quantity));
+  }
+
+  void _showDeliveryFeeInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delivery Fee Calculation'),
+        content: const Text(
+          'Delivery fees are calculated as follows:\n\n'
+          '• Base fee: GHS 50.00 (within same city) or GHS 70.00 (different cities)\n\n'
+          '• For orders with more than 5 items from the same seller: Additional GHS 30.00 is added to the base fee\n\n'
+          '• Orders with 1-5 items: Only base fee applies'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -207,7 +233,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   ),
                                   if (_sellerShippingFees.containsKey(item.product.sellerId))
                                     Text(
-                                      'Shipping: GHS ${_sellerShippingFees[item.product.sellerId]!.toStringAsFixed(2)}',
+                                      'Delivery Fee: GHS ${_sellerShippingFees[item.product.sellerId]!.toStringAsFixed(2)}',
                                       style: theme.textTheme.bodySmall,
                                     ),
                                 ],
@@ -287,7 +313,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Shipping Fee'),
+                              Row(
+                                children: [
+                                  const Text('Delivery Fee'),
+                                  IconButton(
+                                    icon: const Icon(Icons.info_outline, size: 16),
+                                    onPressed: _showDeliveryFeeInfo,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
                               Text(
                                 'GHS ${_calculateTotalShippingFee().toStringAsFixed(2)}',
                                 style: theme.textTheme.titleMedium,
