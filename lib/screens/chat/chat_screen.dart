@@ -2,17 +2,21 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../models/chat_conversation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/chat_message.dart';
 import '../../services/chat_service.dart';
 import '../../services/storage_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
-  final ChatConversation conversation;
+  final String conversationId;
+  final String otherUserName;
+  final String productId;
 
   const ChatScreen({
     super.key,
-    required this.conversation,
+    required this.conversationId,
+    required this.otherUserName,
+    required this.productId,
   });
 
   @override
@@ -31,7 +35,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _loadMessages();
-    _subscribeToMessages();
   }
 
   @override
@@ -48,9 +51,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     try {
-      final messages = await ref.read(chatServiceProvider).getMessages(
-        widget.conversation.id,
-      );
+      final messages = await ref.read(chatServiceProvider).watchMessages(
+        widget.conversationId,
+      ).first;
 
       if (mounted) {
         setState(() {
@@ -67,18 +70,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         });
       }
     }
-  }
-
-  void _subscribeToMessages() {
-    ref.read(chatServiceProvider).subscribeToMessages(
-      widget.conversation.id,
-      (messages) {
-        if (mounted) {
-          setState(() => _messages = messages);
-          _scrollToBottom();
-        }
-      },
-    );
   }
 
   void _scrollToBottom() {
@@ -100,8 +91,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     try {
       await ref.read(chatServiceProvider).sendMessage(
-        widget.conversation.id,
-        text,
+        conversationId: widget.conversationId,
+        content: text,
       );
     } catch (e) {
       if (mounted) {
@@ -132,8 +123,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       // Send message with image
       await ref.read(chatServiceProvider).sendMessage(
-        widget.conversation.id,
-        '',
+        conversationId: widget.conversationId,
+        content: '',
         imageUrl: urls.first,
       );
     } catch (e) {
@@ -158,18 +149,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: widget.conversation.otherUserPhotoUrl != null
-                  ? NetworkImage(widget.conversation.otherUserPhotoUrl!)
-                  : null,
-              child: widget.conversation.otherUserPhotoUrl == null
-                  ? Icon(
-                      Icons.person,
-                      color: theme.colorScheme.onPrimary,
-                    )
-                  : null,
+              child: Icon(
+                Icons.store,
+                color: theme.colorScheme.onPrimary,
+              ),
             ),
             const SizedBox(width: 12),
-            Text(widget.conversation.otherUserName),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.otherUserName),
+                  Text(
+                    'Product: ${widget.productId}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -188,25 +187,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ),
                         ),
                       )
-                    : _messages.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No messages yet',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    : StreamBuilder<List<ChatMessage>>(
+                        stream: ref.watch(chatServiceProvider).watchMessages(widget.conversationId),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text(
+                                'Error: ${snapshot.error}',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
                               ),
-                            ),
-                          )
-                        : ListView.builder(
+                            );
+                          }
+
+                          if (!snapshot.hasData) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+
+                          final messages = snapshot.data!;
+                          if (messages.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'No messages yet',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
                             controller: _scrollController,
                             padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
+                            itemCount: messages.length,
                             itemBuilder: (context, index) {
-                              final message = _messages[index];
-                              final isMe = message.senderId == widget.conversation.currentUserId;
-                              final showAvatar = !isMe &&
-                                  (index == 0 ||
-                                      _messages[index - 1].senderId != message.senderId);
+                              final message = messages[index];
+                              final isMe = message.senderId == FirebaseAuth.instance.currentUser?.uid;
 
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
@@ -216,26 +233,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       : MainAxisAlignment.start,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    if (!isMe && showAvatar)
+                                    if (!isMe)
                                       CircleAvatar(
                                         radius: 16,
-                                        backgroundImage: widget
-                                                    .conversation.otherUserPhotoUrl !=
-                                                null
-                                            ? NetworkImage(
-                                                widget.conversation.otherUserPhotoUrl!)
-                                            : null,
-                                        child:
-                                            widget.conversation.otherUserPhotoUrl == null
-                                                ? Icon(
-                                                    Icons.person,
-                                                    size: 16,
-                                                    color: theme.colorScheme.onPrimary,
-                                                  )
-                                                : null,
-                                      )
-                                    else if (!isMe)
-                                      const SizedBox(width: 32),
+                                        child: Icon(
+                                          Icons.store,
+                                          size: 16,
+                                          color: theme.colorScheme.onPrimary,
+                                        ),
+                                      ),
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Container(
@@ -245,6 +251,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                               ? theme.colorScheme.primary
                                               : theme.colorScheme.surface,
                                           borderRadius: BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.1),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
                                         child: Column(
                                           crossAxisAlignment: isMe
@@ -256,60 +269,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                                 borderRadius: BorderRadius.circular(8),
                                                 child: Image.network(
                                                   message.imageUrl!,
+                                                  width: 200,
                                                   fit: BoxFit.cover,
                                                 ),
                                               ),
-                                            if (message.text.isNotEmpty) ...[
-                                              if (message.imageUrl != null)
-                                                const SizedBox(height: 8),
+                                            if (message.content.isNotEmpty)
                                               Text(
-                                                message.text,
-                                                style: theme.textTheme.bodyMedium
-                                                    ?.copyWith(
+                                                message.content,
+                                                style: TextStyle(
                                                   color: isMe
                                                       ? theme.colorScheme.onPrimary
                                                       : theme.colorScheme.onSurface,
                                                 ),
                                               ),
-                                            ],
                                             const SizedBox(height: 4),
                                             Text(
                                               _formatTimestamp(message.timestamp),
-                                              style:
-                                                  theme.textTheme.bodySmall?.copyWith(
+                                              style: theme.textTheme.bodySmall?.copyWith(
                                                 color: isMe
-                                                    ? theme.colorScheme.onPrimary
-                                                        .withOpacity(0.7)
-                                                    : theme.colorScheme.onSurface
-                                                        .withOpacity(0.6),
+                                                    ? theme.colorScheme.onPrimary.withOpacity(0.7)
+                                                    : theme.colorScheme.onSurface.withOpacity(0.7),
+                                                fontSize: 10,
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    if (isMe)
-                                      const SizedBox(width: 32)
-                                    else
-                                      const SizedBox(),
                                   ],
                                 ),
                               );
                             },
-                          ),
+                          );
+                        },
+                      ),
           ),
 
-          // Input Field
+          // Message Input
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              border: Border(
-                top: BorderSide(
-                  color: theme.colorScheme.outline.withOpacity(0.2),
+              color: theme.scaffoldBackgroundColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, -4),
                 ),
-              ),
+              ],
             ),
             child: SafeArea(
               child: Row(
@@ -326,8 +333,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         hintText: 'Type a message...',
                         border: InputBorder.none,
                       ),
-                      maxLines: null,
                       textCapitalization: TextCapitalization.sentences,
+                      keyboardType: TextInputType.multiline,
+                      maxLines: null,
                       onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
@@ -353,20 +361,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final messageDate = DateTime(
-      timestamp.year,
-      timestamp.month,
-      timestamp.day,
-    );
+    final difference = now.difference(timestamp);
 
-    if (messageDate == today) {
-      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-    } else if (messageDate == yesterday) {
-      return 'Yesterday';
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()}y ago';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()}mo ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
     } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+      return 'Just now';
     }
   }
 } 

@@ -4,6 +4,7 @@ import 'product_list_screen.dart';
 import 'buyer_orders_screen.dart';
 import 'buyer_refunds_screen.dart';
 import '../profile/profile_screen.dart';
+import 'cart_screen.dart';
 
 class BuyerNavigationScreen extends ConsumerStatefulWidget {
   const BuyerNavigationScreen({super.key});
@@ -18,6 +19,7 @@ class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
 
   final _screens = const [
     ProductListScreen(),
+    CartScreen(),
     BuyerOrdersScreen(),
     BuyerRefundsScreen(),
     ProfileScreen(),
@@ -46,6 +48,11 @@ class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
           NavigationDestination(
             icon: Icon(Icons.shopping_cart_outlined),
             selectedIcon: Icon(Icons.shopping_cart),
+            label: 'Cart',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.local_shipping_outlined),
+            selectedIcon: Icon(Icons.local_shipping),
             label: 'Orders',
           ),
           NavigationDestination(

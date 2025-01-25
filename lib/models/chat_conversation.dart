@@ -1,11 +1,15 @@
+import 'package:firebase_auth/firebase_auth.dart';
+
 class ChatConversation {
   final String id;
   final List<String> participants;
   final Map<String, String> participantNames;
   final String? lastMessage;
-  final String? lastMessageTime;
+  final DateTime? lastMessageTime;
   final Map<String, int> unreadCounts;
-  final String createdAt;
+  final DateTime createdAt;
+  final String? productId;
+  final String? productName;
 
   ChatConversation({
     required this.id,
@@ -15,19 +19,28 @@ class ChatConversation {
     this.lastMessageTime,
     required this.unreadCounts,
     required this.createdAt,
+    this.productId,
+    this.productName,
   });
 
-  String get otherParticipantId => participants[0];
+  String get currentUserId => FirebaseAuth.instance.currentUser!.uid;
+
+  String get otherParticipantId => participants.firstWhere((id) => id != currentUserId);
+
   String get otherParticipantName => participantNames[otherParticipantId] ?? 'Unknown';
+
+  int get unreadCount => unreadCounts[currentUserId] ?? 0;
 
   ChatConversation copyWith({
     String? id,
     List<String>? participants,
     Map<String, String>? participantNames,
     String? lastMessage,
-    String? lastMessageTime,
+    DateTime? lastMessageTime,
     Map<String, int>? unreadCounts,
-    String? createdAt,
+    DateTime? createdAt,
+    String? productId,
+    String? productName,
   }) {
     return ChatConversation(
       id: id ?? this.id,
@@ -37,6 +50,8 @@ class ChatConversation {
       lastMessageTime: lastMessageTime ?? this.lastMessageTime,
       unreadCounts: unreadCounts ?? this.unreadCounts,
       createdAt: createdAt ?? this.createdAt,
+      productId: productId ?? this.productId,
+      productName: productName ?? this.productName,
     );
   }
 
@@ -46,9 +61,11 @@ class ChatConversation {
       'participants': participants,
       'participantNames': participantNames,
       'lastMessage': lastMessage,
-      'lastMessageTime': lastMessageTime,
+      'lastMessageTime': lastMessageTime?.toIso8601String(),
       'unreadCounts': unreadCounts,
-      'createdAt': createdAt,
+      'createdAt': createdAt.toIso8601String(),
+      'productId': productId,
+      'productName': productName,
     };
   }
 
@@ -58,14 +75,18 @@ class ChatConversation {
       participants: List<String>.from(map['participants'] as List),
       participantNames: Map<String, String>.from(map['participantNames'] as Map),
       lastMessage: map['lastMessage'] as String?,
-      lastMessageTime: map['lastMessageTime'] as String?,
+      lastMessageTime: map['lastMessageTime'] != null
+          ? DateTime.parse(map['lastMessageTime'] as String)
+          : null,
       unreadCounts: Map<String, int>.from(map['unreadCounts'] as Map),
-      createdAt: map['createdAt'] as String,
+      createdAt: DateTime.parse(map['createdAt'] as String),
+      productId: map['productId'] as String?,
+      productName: map['productName'] as String?,
     );
   }
 
   @override
   String toString() {
-    return 'ChatConversation(id: $id, participants: $participants, participantNames: $participantNames, lastMessage: $lastMessage, lastMessageTime: $lastMessageTime, unreadCounts: $unreadCounts, createdAt: $createdAt)';
+    return 'ChatConversation(id: $id, participants: $participants, participantNames: $participantNames, lastMessage: $lastMessage, lastMessageTime: $lastMessageTime, unreadCounts: $unreadCounts, createdAt: $createdAt, productId: $productId, productName: $productName)';
   }
 } 

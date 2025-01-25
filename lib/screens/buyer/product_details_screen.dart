@@ -9,8 +9,10 @@ import '../../models/review.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../models/user.dart';
 import '../../services/auth_service.dart';
+import '../../services/chat_service.dart';
 import 'cart_screen.dart';
 import '../../services/seller_service.dart';
+import '../chat/chat_screen.dart';
 
 class ProductDetailsScreen extends ConsumerStatefulWidget {
   final Product product;
@@ -262,22 +264,96 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.product.name,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'by ${widget.product.sellerName}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.product.name,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.store,
+                                      size: 16,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      widget.product.sellerName,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    TextButton.icon(
+                                      onPressed: () async {
+                                        if (_currentUser == null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Please sign in to contact the seller')),
+                                          );
+                                          return;
+                                        }
+                                        
+                                        try {
+                                          final conversationId = await ref.read(chatServiceProvider).createOrGetConversation(
+                                            widget.product.sellerId,
+                                            widget.product.id,
+                                          );
+                                          
+                                          if (mounted) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => ChatScreen(
+                                                  conversationId: conversationId,
+                                                  otherUserName: widget.product.sellerName,
+                                                  productId: widget.product.id,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        } catch (e) {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Error starting chat: $e')),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                                      label: const Text('Contact Store'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (!widget.product.hasDiscount)
+                            Text(
+                              'GHS ${widget.product.price.toStringAsFixed(2)}',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
 
-                      // Price Section
+                      // Price Section with Discount Card
                       if (widget.product.hasDiscount)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -361,6 +437,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                           ),
                         ),
                       const SizedBox(height: 8),
+
                       Text(
                         '${widget.product.stockQuantity} in stock',
                         style: theme.textTheme.bodyMedium?.copyWith(

@@ -30,7 +30,7 @@ class ChatService {
       final snapshot = await query.get();
 
       final conversations = snapshot.docs.map((doc) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return ChatConversation.fromMap(data);
       }).toList();
@@ -58,57 +58,60 @@ class ChatService {
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return ChatConversation.fromMap(data);
       }).toList();
     });
   }
 
-  Future<ChatConversation> createConversation({
-    required String otherUserId,
-    required String otherUserName,
-  }) async {
+  Future<String> createOrGetConversation(String sellerId, String productId) async {
     try {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      // Check if conversation already exists
+      // Check if conversation already exists for this product
       final existingConversation = await _firestore
           .collection('conversations')
           .where('participants', arrayContains: user.uid)
+          .where('productId', isEqualTo: productId)
           .get();
 
-      for (final doc in existingConversation.docs) {
-        final participants = List<String>.from(doc.data()['participants'] as List);
-        if (participants.contains(otherUserId)) {
-          final data = doc.data();
-          data['id'] = doc.id;
-          return ChatConversation.fromMap(data);
-        }
+      if (existingConversation.docs.isNotEmpty) {
+        return existingConversation.docs.first.id;
       }
+
+      // Get seller info
+      final sellerDoc = await _firestore.collection('sellers').doc(sellerId).get();
+      if (!sellerDoc.exists) throw Exception('Seller not found');
+      final sellerName = sellerDoc.data()!['storeName'] as String? ?? 'Unknown Store';
+
+      // Get product info
+      final productDoc = await _firestore.collection('products').doc(productId).get();
+      if (!productDoc.exists) throw Exception('Product not found');
+      final productName = productDoc.data()!['name'] as String;
 
       // Create new conversation
       final conversationRef = _firestore.collection('conversations').doc();
       final conversation = {
-        'participants': [user.uid, otherUserId],
+        'participants': [user.uid, sellerId],
         'participantNames': {
           user.uid: user.displayName ?? 'Unknown',
-          otherUserId: otherUserName,
+          sellerId: sellerName,
         },
+        'productId': productId,
+        'productName': productName,
         'lastMessage': null,
         'lastMessageTime': null,
         'unreadCounts': {
           user.uid: 0,
-          otherUserId: 0,
+          sellerId: 0,
         },
         'createdAt': DateTime.now().toIso8601String(),
       };
 
       await conversationRef.set(conversation);
-
-      conversation['id'] = conversationRef.id;
-      return ChatConversation.fromMap(conversation);
+      return conversationRef.id;
     } catch (e) {
       throw Exception('Failed to create conversation: $e');
     }

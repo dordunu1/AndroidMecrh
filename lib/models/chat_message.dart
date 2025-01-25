@@ -3,7 +3,7 @@ class ChatMessage {
   final String senderId;
   final String content;
   final String? imageUrl;
-  final String timestamp;
+  final DateTime timestamp;
 
   ChatMessage({
     required this.id,
@@ -18,7 +18,7 @@ class ChatMessage {
     String? senderId,
     String? content,
     String? imageUrl,
-    String? timestamp,
+    DateTime? timestamp,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -35,7 +35,7 @@ class ChatMessage {
       'senderId': senderId,
       'content': content,
       'imageUrl': imageUrl,
-      'timestamp': timestamp,
+      'timestamp': timestamp.toIso8601String(),
     };
   }
 
@@ -45,7 +45,7 @@ class ChatMessage {
       senderId: map['senderId'] as String,
       content: map['content'] as String,
       imageUrl: map['imageUrl'] as String?,
-      timestamp: map['timestamp'] as String,
+      timestamp: DateTime.parse(map['timestamp'] as String),
     );
   }
 
