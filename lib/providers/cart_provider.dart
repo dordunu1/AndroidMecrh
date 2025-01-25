@@ -14,14 +14,41 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   CartNotifier() : super([]);
 
   void addToCart(CartItem item) {
-    final existingIndex = state.indexWhere((i) => i.product.id == item.product.id);
+    final existingIndex = state.indexWhere((i) => 
+      i.product.id == item.product.id && 
+      i.selectedColor == item.selectedColor && 
+      i.selectedSize == item.selectedSize
+    );
+    
     if (existingIndex >= 0) {
+      // Check if adding more items would exceed the available quantity
+      final existingItem = state[existingIndex];
+      final newQuantity = existingItem.quantity + item.quantity;
+      
+      // Get the available quantity for the selected color
+      final availableQuantity = item.selectedColor != null 
+          ? item.product.colorQuantities[item.selectedColor] ?? 0
+          : item.product.stockQuantity;
+      
+      if (newQuantity > availableQuantity) {
+        throw Exception('Not enough stock available');
+      }
+      
       state = [
         ...state.sublist(0, existingIndex),
-        item.copyWith(quantity: state[existingIndex].quantity + item.quantity),
+        existingItem.copyWith(quantity: newQuantity),
         ...state.sublist(existingIndex + 1),
       ];
     } else {
+      // Check if the initial quantity is available
+      final availableQuantity = item.selectedColor != null 
+          ? item.product.colorQuantities[item.selectedColor] ?? 0
+          : item.product.stockQuantity;
+          
+      if (item.quantity > availableQuantity) {
+        throw Exception('Not enough stock available');
+      }
+      
       state = [...state, item];
     }
   }

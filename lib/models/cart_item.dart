@@ -33,6 +33,8 @@ class CartItem {
     return {
       'productId': product.id,
       'quantity': quantity,
+      'selectedSize': selectedSize,
+      'selectedColor': selectedColor,
     };
   }
 
@@ -40,6 +42,8 @@ class CartItem {
     return CartItem(
       product: product,
       quantity: map['quantity'] as int,
+      selectedSize: map['selectedSize'] as String?,
+      selectedColor: map['selectedColor'] as String?,
     );
   }
 } 

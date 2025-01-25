@@ -249,75 +249,77 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                           itemBuilder: (context, index) {
                             final imageUrl = widget.product.images[index];
                             final color = widget.product.imageColors[imageUrl];
-                            return Stack(
-                              children: [
-                                GestureDetector(
-                                  onTap: () => _onImageTapped(index),
-                                  child: Container(
-                                    width: 64,
-                                    height: 64,
-                                    margin: const EdgeInsets.only(right: 8),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: _currentImageIndex == index
-                                            ? theme.colorScheme.primary
-                                            : Colors.transparent,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: CachedNetworkImage(
-                                        imageUrl: imageUrl,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (color != null)
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 8,
+                            if (color != null) {
+                              final quantity = widget.product.colorQuantities[color];
+                              return Stack(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => _onImageTapped(index),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      width: 64,
+                                      height: 64,
+                                      margin: const EdgeInsets.only(right: 8),
                                       decoration: BoxDecoration(
-                                        color: Colors.black54,
-                                        borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(8),
-                                          bottomRight: Radius.circular(8),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: _currentImageIndex == index
+                                              ? theme.colorScheme.primary
+                                              : Colors.transparent,
+                                          width: 2,
                                         ),
                                       ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            color,
-                                            style: theme.textTheme.bodySmall?.copyWith(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          if (widget.product.variantQuantities != null && 
-                                              widget.product.variantQuantities!.containsKey(color))
-                                            Text(
-                                              '${widget.product.variantQuantities![color]} left',
-                                              style: theme.textTheme.bodySmall?.copyWith(
-                                                color: Colors.white70,
-                                                fontSize: 9,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                        ],
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: CachedNetworkImage(
+                                          imageUrl: imageUrl,
+                                          fit: BoxFit.cover,
+                                        ),
                                       ),
                                     ),
                                   ),
-                              ],
-                            );
+                                  if (color != null)
+                                    Positioned(
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black54,
+                                          borderRadius: const BorderRadius.only(
+                                            bottomLeft: Radius.circular(8),
+                                            bottomRight: Radius.circular(8),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              color,
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                color: Colors.white,
+                                                fontSize: 10,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (quantity != null)
+                                              Text(
+                                                '$quantity left',
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: Colors.white70,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            }
+                            return Container();
                           },
                         ),
                       ),
