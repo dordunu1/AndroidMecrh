@@ -50,34 +50,70 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reset Password'),
-      ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (!_emailSent) ...[
-                    const Text(
-                      'Enter your email address and we will send you instructions to reset your password.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 40),
+                // Logo and Title
+                Icon(
+                  Icons.lock_reset_outlined,
+                  size: 64,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Reset Password',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onBackground,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                if (!_emailSent) ...[
+                  Text(
+                    'Enter your email address and we will send you instructions to reset your password.',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onBackground.withOpacity(0.7),
                     ),
-                    const SizedBox(height: 32),
-
-                    // Email Field
-                    CustomTextField(
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 40),
+                  // Email Field
+                  Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextFormField(
                       controller: _emailController,
-                      label: 'Email',
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(
+                          Icons.email_outlined,
+                          color: theme.colorScheme.primary,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: theme.colorScheme.surface,
+                      ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -89,73 +125,166 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
-
-                    // Reset Button
-                    CustomButton(
+                  ),
+                  const SizedBox(height: 32),
+                  // Reset Button
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
                       onPressed: _isLoading ? null : _resetPassword,
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
                       child: _isLoading
                           ? const SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
-                          : const Text('Send Reset Link'),
+                          : const Text(
+                              'Send Reset Link',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
-                  ] else ...[
-                    const Icon(
-                      Icons.check_circle_outline,
-                      size: 64,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Password Reset Email Sent',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'We have sent a password reset link to ${_emailController.text}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    CustomButton(
-                      onPressed: () {
-                        Navigator.of(context).pushReplacementNamed(Routes.login);
-                      },
-                      child: const Text('Back to Login'),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-
-                  // Login Link
-                  if (!_emailSent)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Remember your password?'),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacementNamed(Routes.login);
-                          },
-                          child: const Text('Login'),
+                  ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 64,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Password Reset Email Sent',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onBackground,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'We have sent a password reset link to ${_emailController.text}',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onBackground.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacementNamed(Routes.login);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Back to Login',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
-              ),
+                const SizedBox(height: 24),
+                // Login Link
+                if (!_emailSent)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Remember your password?',
+                        style: TextStyle(
+                          color: theme.colorScheme.onBackground.withOpacity(0.7),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pushReplacementNamed(Routes.login);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.primary,
+                        ),
+                        child: const Text(
+                          'Login',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ),
