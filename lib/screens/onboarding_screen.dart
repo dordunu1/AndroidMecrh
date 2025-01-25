@@ -21,7 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
-      title: 'Welcome to Merch Store',
+      title: 'Welcome to TFAC Merch Store',
       description: 'Your one-stop destination for unique and trendy merchandise.',
       illustration: (animation) => WelcomeIllustration(animation: animation),
     ),
@@ -282,9 +282,31 @@ class WelcomeIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Stack(
       children: [
-        // Store building
+        // Animated background circles
+        ...List.generate(3, (index) => Positioned.fill(
+          child: AnimatedBuilder(
+            animation: animation,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: animation.value * (index + 1) * 0.5,
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      width: 2,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        )),
+        
+        // Store building with pulsing effect
         Positioned.fill(
           child: FadeTransition(
             opacity: animation,
@@ -303,14 +325,14 @@ class WelcomeIllustration extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.secondary,
+                      theme.colorScheme.primary,
+                      theme.colorScheme.secondary,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).shadowColor.withOpacity(0.2),
+                      color: theme.colorScheme.primary.withOpacity(0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -318,20 +340,29 @@ class WelcomeIllustration extends StatelessWidget {
                 ),
                 child: Stack(
                   children: [
-                    // Store window
+                    // Animated store window
                     Positioned(
                       top: 40,
                       left: 40,
                       right: 40,
-                      child: Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(12),
+                      child: ScaleTransition(
+                        scale: Tween<double>(
+                          begin: 0.9,
+                          end: 1.0,
+                        ).animate(CurvedAnimation(
+                          parent: animation,
+                          curve: const Interval(0.2, 0.7, curve: Curves.elasticOut),
+                        )),
+                        child: Container(
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
-                    // Store door
+                    // Store door with shine effect
                     Positioned(
                       bottom: 0,
                       left: 60,
@@ -344,27 +375,81 @@ class WelcomeIllustration extends StatelessWidget {
                             top: Radius.circular(12),
                           ),
                         ),
+                        child: AnimatedBuilder(
+                          animation: animation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(
+                                30 * math.sin(animation.value * 2 * math.pi),
+                                0,
+                              ),
+                              child: Container(
+                                width: 20,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.white.withOpacity(0),
+                                      Colors.white.withOpacity(0.3),
+                                      Colors.white.withOpacity(0),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
-                    // Store sign
+                    // Animated store sign
                     Positioned(
                       top: 20,
                       left: 0,
                       right: 0,
                       child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(
-                            Icons.shopping_bag_outlined,
-                            color: Colors.white,
-                            size: 32,
+                        child: ScaleTransition(
+                          scale: Tween<double>(
+                            begin: 0.5,
+                            end: 1.0,
+                          ).animate(CurvedAnimation(
+                            parent: animation,
+                            curve: const Interval(0.3, 0.8, curve: Curves.elasticOut),
+                          )),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.colorScheme.primary.withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.shopping_bag_outlined,
+                                  color: Colors.white,
+                                  size: 32,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'TFAC',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -375,7 +460,7 @@ class WelcomeIllustration extends StatelessWidget {
             ),
           ),
         ),
-        // Floating items
+        // Floating colored icons with rotation
         ...List.generate(
           5,
           (index) => Positioned(
@@ -393,30 +478,57 @@ class WelcomeIllustration extends StatelessWidget {
                   curve: Curves.easeOut,
                 ),
               )),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).shadowColor.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
+              child: AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Transform.rotate(
+                    angle: animation.value * math.pi * (index % 2 == 0 ? 1 : -1),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            [
+                              const Color(0xFFFF6B6B),
+                              const Color(0xFFFF8787),
+                              const Color(0xFF4ECDC4),
+                              const Color(0xFFFFBE0B),
+                              const Color(0xFF9B5DE5),
+                            ][index],
+                            [
+                              const Color(0xFFF06292),
+                              const Color(0xFF64B5F6),
+                              const Color(0xFF81C784),
+                              const Color(0xFFFFD54F),
+                              const Color(0xFF7986CB),
+                            ][index],
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.shadowColor.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        [
+                          Icons.shopping_cart_outlined,
+                          Icons.local_offer_outlined,
+                          Icons.inventory_2_outlined,
+                          Icons.category_outlined,
+                          Icons.star_outline,
+                        ][index],
+                        size: 24,
+                        color: Colors.white,
+                      ),
                     ),
-                  ],
-                ),
-                child: Icon(
-                  [
-                    Icons.shopping_cart_outlined,
-                    Icons.local_offer_outlined,
-                    Icons.inventory_2_outlined,
-                    Icons.category_outlined,
-                    Icons.star_outline,
-                  ][index],
-                  size: 24,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                  );
+                },
               ),
             ),
           ),
@@ -435,7 +547,7 @@ class ShoppingIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Main shopping cart
+        // Main shopping cart with gradient
         Center(
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(
@@ -450,8 +562,8 @@ class ShoppingIllustration extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.secondary,
+                    const Color(0xFF4ECDC4),
+                    const Color(0xFF81C784),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(24),
@@ -473,15 +585,16 @@ class ShoppingIllustration extends StatelessWidget {
             ),
           ),
         ),
-        // Floating product cards
+        // Floating product cards with colorful gradients
         ...List.generate(
-          3,
+          4,
           (index) => Positioned(
-            top: 40.0 + (index * 80),
-            left: 20.0 + (index * 30),
+            top: 40.0 + (index * 70),
+            left: index.isEven ? 20.0 + (index * 30) : null,
+            right: index.isEven ? null : 20.0 + (index * 30),
             child: SlideTransition(
               position: Tween<Offset>(
-                begin: const Offset(-0.5, -0.5),
+                begin: Offset(index.isEven ? -0.5 : 0.5, -0.3),
                 end: Offset.zero,
               ).animate(CurvedAnimation(
                 parent: animation,
@@ -492,43 +605,126 @@ class ShoppingIllustration extends StatelessWidget {
                 ),
               )),
               child: Container(
-                width: 100,
-                height: 60,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      [
+                        const Color(0xFFFF6B6B),
+                        const Color(0xFFF06292),
+                        const Color(0xFF4ECDC4),
+                        const Color(0xFFFFBE0B),
+                      ][index],
+                      [
+                        const Color(0xFFFF8787),
+                        const Color(0xFF64B5F6),
+                        const Color(0xFF81C784),
+                        const Color(0xFFFFD54F),
+                      ][index],
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).shadowColor.withOpacity(0.1),
+                      color: Theme.of(context).shadowColor.withOpacity(0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
                   ],
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       [
                         Icons.inventory_2_outlined,
                         Icons.category_outlined,
                         Icons.local_offer_outlined,
+                        Icons.star_outline,
                       ][index],
                       size: 24,
-                      color: Theme.of(context).colorScheme.primary,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(width: 8),
                     Container(
                       height: 8,
-                      width: 60,
+                      width: 40,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                        color: Colors.white.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ),
+        // Animated floating icons
+        ...List.generate(
+          3,
+          (index) => Positioned(
+            top: 60.0 + (index * 80),
+            right: 30.0 + (index * 20),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.5, -0.5),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Interval(
+                  0.2 + (0.1 * index),
+                  0.8 + (0.05 * index),
+                  curve: Curves.easeOut,
+                ),
+              )),
+              child: AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Transform.rotate(
+                    angle: animation.value * math.pi * (index % 2 == 0 ? 1 : -1),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            [
+                              const Color(0xFF9B5DE5),
+                              const Color(0xFFFF6B6B),
+                              const Color(0xFF4ECDC4),
+                            ][index],
+                            [
+                              const Color(0xFF7986CB),
+                              const Color(0xFFF06292),
+                              const Color(0xFF81C784),
+                            ][index],
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).shadowColor.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        [
+                          Icons.shopping_basket_outlined,
+                          Icons.favorite_outline,
+                          Icons.local_shipping_outlined,
+                        ][index],
+                        size: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -547,7 +743,7 @@ class SellerIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Store icon
+        // Main store icon with gradient
         Center(
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(
@@ -558,12 +754,12 @@ class SellerIllustration extends StatelessWidget {
               width: 200,
               height: 200,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.secondary,
+                    Color(0xFF9B5DE5),  // Purple
+                    Color(0xFF7986CB),  // Blue-purple
                   ],
                 ),
                 borderRadius: BorderRadius.circular(24),
@@ -575,25 +771,57 @@ class SellerIllustration extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Center(
-                child: Icon(
-                  Icons.store_outlined,
-                  size: 64,
-                  color: Colors.white,
-                ),
+              child: Stack(
+                children: [
+                  const Center(
+                    child: Icon(
+                      Icons.store_outlined,
+                      size: 64,
+                      color: Colors.white,
+                    ),
+                  ),
+                  // Animated shine effect
+                  Positioned.fill(
+                    child: AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(
+                            200 * math.sin(animation.value * 2 * math.pi),
+                            0,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0),
+                                  Colors.white.withOpacity(0.2),
+                                  Colors.white.withOpacity(0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        // Business metrics
+        // Floating business metrics with colorful gradients
         ...List.generate(
           4,
           (index) => Positioned(
-            top: 40.0 + (index * 60),
-            right: 20.0 + (index * 20),
+            top: 40.0 + (index * 70),
+            left: index.isEven ? 20.0 + (index * 30) : null,
+            right: index.isEven ? null : 20.0 + (index * 30),
             child: SlideTransition(
               position: Tween<Offset>(
-                begin: const Offset(0.5, -0.5),
+                begin: Offset(index.isEven ? -0.5 : 0.5, -0.3),
                 end: Offset.zero,
               ).animate(CurvedAnimation(
                 parent: animation,
@@ -604,13 +832,30 @@ class SellerIllustration extends StatelessWidget {
                 ),
               )),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      [
+                        const Color(0xFFFF6B6B),  // Red
+                        const Color(0xFF4ECDC4),  // Teal
+                        const Color(0xFFFFBE0B),  // Yellow
+                        const Color(0xFF9B5DE5),  // Purple
+                      ][index],
+                      [
+                        const Color(0xFFFF8787),  // Light red
+                        const Color(0xFF81C784),  // Green
+                        const Color(0xFFFFD54F),  // Light yellow
+                        const Color(0xFF7986CB),  // Blue-purple
+                      ][index],
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).shadowColor.withOpacity(0.1),
+                      color: Theme.of(context).shadowColor.withOpacity(0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
@@ -627,19 +872,86 @@ class SellerIllustration extends StatelessWidget {
                         Icons.star_outline,
                       ][index],
                       size: 24,
-                      color: Theme.of(context).colorScheme.primary,
+                      color: Colors.white,
                     ),
                     const SizedBox(width: 8),
                     Container(
                       height: 8,
                       width: 40,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                        color: Colors.white.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ),
+        // Rotating achievement badges
+        ...List.generate(
+          3,
+          (index) => Positioned(
+            top: 60.0 + (index * 80),
+            right: 30.0 + (index * 20),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.5, -0.5),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Interval(
+                  0.2 + (0.1 * index),
+                  0.8 + (0.05 * index),
+                  curve: Curves.easeOut,
+                ),
+              )),
+              child: AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Transform.rotate(
+                    angle: animation.value * math.pi * (index % 2 == 0 ? 1 : -1),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            [
+                              const Color(0xFFFFBE0B),  // Yellow
+                              const Color(0xFF4ECDC4),  // Teal
+                              const Color(0xFFFF6B6B),  // Red
+                            ][index],
+                            [
+                              const Color(0xFFFFD54F),  // Light yellow
+                              const Color(0xFF81C784),  // Green
+                              const Color(0xFFFF8787),  // Light red
+                            ][index],
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).shadowColor.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        [
+                          Icons.workspace_premium_outlined,
+                          Icons.verified_outlined,
+                          Icons.emoji_events_outlined,
+                        ][index],
+                        size: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -658,7 +970,7 @@ class DeliveryIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Delivery truck
+        // Main delivery truck with gradient
         Center(
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(
@@ -669,12 +981,12 @@ class DeliveryIllustration extends StatelessWidget {
               width: 200,
               height: 200,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.secondary,
+                    Color(0xFF4ECDC4),  // Teal
+                    Color(0xFF81C784),  // Green
                   ],
                 ),
                 borderRadius: BorderRadius.circular(24),
@@ -686,25 +998,57 @@ class DeliveryIllustration extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Center(
-                child: Icon(
-                  Icons.local_shipping_outlined,
-                  size: 64,
-                  color: Colors.white,
-                ),
+              child: Stack(
+                children: [
+                  const Center(
+                    child: Icon(
+                      Icons.local_shipping_outlined,
+                      size: 64,
+                      color: Colors.white,
+                    ),
+                  ),
+                  // Animated shine effect
+                  Positioned.fill(
+                    child: AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(
+                            200 * math.sin(animation.value * 2 * math.pi),
+                            0,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0),
+                                  Colors.white.withOpacity(0.2),
+                                  Colors.white.withOpacity(0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        // Route markers
+        // Floating location markers with gradients
         ...List.generate(
-          3,
+          4,
           (index) => Positioned(
-            top: 60.0 + (index * 70),
-            left: 40.0 + (index * 100),
+            top: 40.0 + (index * 70),
+            left: index.isEven ? 20.0 + (index * 30) : null,
+            right: index.isEven ? null : 20.0 + (index * 30),
             child: SlideTransition(
               position: Tween<Offset>(
-                begin: const Offset(-0.5, -0.5),
+                begin: Offset(index.isEven ? -0.5 : 0.5, -0.3),
                 end: Offset.zero,
               ).animate(CurvedAnimation(
                 parent: animation,
@@ -715,85 +1059,190 @@ class DeliveryIllustration extends StatelessWidget {
                 ),
               )),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      [
+                        const Color(0xFFFF6B6B),  // Red
+                        const Color(0xFF9B5DE5),  // Purple
+                        const Color(0xFFFFBE0B),  // Yellow
+                        const Color(0xFF4ECDC4),  // Teal
+                      ][index],
+                      [
+                        const Color(0xFFFF8787),  // Light red
+                        const Color(0xFF7986CB),  // Blue-purple
+                        const Color(0xFFFFD54F),  // Light yellow
+                        const Color(0xFF81C784),  // Green
+                      ][index],
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).shadowColor.withOpacity(0.1),
+                      color: Theme.of(context).shadowColor.withOpacity(0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
                   ],
                 ),
-                child: Icon(
-                  [
-                    Icons.location_on_outlined,
-                    Icons.navigation_outlined,
-                    Icons.flag_outlined,
-                  ][index],
-                  size: 24,
-                  color: Theme.of(context).colorScheme.primary,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      [
+                        Icons.location_on_outlined,
+                        Icons.navigation_outlined,
+                        Icons.flag_outlined,
+                        Icons.check_circle_outline,
+                      ][index],
+                      size: 24,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 8,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
-        // Route line
+        // Animated route line with dots
         Positioned(
           top: 100,
           left: 60,
           right: 60,
-          child: CustomPaint(
-            painter: RoutePainter(
-              animation: animation,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, -0.5),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: const Interval(0.3, 0.8, curve: Curves.easeOut),
+            )),
+            child: Container(
+              height: 100,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    width: 2,
+                    style: BorderStyle.solid,
+                  ),
+                ),
+              ),
+              child: Stack(
+                children: List.generate(
+                  3,
+                  (index) => Positioned(
+                    left: index * 100.0,
+                    bottom: 0,
+                    child: ScaleTransition(
+                      scale: Tween<double>(
+                        begin: 0.5,
+                        end: 1.0,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Interval(
+                          0.4 + (index * 0.1),
+                          0.7 + (index * 0.1),
+                          curve: Curves.elasticOut,
+                        ),
+                      )),
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            size: const Size(double.infinity, 2),
+          ),
+        ),
+        // Rotating delivery status icons
+        ...List.generate(
+          3,
+          (index) => Positioned(
+            top: 60.0 + (index * 80),
+            right: 30.0 + (index * 20),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.5, -0.5),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Interval(
+                  0.2 + (0.1 * index),
+                  0.8 + (0.05 * index),
+                  curve: Curves.easeOut,
+                ),
+              )),
+              child: AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Transform.rotate(
+                    angle: animation.value * math.pi * (index % 2 == 0 ? 1 : -1),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            [
+                              const Color(0xFFFFBE0B),  // Yellow
+                              const Color(0xFF4ECDC4),  // Teal
+                              const Color(0xFFFF6B6B),  // Red
+                            ][index],
+                            [
+                              const Color(0xFFFFD54F),  // Light yellow
+                              const Color(0xFF81C784),  // Green
+                              const Color(0xFFFF8787),  // Light red
+                            ][index],
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).shadowColor.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        [
+                          Icons.local_shipping_outlined,
+                          Icons.access_time_outlined,
+                          Icons.inventory_2_outlined,
+                        ][index],
+                        size: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ],
     );
   }
-}
-
-class RoutePainter extends CustomPainter {
-  final Animation<double> animation;
-  final Color color;
-
-  RoutePainter({required this.animation, required this.color}) : super(repaint: animation);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    final path = Path()
-      ..moveTo(0, size.height / 2)
-      ..lineTo(size.width * animation.value, size.height / 2);
-
-    canvas.drawPath(path, paint);
-
-    // Draw dots
-    final dotPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    for (var i = 0; i < 3; i++) {
-      final x = size.width * (i / 2);
-      canvas.drawCircle(
-        Offset(x, size.height / 2),
-        4,
-        dotPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(RoutePainter oldDelegate) => true;
 }
 
 class ChatIllustration extends StatelessWidget {
@@ -805,7 +1254,7 @@ class ChatIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Main chat bubble
+        // Main chat bubble with gradient
         Center(
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(
@@ -816,12 +1265,12 @@ class ChatIllustration extends StatelessWidget {
               width: 200,
               height: 200,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Theme.of(context).colorScheme.primary,
-                    Theme.of(context).colorScheme.secondary,
+                    Color(0xFF9B5DE5),  // Purple
+                    Color(0xFF7986CB),  // Blue-purple
                   ],
                 ),
                 borderRadius: BorderRadius.circular(24),
@@ -842,7 +1291,34 @@ class ChatIllustration extends StatelessWidget {
                       color: Colors.white,
                     ),
                   ),
-                  // Animated dots
+                  // Animated shine effect
+                  Positioned.fill(
+                    child: AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(
+                            200 * math.sin(animation.value * 2 * math.pi),
+                            0,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0),
+                                  Colors.white.withOpacity(0.2),
+                                  Colors.white.withOpacity(0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Animated typing dots
                   ...List.generate(3, (index) => Positioned(
                     bottom: 50,
                     left: 80 + (index * 20),
@@ -855,7 +1331,7 @@ class ChatIllustration extends StatelessWidget {
                         curve: Interval(
                           0.3 + (index * 0.2),
                           0.7 + (index * 0.1),
-                          curve: Curves.easeOut,
+                          curve: Curves.elasticOut,
                         ),
                       )),
                       child: Container(
@@ -873,7 +1349,7 @@ class ChatIllustration extends StatelessWidget {
             ),
           ),
         ),
-        // Floating message bubbles
+        // Floating message bubbles with gradients
         ...List.generate(
           4,
           (index) => Positioned(
@@ -893,13 +1369,30 @@ class ChatIllustration extends StatelessWidget {
                 ),
               )),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: index.isEven ? Colors.white : Theme.of(context).colorScheme.primary,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      [
+                        const Color(0xFFFF6B6B),  // Red
+                        const Color(0xFF4ECDC4),  // Teal
+                        const Color(0xFFFFBE0B),  // Yellow
+                        const Color(0xFF9B5DE5),  // Purple
+                      ][index],
+                      [
+                        const Color(0xFFFF8787),  // Light red
+                        const Color(0xFF81C784),  // Green
+                        const Color(0xFFFFD54F),  // Light yellow
+                        const Color(0xFF7986CB),  // Blue-purple
+                      ][index],
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).shadowColor.withOpacity(0.1),
+                      color: Theme.of(context).shadowColor.withOpacity(0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
@@ -916,23 +1409,86 @@ class ChatIllustration extends StatelessWidget {
                         Icons.thumb_up_rounded,
                       ][index],
                       size: 24,
-                      color: index.isEven 
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.white,
+                      color: Colors.white,
                     ),
                     const SizedBox(width: 8),
                     Container(
                       height: 8,
                       width: 40,
                       decoration: BoxDecoration(
-                        color: index.isEven
-                          ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
-                          : Colors.white.withOpacity(0.3),
+                        color: Colors.white.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ),
+        // Rotating support icons
+        ...List.generate(
+          3,
+          (index) => Positioned(
+            top: 60.0 + (index * 80),
+            right: 30.0 + (index * 20),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.5, -0.5),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Interval(
+                  0.2 + (0.1 * index),
+                  0.8 + (0.05 * index),
+                  curve: Curves.easeOut,
+                ),
+              )),
+              child: AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Transform.rotate(
+                    angle: animation.value * math.pi * (index % 2 == 0 ? 1 : -1),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            [
+                              const Color(0xFFFFBE0B),  // Yellow
+                              const Color(0xFF4ECDC4),  // Teal
+                              const Color(0xFFFF6B6B),  // Red
+                            ][index],
+                            [
+                              const Color(0xFFFFD54F),  // Light yellow
+                              const Color(0xFF81C784),  // Green
+                              const Color(0xFFFF8787),  // Light red
+                            ][index],
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).shadowColor.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        [
+                          Icons.chat_outlined,
+                          Icons.headset_mic_outlined,
+                          Icons.rate_review_outlined,
+                        ][index],
+                        size: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
