@@ -283,9 +283,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                         child: Stack(
                                           children: [
                                             CachedNetworkImage(
-                                              imageUrl: item.selectedColor != null && item.product.imageColors.containsKey(item.selectedColor)
-                                                  ? item.product.imageColors[item.selectedColor]!
-                                                  : item.product.images.first,
+                                              imageUrl: item.selectedColorImage ?? item.product.images.first,
                                               width: 80,
                                               height: 80,
                                               fit: BoxFit.cover,

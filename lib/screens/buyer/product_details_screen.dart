@@ -122,8 +122,9 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
       );
       // Update selected color based on the image
       final imageUrl = widget.product.images[index];
-      if (widget.product.imageColors.containsKey(imageUrl)) {
-        _selectedColor = widget.product.imageColors[imageUrl];
+      final color = widget.product.imageColors[imageUrl];
+      if (color != null) {
+        _selectedColor = color;
       }
     });
   }
@@ -132,12 +133,27 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     if (!mounted) return;
 
     try {
+      // Get the color-specific image URL by finding the image URL (key) that maps to the selected color (value)
+      String? colorImage;
+      if (_selectedColor != null) {
+        colorImage = widget.product.images[_currentImageIndex];
+        // Verify this image actually corresponds to the selected color
+        if (widget.product.imageColors[colorImage] != _selectedColor) {
+          // If not, search for the correct image URL
+          colorImage = widget.product.imageColors.entries
+              .firstWhere((entry) => entry.value == _selectedColor,
+                  orElse: () => MapEntry(widget.product.images.first, ''))
+              .key;
+        }
+      }
+
       ref.read(cartProvider.notifier).addToCart(
         CartItem(
           product: widget.product,
           quantity: _quantity,
           selectedSize: _selectedSize,
           selectedColor: _selectedColor,
+          selectedColorImage: colorImage,
         ),
       );
 
