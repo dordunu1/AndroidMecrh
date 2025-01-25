@@ -43,6 +43,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   MerchUser? _currentUser;
   bool _isLoadingMore = false;
   String? _sellerCity;
+  String? _selectedColor;
 
   @override
   void initState() {
@@ -111,49 +112,40 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     super.dispose();
   }
 
-  Future<void> _addToCart() async {
-    if (widget.product.hasVariants && widget.product.sizes.isNotEmpty && _selectedSize == null) {
-      setState(() => _error = 'Please select a size');
-      return;
-    }
-
+  void _onImageTapped(int index) {
     setState(() {
-      _isLoading = true;
-      _error = null;
+      _currentImageIndex = index;
+      // Update selected color based on the image
+      final imageUrl = widget.product.images[index];
+      if (widget.product.imageColors.containsKey(imageUrl)) {
+        _selectedColor = widget.product.imageColors[imageUrl];
+      }
     });
+  }
+
+  Future<void> _addToCart() async {
+    if (!mounted) return;
 
     try {
-      // Add to cart using cartProvider
       ref.read(cartProvider.notifier).addToCart(
         CartItem(
           product: widget.product,
           quantity: _quantity,
+          selectedSize: _selectedSize,
+          selectedColor: _selectedColor,
         ),
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Added to cart'),
-            action: SnackBarAction(
-              label: 'VIEW CART',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CartScreen()),
-                );
-              },
-            ),
-          ),
+          const SnackBar(content: Text('Added to cart')),
         );
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
       }
     }
   }
@@ -179,11 +171,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                       PageView.builder(
                         controller: _pageController,
                         itemCount: widget.product.images.isEmpty ? 1 : widget.product.images.length,
-                        onPageChanged: (index) {
-                          setState(() {
-                            _currentImageIndex = index;
-                          });
-                        },
+                        onPageChanged: _onImageTapped,
                         itemBuilder: (context, index) {
                           return Stack(
                             children: [

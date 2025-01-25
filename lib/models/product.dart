@@ -20,9 +20,10 @@ class Product {
   final List<String> sizes;
   final List<String> colors;
   final Map<String, int> colorQuantities;
+  final Map<String, String> imageColors;
   final bool hasDiscount;
   final double discountPercent;
-  final String? discountEndsAt;
+  final DateTime? discountEndsAt;
   final double? discountedPrice;
   final int soldCount;
   final double rating;
@@ -46,17 +47,18 @@ class Product {
     this.updatedAt,
     this.shippingFee,
     this.shippingInfo,
-    this.hasVariants = false,
-    this.sizes = const [],
-    this.colors = const [],
-    this.colorQuantities = const {},
-    this.hasDiscount = false,
-    this.discountPercent = 0,
+    required this.hasVariants,
+    required this.sizes,
+    required this.colors,
+    required this.colorQuantities,
+    required this.imageColors,
+    required this.hasDiscount,
+    required this.discountPercent,
     this.discountEndsAt,
     this.discountedPrice,
-    this.soldCount = 0,
-    this.rating = 0.0,
-    this.reviewCount = 0,
+    required this.soldCount,
+    required this.rating,
+    required this.reviewCount,
     this.sellerCity,
     this.sellerCountry,
   });
@@ -68,6 +70,17 @@ class Product {
         return value.toDate().toIso8601String();
       }
       return value.toString();
+    }
+
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is Timestamp) {
+        return value.toDate();
+      }
+      if (value is String) {
+        return DateTime.parse(value);
+      }
+      return null;
     }
 
     return Product(
@@ -90,9 +103,10 @@ class Product {
       sizes: List<String>.from(map['sizes'] ?? []),
       colors: List<String>.from(map['colors'] ?? []),
       colorQuantities: Map<String, int>.from(map['colorQuantities'] ?? {}),
+      imageColors: Map<String, String>.from(map['imageColors'] ?? {}),
       hasDiscount: map['hasDiscount'] ?? false,
       discountPercent: (map['discountPercent'] ?? 0.0).toDouble(),
-      discountEndsAt: getTimestampString(map['discountEndsAt']),
+      discountEndsAt: parseDateTime(map['discountEndsAt']),
       discountedPrice: (map['discountedPrice'] ?? 0.0).toDouble(),
       soldCount: map['soldCount'] ?? 0,
       rating: (map['rating'] ?? 0.0).toDouble(),
@@ -122,9 +136,10 @@ class Product {
       'sizes': sizes,
       'colors': colors,
       'colorQuantities': colorQuantities,
+      'imageColors': imageColors,
       'hasDiscount': hasDiscount,
       'discountPercent': discountPercent,
-      'discountEndsAt': discountEndsAt,
+      'discountEndsAt': discountEndsAt?.toIso8601String(),
       'discountedPrice': discountedPrice,
       'soldCount': soldCount,
       'rating': rating,
@@ -154,9 +169,10 @@ class Product {
     List<String>? sizes,
     List<String>? colors,
     Map<String, int>? colorQuantities,
+    Map<String, String>? imageColors,
     bool? hasDiscount,
     double? discountPercent,
-    String? discountEndsAt,
+    DateTime? discountEndsAt,
     double? discountedPrice,
     int? soldCount,
     double? rating,
@@ -184,6 +200,7 @@ class Product {
       sizes: sizes ?? this.sizes,
       colors: colors ?? this.colors,
       colorQuantities: colorQuantities ?? this.colorQuantities,
+      imageColors: imageColors ?? this.imageColors,
       hasDiscount: hasDiscount ?? this.hasDiscount,
       discountPercent: discountPercent ?? this.discountPercent,
       discountEndsAt: discountEndsAt ?? this.discountEndsAt,

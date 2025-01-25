@@ -16,12 +16,11 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   void addToCart(CartItem item) {
     final existingIndex = state.indexWhere((i) => i.product.id == item.product.id);
     if (existingIndex >= 0) {
-      final updatedItems = List<CartItem>.from(state);
-      updatedItems[existingIndex] = CartItem(
-        product: item.product,
-        quantity: state[existingIndex].quantity + item.quantity,
-      );
-      state = updatedItems;
+      state = [
+        ...state.sublist(0, existingIndex),
+        item.copyWith(quantity: state[existingIndex].quantity + item.quantity),
+        ...state.sublist(existingIndex + 1),
+      ];
     } else {
       state = [...state, item];
     }
@@ -32,16 +31,12 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   void updateQuantity(String productId, int quantity) {
-    final updatedItems = state.map((item) {
+    state = state.map((item) {
       if (item.product.id == productId) {
-        return CartItem(
-          product: item.product,
-          quantity: quantity,
-        );
+        return item.copyWith(quantity: quantity);
       }
       return item;
     }).toList();
-    state = updatedItems;
   }
 
   void clearCart() {

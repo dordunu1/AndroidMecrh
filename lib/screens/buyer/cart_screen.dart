@@ -208,24 +208,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 children: [
                                   Icon(
                                     Icons.store,
-                                    size: 20,
+                                    size: 14,
                                     color: theme.colorScheme.primary,
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 4),
                                   Text(
                                     firstItem.product.sellerName,
-                                    style: theme.textTheme.titleMedium?.copyWith(
+                                    style: theme.textTheme.bodySmall?.copyWith(
                                       color: theme.colorScheme.primary,
-                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  if (_sellerShippingFees.containsKey(sellerId)) ...[
-                                    const Spacer(),
-                                    Text(
-                                      'Delivery: GHS ${_sellerShippingFees[sellerId]!.toStringAsFixed(2)}',
-                                      style: theme.textTheme.bodySmall,
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),
@@ -235,122 +227,124 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 horizontal: 16,
                                 vertical: 8,
                               ),
-                              child: Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Checkbox(
-                                    value: _selectedItems.contains(item.product.id),
-                                    shape: const CircleBorder(),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        if (value == true) {
-                                          _selectedItems.add(item.product.id);
-                                        } else {
-                                          _selectedItems.remove(item.product.id);
-                                        }
-                                      });
-                                    },
-                                  ),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: CachedNetworkImage(
-                                      imageUrl: item.product.images.first,
-                                      width: 80,
-                                      height: 80,
-                                      fit: BoxFit.cover,
+                                  if (item.selectedColor != null || item.selectedSize != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 16, top: 8),
+                                      child: Wrap(
+                                        spacing: 8,
+                                        children: [
+                                          if (item.selectedColor != null)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: theme.colorScheme.surfaceVariant,
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                'Color: ${item.selectedColor}',
+                                                style: theme.textTheme.bodySmall,
+                                              ),
+                                            ),
+                                          if (item.selectedSize != null)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: theme.colorScheme.surfaceVariant,
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                'Size: ${item.selectedSize}',
+                                                style: theme.textTheme.bodySmall,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.product.name,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: theme.textTheme.titleSmall,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        if (item.selectedSize != null || item.selectedColor != null)
-                                          Wrap(
-                                            spacing: 4,
-                                            runSpacing: 4,
-                                            children: [
-                                              if (item.selectedSize != null)
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: theme.colorScheme.surfaceVariant,
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Text(
-                                                    'Size: ${item.selectedSize}',
-                                                    style: theme.textTheme.bodySmall?.copyWith(
-                                                      color: theme.colorScheme.onSurfaceVariant,
-                                                    ),
-                                                  ),
-                                                ),
-                                              if (item.selectedColor != null)
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color: theme.colorScheme.surfaceVariant,
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Text(
-                                                    'Color: ${item.selectedColor}',
-                                                    style: theme.textTheme.bodySmall?.copyWith(
-                                                      color: theme.colorScheme.onSurfaceVariant,
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'GHS ${(item.product.hasDiscount
-                                                  ? item.product.price * (1 - item.product.discountPercent / 100)
-                                                  : item.product.price).toStringAsFixed(2)}',
-                                          style: theme.textTheme.titleSmall?.copyWith(
-                                            color: theme.colorScheme.primary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Column(
+                                  Row(
                                     children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline),
-                                        onPressed: () {
-                                          ref.read(cartProvider.notifier).removeFromCart(item.product.id);
-                                          _selectedItems.remove(item.product.id);
+                                      Checkbox(
+                                        value: _selectedItems.contains(item.product.id),
+                                        shape: const CircleBorder(),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            if (value == true) {
+                                              _selectedItems.add(item.product.id);
+                                            } else {
+                                              _selectedItems.remove(item.product.id);
+                                            }
+                                          });
                                         },
                                       ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: CachedNetworkImage(
+                                          imageUrl: item.product.images.first,
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.product.name,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.textTheme.titleSmall,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'GHS ${(item.product.hasDiscount
+                                                      ? item.product.price * (1 - item.product.discountPercent / 100)
+                                                      : item.product.price).toStringAsFixed(2)}',
+                                              style: theme.textTheme.titleSmall?.copyWith(
+                                                color: theme.colorScheme.primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Column(
                                         children: [
                                           IconButton(
-                                            icon: const Icon(Icons.remove),
-                                            onPressed: item.quantity > 1
-                                                ? () {
-                                                    ref.read(cartProvider.notifier).updateQuantity(
-                                                          item.product.id,
-                                                          item.quantity - 1,
-                                                        );
-                                                  }
-                                                : null,
-                                          ),
-                                          Text('${item.quantity}'),
-                                          IconButton(
-                                            icon: const Icon(Icons.add),
+                                            icon: const Icon(Icons.delete_outline),
                                             onPressed: () {
-                                              ref.read(cartProvider.notifier).updateQuantity(
-                                                    item.product.id,
-                                                    item.quantity + 1,
-                                                  );
+                                              ref.read(cartProvider.notifier).removeFromCart(item.product.id);
+                                              _selectedItems.remove(item.product.id);
                                             },
+                                          ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.remove),
+                                                onPressed: item.quantity > 1
+                                                    ? () {
+                                                        ref.read(cartProvider.notifier).updateQuantity(
+                                                              item.product.id,
+                                                              item.quantity - 1,
+                                                            );
+                                                      }
+                                                    : null,
+                                              ),
+                                              Text('${item.quantity}'),
+                                              IconButton(
+                                                icon: const Icon(Icons.add),
+                                                onPressed: () {
+                                                  ref.read(cartProvider.notifier).updateQuantity(
+                                                        item.product.id,
+                                                        item.quantity + 1,
+                                                      );
+                                                },
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),

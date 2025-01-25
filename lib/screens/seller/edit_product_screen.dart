@@ -7,6 +7,7 @@ import '../../services/product_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 const CLOTHING_SUBCATEGORIES = {
   "Men's Wear": [
@@ -70,19 +71,6 @@ const SHOE_SIZES = [
 
 const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
-const COLORS = [
-  {'name': 'Black', 'value': 0xFF000000},
-  {'name': 'White', 'value': 0xFFFFFFFF},
-  {'name': 'Gray', 'value': 0xFF808080},
-  {'name': 'Red', 'value': 0xFFFF0000},
-  {'name': 'Blue', 'value': 0xFF0000FF},
-  {'name': 'Green', 'value': 0xFF008000},
-  {'name': 'Yellow', 'value': 0xFFFFFF00},
-  {'name': 'Purple', 'value': 0xFF800080},
-  {'name': 'Pink', 'value': 0xFFFFC0CB},
-  {'name': 'Brown', 'value': 0xFFA52A2A}
-];
-
 class EditProductScreen extends ConsumerStatefulWidget {
   final String productId;
 
@@ -118,8 +106,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   List<File> _newImages = [];
   bool _hasVariants = false;
   List<String> _selectedSizes = [];
-  List<String> _selectedColors = [];
   Map<String, int> _colorQuantities = {};
+  Map<String, String> _imageColors = {};
   bool _hasDiscount = false;
   double _discountPercent = 0.0;
   DateTime? _discountEndsAt;
@@ -162,8 +150,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         _discountPercent = product.discountPercent;
         _discountPercentController.text = product.discountPercent.toString();
         if (product.discountEndsAt != null) {
-          _discountEndsAt = DateTime.parse(product.discountEndsAt!);
-          _discountEndsAtController.text = product.discountEndsAt!;
+          _discountEndsAt = product.discountEndsAt;
+          _discountEndsAtController.text = DateFormat('yyyy-MM-dd').format(product.discountEndsAt!);
         }
       }
 
@@ -173,8 +161,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         _existingImages = List<String>.from(product.images);
         _hasVariants = product.hasVariants;
         _selectedSizes = List<String>.from(product.sizes);
-        _selectedColors = List<String>.from(product.colors);
         _colorQuantities = Map<String, int>.from(product.colorQuantities);
+        _imageColors = Map<String, String>.from(product.imageColors);
         _isLoading = false;
       });
     } catch (e) {
@@ -194,8 +182,10 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
       sellerName: _originalProduct!.sellerName,
       name: _nameController.text,
       description: _descriptionController.text,
-      price: double.tryParse(_priceController.text) ?? _originalProduct!.price,
-      stockQuantity: int.tryParse(_stockController.text) ?? _originalProduct!.stockQuantity,
+      price: double.parse(_priceController.text),
+      stockQuantity: _hasVariants 
+        ? _colorQuantities.values.fold(0, (sum, qty) => sum + qty)
+        : int.parse(_stockController.text),
       category: _selectedCategory,
       subCategory: _selectedSubCategory,
       images: _existingImages,
@@ -205,14 +195,18 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
       shippingInfo: _shippingInfoController.text,
       hasVariants: _hasVariants,
       sizes: _selectedSizes,
-      colors: _selectedColors,
+      colors: _imageColors.values.toList(),
       colorQuantities: _colorQuantities,
+      imageColors: _imageColors,
       hasDiscount: _hasDiscount,
       discountPercent: _discountPercent,
-      discountEndsAt: _discountEndsAt?.toIso8601String(),
+      discountEndsAt: _discountEndsAt,
       discountedPrice: _hasDiscount ? 
-        (double.tryParse(_priceController.text) ?? _originalProduct!.price) * (1 - _discountPercent / 100) : 
+        double.parse(_priceController.text) * (1 - _discountPercent / 100) : 
         null,
+      soldCount: _originalProduct!.soldCount,
+      rating: _originalProduct!.rating,
+      reviewCount: _originalProduct!.reviewCount,
     );
 
     setState(() {
@@ -265,6 +259,11 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
 
   void _removeExistingImage(int index) {
     setState(() {
+      final color = _imageColors[_existingImages[index]];
+      if (color != null) {
+        _colorQuantities.remove(color);
+        _imageColors.remove(_existingImages[index]);
+      }
       _existingImages.removeAt(index);
       _checkForChanges();
     });
@@ -272,6 +271,11 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
 
   void _removeNewImage(int index) {
     setState(() {
+      final color = _imageColors[_newImages[index].path];
+      if (color != null) {
+        _colorQuantities.remove(color);
+        _imageColors.remove(_newImages[index].path);
+      }
       _newImages.removeAt(index);
       _checkForChanges();
     });
@@ -325,12 +329,16 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         'shippingInfo': _shippingInfoController.text.trim(),
         'hasVariants': _hasVariants,
         'sizes': _selectedSizes,
-        'colors': _selectedColors,
+        'colors': _imageColors.values.toList(),
         'colorQuantities': _colorQuantities,
+        'imageColors': _imageColors,
         'hasDiscount': _hasDiscount,
         'discountPercent': _discountPercent,
         'discountEndsAt': _discountEndsAt?.toIso8601String(),
         'discountedPrice': discountedPrice,
+        'soldCount': _originalProduct!.soldCount,
+        'rating': _originalProduct!.rating,
+        'reviewCount': _originalProduct!.reviewCount,
       };
 
       await ref.read(productServiceProvider).updateProduct(widget.productId, productData);
@@ -349,6 +357,299 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         setState(() => _submitting = false);
       }
     }
+  }
+
+  Future<void> _showColorDialog(String imagePath) async {
+    final colorController = TextEditingController(text: _imageColors[imagePath]);
+    final quantityController = TextEditingController(
+      text: _colorQuantities[_imageColors[imagePath] ?? '']?.toString() ?? '0'
+    );
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Specify Color & Quantity'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: colorController,
+              decoration: const InputDecoration(
+                labelText: 'Color Name',
+                hintText: 'e.g. Navy Blue, Rose Gold',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Quantity',
+                hintText: 'Enter quantity for this color',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final oldColor = _imageColors[imagePath];
+              if (oldColor != null) {
+                _colorQuantities.remove(oldColor);
+              }
+              
+              setState(() {
+                _imageColors[imagePath] = colorController.text;
+                _colorQuantities[colorController.text] = int.tryParse(quantityController.text) ?? 0;
+                _hasVariants = true;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorVariantsSection() {
+    if (!_hasVariants) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Text(
+          'Color Variants',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Click the color icon on each image to specify its color and quantity',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        if (_colorQuantities.isNotEmpty) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Color Quantities:',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  ..._colorQuantities.entries.map((entry) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(entry.key),
+                        Text('${entry.value} pieces'),
+                      ],
+                    ),
+                  )),
+                  const Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Total Stock:'),
+                      Text(
+                        '${_colorQuantities.values.fold(0, (sum, qty) => sum + qty)} pieces',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildImageGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: _existingImages.length + _newImages.length + 1,
+      itemBuilder: (context, index) {
+        if (index < _existingImages.length) {
+          // Existing image
+          final imageUrl = _existingImages[index];
+          final color = _imageColors[imageUrl];
+          return Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() {
+                    final color = _imageColors[imageUrl];
+                    if (color != null) {
+                      _colorQuantities.remove(color);
+                      _imageColors.remove(imageUrl);
+                    }
+                    _existingImages.removeAt(index);
+                  }),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.all(4),
+                  ),
+                ),
+              ),
+              if (_hasVariants)
+                Positioned(
+                  bottom: 4,
+                  left: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            color ?? 'Set Color',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 16, color: Colors.white),
+                          onPressed: () => _showColorDialog(imageUrl),
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        } else if (index < _existingImages.length + _newImages.length) {
+          // New image
+          final newIndex = index - _existingImages.length;
+          final imagePath = _newImages[newIndex].path;
+          final color = _imageColors[imagePath];
+          return Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    _newImages[newIndex],
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() {
+                    final color = _imageColors[imagePath];
+                    if (color != null) {
+                      _colorQuantities.remove(color);
+                      _imageColors.remove(imagePath);
+                    }
+                    _newImages.removeAt(newIndex);
+                  }),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.all(4),
+                  ),
+                ),
+              ),
+              if (_hasVariants)
+                Positioned(
+                  bottom: 4,
+                  left: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            color ?? 'Set Color',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 16, color: Colors.white),
+                          onPressed: () => _showColorDialog(imagePath),
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        } else {
+          // Add image button
+          return InkWell(
+            onTap: _pickImages,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: Icon(Icons.add_photo_alternate_outlined, size: 32),
+              ),
+            ),
+          );
+        }
+      },
+    );
   }
 
   @override
@@ -396,109 +697,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
-                    if (_existingImages.isEmpty && _newImages.isEmpty)
-                      InkWell(
-                        onTap: _pickImages,
-                        child: Container(
-                          height: 200,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add_photo_alternate_outlined, size: 48),
-                                SizedBox(height: 8),
-                                Text('Add Images'),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      Column(
-                        children: [
-                          SizedBox(
-                            height: 120,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _existingImages.length + _newImages.length < 5 
-                                ? _existingImages.length + _newImages.length + 1 
-                                : _existingImages.length + _newImages.length,
-                              separatorBuilder: (context, index) => const SizedBox(width: 8),
-                              itemBuilder: (context, index) {
-                                if (index == _existingImages.length + _newImages.length && 
-                                    _existingImages.length + _newImages.length < 5) {
-                                  return InkWell(
-                                    onTap: _pickImages,
-                                    child: Container(
-                                      width: 120,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.grey),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Center(
-                                        child: Icon(Icons.add_photo_alternate_outlined, size: 32),
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                final isExistingImage = index < _existingImages.length;
-                                final imageWidget = isExistingImage
-                                  ? Image.network(
-                                      _existingImages[index],
-                                      width: 120,
-                                      height: 120,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Image.file(
-                                      _newImages[index - _existingImages.length],
-                                      width: 120,
-                                      height: 120,
-                                      fit: BoxFit.cover,
-                                    );
-
-                                return Stack(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: imageWidget,
-                                    ),
-                                    Positioned(
-                                      top: 4,
-                                      right: 4,
-                                      child: InkWell(
-                                        onTap: () {
-                                          if (isExistingImage) {
-                                            _removeExistingImage(index);
-                                          } else {
-                                            _removeNewImage(index - _existingImages.length);
-                                          }
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.black54,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.close,
-                                            size: 16,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
+                    _buildImageGrid(),
                   ],
                 ),
               ),
@@ -614,8 +813,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                     _selectedSubCategory = '';
                     _hasVariants = false;
                     _selectedSizes = [];
-                    _selectedColors = [];
                     _colorQuantities = {};
+                    _imageColors = {};
                   });
                 }
               },
@@ -656,8 +855,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                                     _selectedSubCategory = fullSubCategory;
                                     _hasVariants = false;
                                     _selectedSizes = [];
-                                    _selectedColors = [];
                                     _colorQuantities = {};
+                                    _imageColors = {};
                                   } else {
                                     _selectedSubCategory = '';
                                   }
@@ -694,8 +893,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                                 _hasVariants = value;
                                 if (!value) {
                                   _selectedSizes = [];
-                                  _selectedColors = [];
                                   _colorQuantities = {};
+                                  _imageColors = {};
                                 }
                               });
                             },
@@ -731,83 +930,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                               );
                             }),
                           ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Colors Section
-                        Text(
-                          'Available Colors & Quantities',
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 12,
-                          children: COLORS.map((color) {
-                            final colorName = color['name'] as String;
-                            final isSelected = _selectedColors.contains(colorName);
-                            return Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      if (isSelected) {
-                                        _selectedColors.remove(colorName);
-                                        _colorQuantities.remove(colorName);
-                                      } else {
-                                        _selectedColors.add(colorName);
-                                        _colorQuantities[colorName] = 0;
-                                      }
-                                    });
-                                  },
-                                  child: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: Color(color['value'] as int),
-                                      border: Border.all(
-                                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
-                                        width: isSelected ? 2 : 1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: isSelected
-                                      ? Icon(
-                                          Icons.check,
-                                          color: Color(color['value'] as int).computeLuminance() > 0.5 
-                                            ? Colors.black 
-                                            : Colors.white,
-                                        )
-                                      : null,
-                                  ),
-                                ),
-                                if (isSelected) ...[
-                                  const SizedBox(height: 4),
-                                  SizedBox(
-                                    width: 60,
-                                    child: TextFormField(
-                                      initialValue: _colorQuantities[colorName]?.toString() ?? '0',
-                                      keyboardType: TextInputType.number,
-                                      textAlign: TextAlign.center,
-                                      decoration: const InputDecoration(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 8,
-                                        ),
-                                      ),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _colorQuantities[colorName] = int.tryParse(value) ?? 0;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            );
-                          }).toList(),
                         ),
                       ],
                     ],

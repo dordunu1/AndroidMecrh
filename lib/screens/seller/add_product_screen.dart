@@ -107,19 +107,6 @@ const SHOE_SIZES = [
 
 const CLOTHING_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
-const COLORS = [
-  {'name': 'Black', 'value': 0xFF000000},
-  {'name': 'White', 'value': 0xFFFFFFFF},
-  {'name': 'Gray', 'value': 0xFF808080},
-  {'name': 'Red', 'value': 0xFFFF0000},
-  {'name': 'Blue', 'value': 0xFF0000FF},
-  {'name': 'Green', 'value': 0xFF008000},
-  {'name': 'Yellow', 'value': 0xFFFFFF00},
-  {'name': 'Purple', 'value': 0xFF800080},
-  {'name': 'Pink', 'value': 0xFFFFC0CB},
-  {'name': 'Brown', 'value': 0xFFA52A2A}
-];
-
 class AddProductScreen extends ConsumerStatefulWidget {
   const AddProductScreen({super.key});
 
@@ -152,6 +139,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   double _discountPercent = 0.0;
   DateTime? _discountEndsAt;
 
+  final Map<String, String> _imageColors = {};
+  final TextEditingController _colorController = TextEditingController();
+
   bool get isFootwearProduct => 
     _selectedCategory == 'clothing' && 
     _selectedSubCategory.split(' - ')[0] == 'Footwear';
@@ -169,6 +159,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _stockController.dispose();
     _shippingInfoController.dispose();
     _discountPercentController.dispose();
+    _colorController.dispose();
     super.dispose();
   }
 
@@ -260,56 +251,61 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         children: [
                           SizedBox(
                             height: 120,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _selectedImages.length < 5 ? _selectedImages.length + 1 : _selectedImages.length,
-                              separatorBuilder: (context, index) => const SizedBox(width: 8),
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                              ),
+                              itemCount: _selectedImages.length + 1,
                               itemBuilder: (context, index) {
-                                if (index == _selectedImages.length && _selectedImages.length < 5) {
-                                  return InkWell(
-                                    onTap: _pickImages,
-                                    child: Container(
-                                      width: 120,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.grey),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Center(
-                                        child: Icon(Icons.add_photo_alternate_outlined, size: 32),
-                                      ),
-                                    ),
-                                  );
+                                if (index == _selectedImages.length) {
+                                  return _buildAddImageButton();
                                 }
                                 return Stack(
                                   children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.file(
-                                        _selectedImages[index],
-                                        width: 120,
-                                        height: 120,
-                                        fit: BoxFit.cover,
+                                    Image.file(
+                                      _selectedImages[index],
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    ),
+                                    Positioned(
+                                      right: 4,
+                                      top: 4,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.close),
+                                        onPressed: () => _removeImage(index),
+                                        color: Colors.red,
                                       ),
                                     ),
                                     Positioned(
-                                      top: 4,
-                                      right: 4,
-                                      child: InkWell(
-                                        onTap: () => _removeImage(index),
+                                      left: 4,
+                                      bottom: 4,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.color_lens),
+                                        onPressed: () => _showColorDialog(index),
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                    if (_imageColors.containsKey(_selectedImages[index].path))
+                                      Positioned(
+                                        right: 4,
+                                        bottom: 4,
                                         child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.black54,
-                                            shape: BoxShape.circle,
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).colorScheme.surface.withOpacity(0.8),
+                                            borderRadius: BorderRadius.circular(12),
                                           ),
-                                          child: const Icon(
-                                            Icons.close,
-                                            size: 16,
-                                            color: Colors.white,
+                                          child: Text(
+                                            _imageColors[_selectedImages[index].path]!,
+                                            style: Theme.of(context).textTheme.bodySmall,
                                           ),
                                         ),
                                       ),
-                                    ),
                                   ],
                                 );
                               },
@@ -483,103 +479,64 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Colors Section
-                        Text(
-                          'Available Colors & Quantities',
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 12,
-                          children: COLORS.map((color) {
-                            final isSelected = _selectedColors.contains(color['name'] as String);
-                            return Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                InkWell(
-                                  onTap: () {
-                                    final colorName = color['name'] as String;
-                                    setState(() {
-                                      if (isSelected) {
-                                        _selectedColors.remove(colorName);
-                                        _colorQuantities.remove(colorName);
-                                      } else {
-                                        _selectedColors.add(colorName);
-                                        _colorQuantities[colorName] = 0;
-                                      }
-                                    });
-                                  },
-                                  child: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: Color(color['value'] as int),
-                                      border: Border.all(
-                                        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
-                                        width: isSelected ? 2 : 1,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: isSelected
-                                      ? Icon(
-                                          Icons.check,
-                                          color: Color(color['value'] as int).computeLuminance() > 0.5 
-                                            ? Colors.black 
-                                            : Colors.white,
-                                        )
-                                      : null,
-                                  ),
-                                ),
-                                if (isSelected) ...[
-                                  const SizedBox(height: 4),
-                                  SizedBox(
-                                    width: 60,
-                                    child: TextFormField(
-                                      initialValue: _colorQuantities[color['name'] as String]?.toString() ?? '0',
-                                      keyboardType: TextInputType.number,
-                                      textAlign: TextAlign.center,
-                                      decoration: InputDecoration(
-                                        isDense: true,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 8,
+                        // Color Summary Section
+                        if (_imageColors.isNotEmpty) ...[
+                          Text(
+                            'Color Variants',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 8),
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ..._imageColors.entries.map((entry) => Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(entry.value),
+                                        SizedBox(
+                                          width: 80,
+                                          child: TextFormField(
+                                            initialValue: '${_colorQuantities[entry.value] ?? 0}',
+                                            keyboardType: TextInputType.number,
+                                            textAlign: TextAlign.end,
+                                            decoration: InputDecoration(
+                                              isDense: true,
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              suffixText: ' pcs',
+                                            ),
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _colorQuantities[entry.value] = int.tryParse(value) ?? 0;
+                                              });
+                                            },
+                                          ),
                                         ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                      ),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _colorQuantities[color['name'] as String] = int.tryParse(value) ?? 0;
-                                        });
-                                      },
+                                      ],
                                     ),
-                                  ),
+                                  )),
+                                  if (_colorQuantities.isNotEmpty) ...[
+                                    const Divider(),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Total Stock:'),
+                                        Text(
+                                          '${_colorQuantities.values.fold(0, (sum, qty) => sum + qty)} pieces',
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ],
-                              ],
-                            );
-                          }).toList(),
-                        ),
-
-                        // Total Quantity Display
-                        if (_selectedColors.isNotEmpty) ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Total Quantity:'),
-                                Text(
-                                  _colorQuantities.values.fold(0, (sum, qty) => sum + qty).toString(),
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ],
@@ -901,79 +858,40 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Additional validations
     if (_selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one product image')),
+        const SnackBar(content: Text('Please add at least one image')),
       );
       return;
     }
 
-    if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories') {
-      if (_selectedSubCategory.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a product type')),
-        );
-        return;
-      }
-
-      if (_hasVariants) {
-        // Check if at least one variant type (sizes or colors) is selected
-        if (_selectedSizes.isEmpty && _selectedColors.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select at least one variant (sizes or colors)')),
-          );
-          return;
-        }
-
-        // If colors are selected, validate quantities
-        if (_selectedColors.isNotEmpty) {
-          final totalQuantity = _colorQuantities.values.fold(0, (sum, qty) => sum + qty);
-          if (totalQuantity == 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please specify quantities for selected colors')),
-            );
-            return;
-          }
-        }
-      }
-    }
-
-    if (_hasDiscount) {
-      if (_discountPercent <= 0 || _discountPercent >= 100) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Discount percentage must be between 0 and 99')),
-        );
-        return;
-      }
-
-      if (_discountEndsAt == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select when the discount ends')),
-        );
-        return;
-      }
-    }
-
-    setState(() => _submitting = true);
+    setState(() => _isLoading = true);
 
     try {
-      // Upload images first
+      // Upload images
       final imageUrls = await Future.wait(
         _selectedImages.map((file) => ref.read(storageServiceProvider).uploadFile(file, 'products')),
       );
 
-      // Calculate discounted price if discount is applied
-      final price = double.parse(_priceController.text);
-      final discountedPrice = _hasDiscount ? price * (1 - _discountPercent / 100) : null;
+      // Create image colors map with uploaded URLs
+      final imageColors = <String, String>{};
+      for (var i = 0; i < _selectedImages.length; i++) {
+        final color = _imageColors[_selectedImages[i].path];
+        if (color != null) {
+          imageColors[imageUrls[i]] = color;
+        }
+      }
 
+      // Get seller profile
+      final seller = await ref.read(sellerServiceProvider).getSellerProfile();
+      
       final product = Product(
         id: '',
         sellerId: '',
         sellerName: '',
         name: _nameController.text,
         description: _descriptionController.text,
-        price: price,
+        price: double.parse(_priceController.text),
         stockQuantity: _hasVariants 
           ? _colorQuantities.values.fold(0, (sum, qty) => sum + qty)
           : int.parse(_stockController.text),
@@ -990,8 +908,14 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         colorQuantities: _colorQuantities,
         hasDiscount: _hasDiscount,
         discountPercent: _discountPercent,
-        discountEndsAt: _discountEndsAt?.toIso8601String(),
-        discountedPrice: discountedPrice,
+        discountEndsAt: _discountEndsAt,
+        discountedPrice: _hasDiscount ? 
+          double.parse(_priceController.text) * (1 - _discountPercent / 100) : 
+          null,
+        imageColors: imageColors,
+        soldCount: 0,
+        rating: 0,
+        reviewCount: 0,
       );
 
       await ref.read(sellerServiceProvider).createProduct(product);
@@ -1005,13 +929,61 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text(e.toString())),
         );
       }
     } finally {
       if (mounted) {
-        setState(() => _submitting = false);
+        setState(() => _isLoading = false);
       }
     }
+  }
+
+  Widget _buildAddImageButton() {
+    return InkWell(
+      onTap: _pickImages,
+      child: Container(
+        height: 120,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(
+          child: Icon(Icons.add_photo_alternate_outlined, size: 48),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showColorDialog(int imageIndex) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Specify Color'),
+        content: TextField(
+          controller: _colorController,
+          decoration: const InputDecoration(
+            labelText: 'Color Name',
+            hintText: 'e.g. Red, Blue, Black',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _imageColors[_selectedImages[imageIndex].path] = _colorController.text;
+              });
+              _colorController.clear();
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 } 
