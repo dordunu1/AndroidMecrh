@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import 'onboarding_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -37,29 +39,44 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
 
-    _controller.forward().then((_) {
-      _checkUserAndNavigate();
+    _controller.forward().then((_) async {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _checkOnboardingAndNavigate();
+      }
     });
   }
 
-  Future<void> _checkUserAndNavigate() async {
+  Future<void> _checkOnboardingAndNavigate() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
+      if (!mounted) return;
+
+      if (!hasSeenOnboarding) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
+        return;
+      }
+
       final user = await ref.read(currentUserProvider.future);
       
-      if (mounted) {
-        if (user == null) {
-          Navigator.of(context).pushReplacementNamed('/login');
-          return;
-        }
+      if (!mounted) return;
 
-        // Check user type and navigate accordingly
-        if (user.isAdmin) {
-          Navigator.of(context).pushReplacementNamed('/admin-home');
-        } else if (user.isSeller) {
-          Navigator.of(context).pushReplacementNamed('/seller-home');
-        } else {
-          Navigator.of(context).pushReplacementNamed('/buyer-home');
-        }
+      if (user == null) {
+        Navigator.of(context).pushReplacementNamed('/login');
+        return;
+      }
+
+      // Check user type and navigate accordingly
+      if (user.isAdmin) {
+        Navigator.of(context).pushReplacementNamed('/admin-home');
+      } else if (user.isSeller) {
+        Navigator.of(context).pushReplacementNamed('/seller-home');
+      } else {
+        Navigator.of(context).pushReplacementNamed('/buyer-home');
       }
     } catch (e) {
       if (mounted) {

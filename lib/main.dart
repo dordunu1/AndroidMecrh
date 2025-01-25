@@ -35,14 +35,16 @@ class MerchApp extends ConsumerWidget {
     final themeMode = ref.watch(themeProvider);
     final authState = ref.watch(authStateProvider);
 
-    return MaterialApp(
-      title: 'Merch Store',
-      debugShowCheckedModeBanner: false,
-      themeMode: themeMode,
-      theme: AppTheme.lightTheme(),
-      darkTheme: AppTheme.darkTheme(),
-      initialRoute: Routes.splash,
-      routes: Routes.getRoutes(),
+    return ProviderScope(
+      child: MaterialApp(
+        title: 'Merch Store',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme(),
+        darkTheme: AppTheme.darkTheme(),
+        themeMode: ThemeMode.light,
+        initialRoute: Routes.splash,
+        routes: Routes.getRoutes(),
+      ),
     );
   }
 } 
