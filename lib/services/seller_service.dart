@@ -484,6 +484,7 @@ class SellerService {
         'sellerId': _auth.currentUser!.uid,
         'sellerName': seller.storeName,
         'sellerCity': seller.city,
+        'sellerCountry': seller.country,
         'category': category,
         'createdAt': DateTime.now().toIso8601String(),
       });

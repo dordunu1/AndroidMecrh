@@ -271,42 +271,42 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                           style: theme.textTheme.titleSmall,
                                         ),
                                         const SizedBox(height: 4),
-                                        if (item.product.hasVariants) ...[
+                                        if (item.selectedSize != null || item.selectedColor != null)
                                           Wrap(
                                             spacing: 4,
+                                            runSpacing: 4,
                                             children: [
                                               if (item.selectedSize != null)
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(
                                                     color: theme.colorScheme.surfaceVariant,
-                                                    borderRadius: BorderRadius.circular(4),
+                                                    borderRadius: BorderRadius.circular(12),
                                                   ),
                                                   child: Text(
                                                     'Size: ${item.selectedSize}',
                                                     style: theme.textTheme.bodySmall?.copyWith(
-                                                      fontSize: 10,
+                                                      color: theme.colorScheme.onSurfaceVariant,
                                                     ),
                                                   ),
                                                 ),
                                               if (item.selectedColor != null)
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                   decoration: BoxDecoration(
                                                     color: theme.colorScheme.surfaceVariant,
-                                                    borderRadius: BorderRadius.circular(4),
+                                                    borderRadius: BorderRadius.circular(12),
                                                   ),
                                                   child: Text(
                                                     'Color: ${item.selectedColor}',
                                                     style: theme.textTheme.bodySmall?.copyWith(
-                                                      fontSize: 10,
+                                                      color: theme.colorScheme.onSurfaceVariant,
                                                     ),
                                                   ),
                                                 ),
                                             ],
                                           ),
-                                          const SizedBox(height: 4),
-                                        ],
+                                        const SizedBox(height: 4),
                                         Text(
                                           'GHS ${(item.product.hasDiscount
                                                   ? item.product.price * (1 - item.product.discountPercent / 100)
