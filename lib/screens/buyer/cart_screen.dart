@@ -332,10 +332,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                               ),
                                             ),
                                             if (_sellerShippingFees.containsKey(item.product.sellerId))
-                                              Text(
-                                                'Delivery Fee: GHS ${_sellerShippingFees[item.product.sellerId]!.toStringAsFixed(2)}',
-                                                style: theme.textTheme.bodySmall?.copyWith(
-                                                  color: theme.colorScheme.outline,
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4),
+                                                child: Text(
+                                                  'Delivery Fee: GHS ${_sellerShippingFees[item.product.sellerId]!.toStringAsFixed(2)}',
+                                                  style: theme.textTheme.bodySmall?.copyWith(
+                                                    color: theme.colorScheme.outline,
+                                                  ),
                                                 ),
                                               ),
                                           ],

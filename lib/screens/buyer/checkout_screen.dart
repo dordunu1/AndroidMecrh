@@ -160,7 +160,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     leading: ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
                                       child: CachedNetworkImage(
-                                        imageUrl: item.product.images.first,
+                                        imageUrl: item.selectedColorImage ?? item.product.images.first,
                                         width: 48,
                                         height: 48,
                                         fit: BoxFit.cover,

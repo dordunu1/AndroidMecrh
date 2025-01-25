@@ -123,9 +123,12 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
       // Update selected color based on the image
       final imageUrl = widget.product.images[index];
       final color = widget.product.imageColors[imageUrl];
-      if (color != null) {
-        _selectedColor = color;
-      }
+      // Always set the color, even for the first image
+      _selectedColor = color ?? widget.product.colors.firstWhere(
+        (c) => widget.product.imageColors.values.contains(c),
+        orElse: () => '',
+      );
+      print('Selected color: $_selectedColor'); // Debug print
     });
   }
 
@@ -135,24 +138,53 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     try {
       // Get the color-specific image URL by finding the image URL (key) that maps to the selected color (value)
       String? colorImage;
-      if (_selectedColor != null) {
-        colorImage = widget.product.images[_currentImageIndex];
-        // Verify this image actually corresponds to the selected color
-        if (widget.product.imageColors[colorImage] != _selectedColor) {
-          // If not, search for the correct image URL
-          colorImage = widget.product.imageColors.entries
-              .firstWhere((entry) => entry.value == _selectedColor,
-                  orElse: () => MapEntry(widget.product.images.first, ''))
-              .key;
+      String? finalColor = _selectedColor;
+
+      // If no color is selected but we're on an image, try to find its color
+      if ((finalColor == null || finalColor.isEmpty) && widget.product.images.isNotEmpty) {
+        final currentImage = widget.product.images[_currentImageIndex];
+        finalColor = widget.product.imageColors[currentImage];
+        if (finalColor != null && finalColor.isNotEmpty) {
+          colorImage = currentImage;
         }
       }
+
+      // If we have a color but no image, find the matching image
+      if (finalColor != null && finalColor.isNotEmpty) {
+        if (colorImage == null) {
+          final currentImage = widget.product.images[_currentImageIndex];
+          if ((widget.product.imageColors[currentImage] ?? '').toLowerCase() == finalColor.toLowerCase()) {
+            colorImage = currentImage;
+          } else {
+            final colorEntry = widget.product.imageColors.entries.firstWhere(
+              (entry) => (entry.value ?? '').toLowerCase() == (finalColor ?? '').toLowerCase(),
+              orElse: () => MapEntry(widget.product.images.first, ''),
+            );
+            colorImage = colorEntry.key;
+            // If we found a valid color entry, make sure color matches exactly
+            if (colorEntry.value.isNotEmpty) {
+              finalColor = colorEntry.value; // Use exact case from the product data
+            }
+          }
+        }
+      } else {
+        // If still no color, use the first available color and its image
+        final firstColorEntry = widget.product.imageColors.entries.firstWhere(
+          (entry) => entry.value.isNotEmpty,
+          orElse: () => MapEntry(widget.product.images.first, ''),
+        );
+        colorImage = firstColorEntry.key;
+        finalColor = firstColorEntry.value;
+      }
+
+      print('Adding to cart - Color: $finalColor, Image: $colorImage'); // Debug print
 
       ref.read(cartProvider.notifier).addToCart(
         CartItem(
           product: widget.product,
           quantity: _quantity,
           selectedSize: _selectedSize,
-          selectedColor: _selectedColor,
+          selectedColor: finalColor,
           selectedColorImage: colorImage,
         ),
       );
