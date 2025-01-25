@@ -81,12 +81,22 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     if (_currentUser == null) return 70.0; // Default to higher fee if user not loaded
     
     final buyerCity = _currentUser!.city?.trim().toLowerCase() ?? '';
+    final buyerCountry = _currentUser!.country?.trim().toLowerCase() ?? '';
     final sellerCity = _sellerCity?.trim().toLowerCase() ?? '';
+    final sellerCountry = widget.product.sellerCountry?.trim().toLowerCase() ?? '';
     
     print('Calculating delivery fee:');
     print('Buyer city: $buyerCity');
+    print('Buyer country: $buyerCountry');
     print('Seller city: $sellerCity');
+    print('Seller country: $sellerCountry');
     
+    // International shipping
+    if (buyerCountry != 'ghana' || sellerCountry != 'ghana') {
+      return 250.0;
+    }
+    
+    // Local shipping
     if (buyerCity == 'kumasi' && sellerCity == 'kumasi') {
       return 50.0;
     }

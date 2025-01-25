@@ -28,6 +28,7 @@ class Product {
   final double rating;
   final int reviewCount;
   final String? sellerCity;
+  final String? sellerCountry;
 
   Product({
     required this.id,
@@ -57,6 +58,7 @@ class Product {
     this.rating = 0.0,
     this.reviewCount = 0,
     this.sellerCity,
+    this.sellerCountry,
   });
 
   factory Product.fromMap(Map<String, dynamic> map, String id) {
@@ -96,6 +98,7 @@ class Product {
       rating: (map['rating'] ?? 0.0).toDouble(),
       reviewCount: map['reviewCount'] ?? 0,
       sellerCity: map['sellerCity'],
+      sellerCountry: map['sellerCountry'],
     );
   }
 
@@ -127,6 +130,7 @@ class Product {
       'rating': rating,
       'reviewCount': reviewCount,
       'sellerCity': sellerCity,
+      'sellerCountry': sellerCountry,
     };
   }
 
@@ -158,6 +162,7 @@ class Product {
     double? rating,
     int? reviewCount,
     String? sellerCity,
+    String? sellerCountry,
   }) {
     return Product(
       id: id ?? this.id,
@@ -187,6 +192,7 @@ class Product {
       rating: rating ?? this.rating,
       reviewCount: reviewCount ?? this.reviewCount,
       sellerCity: sellerCity ?? this.sellerCity,
+      sellerCountry: sellerCountry ?? this.sellerCountry,
     );
   }
 } 

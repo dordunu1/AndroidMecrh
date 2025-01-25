@@ -30,6 +30,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartItems = ref.read(cartProvider);
     final currentUser = await ref.read(authServiceProvider).getCurrentUser();
     final buyerCity = currentUser?.city?.trim().toLowerCase() ?? '';
+    final buyerCountry = currentUser?.country?.trim().toLowerCase() ?? '';
     
     // Group items by seller
     final sellerItems = <String, List<CartItem>>{};
@@ -44,9 +45,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     for (var sellerId in sellerItems.keys) {
       final seller = await ref.read(sellerServiceProvider).getSellerProfileById(sellerId);
       final sellerCity = seller?.city?.trim().toLowerCase() ?? '';
+      final sellerCountry = seller?.country?.trim().toLowerCase() ?? '';
       
-      // Calculate base fee based on cities
-      double baseFee = (buyerCity == sellerCity) ? 50.0 : 70.0;
+      // Calculate base fee based on location
+      double baseFee;
+      
+      // International shipping
+      if (buyerCountry != 'ghana' || sellerCountry != 'ghana') {
+        baseFee = 250.0;
+      } else {
+        // Local shipping
+        baseFee = (buyerCity == sellerCity) ? 50.0 : 70.0;
+      }
       
       // Calculate total quantity from this seller
       int totalQuantity = sellerItems[sellerId]!.fold(0, (sum, item) => sum + item.quantity);
@@ -101,7 +111,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         title: const Text('Delivery Fee Calculation'),
         content: const Text(
           'Delivery fees are calculated as follows:\n\n'
-          '• Base fee: GHS 50.00 (within same city) or GHS 70.00 (different cities)\n\n'
+          '• International Shipping: GHS 250.00\n\n'
+          '• Local Shipping:\n'
+          '  - Within same city: GHS 50.00\n'
+          '  - Different cities: GHS 70.00\n\n'
           '• For orders with more than 5 items from the same seller: Additional GHS 30.00 is added to the base fee\n\n'
           '• Orders with 1-5 items: Only base fee applies'
         ),
@@ -222,6 +235,42 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                     style: theme.textTheme.titleSmall,
                                   ),
                                   const SizedBox(height: 4),
+                                  if (item.product.hasVariants) ...[
+                                    Wrap(
+                                      spacing: 4,
+                                      children: [
+                                        if (item.selectedSize != null)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: theme.colorScheme.surfaceVariant,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'Size: ${item.selectedSize}',
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                        if (item.selectedColor != null)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: theme.colorScheme.surfaceVariant,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'Color: ${item.selectedColor}',
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                  ],
                                   Text(
                                     'GHS ${(item.product.hasDiscount
                                             ? item.product.price * (1 - item.product.discountPercent / 100)
