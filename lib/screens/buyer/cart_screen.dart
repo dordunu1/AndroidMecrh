@@ -280,11 +280,36 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       ),
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: CachedNetworkImage(
-                                          imageUrl: item.product.images.first,
-                                          width: 80,
-                                          height: 80,
-                                          fit: BoxFit.cover,
+                                        child: Stack(
+                                          children: [
+                                            CachedNetworkImage(
+                                              imageUrl: item.selectedColor != null && item.product.imageColors.containsKey(item.selectedColor)
+                                                  ? item.product.imageColors[item.selectedColor]!
+                                                  : item.product.images.first,
+                                              width: 80,
+                                              height: 80,
+                                              fit: BoxFit.cover,
+                                            ),
+                                            if (item.selectedColor != null)
+                                              Positioned(
+                                                top: 4,
+                                                right: 4,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: theme.colorScheme.surface.withOpacity(0.8),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    '${item.product.colorQuantities[item.selectedColor] ?? 0} left',
+                                                    style: theme.textTheme.bodySmall?.copyWith(
+                                                      fontSize: 10,
+                                                      color: theme.colorScheme.onSurface,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
                                       const SizedBox(width: 16),
@@ -308,6 +333,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
+                                            if (_sellerShippingFees.containsKey(item.product.sellerId))
+                                              Text(
+                                                'Delivery Fee: GHS ${_sellerShippingFees[item.product.sellerId]!.toStringAsFixed(2)}',
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: theme.colorScheme.outline,
+                                                ),
+                                              ),
                                           ],
                                         ),
                                       ),
