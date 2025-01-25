@@ -31,6 +31,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
       illustration: (animation) => ShoppingIllustration(animation: animation),
     ),
     OnboardingPage(
+      title: 'Real-time Chat & Support',
+      description: 'Connect instantly with sellers to customize orders, track updates, and get personalized support.',
+      illustration: (animation) => ChatIllustration(animation: animation),
+    ),
+    OnboardingPage(
       title: 'Sell Your Products',
       description: 'Start your business journey and reach customers worldwide.',
       illustration: (animation) => SellerIllustration(animation: animation),
@@ -789,4 +794,150 @@ class RoutePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(RoutePainter oldDelegate) => true;
+}
+
+class ChatIllustration extends StatelessWidget {
+  final Animation<double> animation;
+
+  const ChatIllustration({Key? key, required this.animation}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Main chat bubble
+        Center(
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(
+              parent: animation,
+              curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+            )),
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.secondary,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).shadowColor.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  const Center(
+                    child: Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 64,
+                      color: Colors.white,
+                    ),
+                  ),
+                  // Animated dots
+                  ...List.generate(3, (index) => Positioned(
+                    bottom: 50,
+                    left: 80 + (index * 20),
+                    child: ScaleTransition(
+                      scale: Tween<double>(
+                        begin: 0.5,
+                        end: 1.0,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Interval(
+                          0.3 + (index * 0.2),
+                          0.7 + (index * 0.1),
+                          curve: Curves.easeOut,
+                        ),
+                      )),
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  )),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Floating message bubbles
+        ...List.generate(
+          4,
+          (index) => Positioned(
+            top: 40.0 + (index * 60),
+            left: index.isEven ? 20 : null,
+            right: index.isEven ? null : 20,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: Offset(index.isEven ? -0.5 : 0.5, -0.3),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Interval(
+                  0.1 * index,
+                  0.7 + (0.05 * index),
+                  curve: Curves.easeOut,
+                ),
+              )),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: index.isEven ? Colors.white : Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).shadowColor.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      [
+                        Icons.support_agent_rounded,
+                        Icons.edit_note_rounded,
+                        Icons.local_shipping_rounded,
+                        Icons.thumb_up_rounded,
+                      ][index],
+                      size: 24,
+                      color: index.isEven 
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.white,
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 8,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: index.isEven
+                          ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                          : Colors.white.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 } 
