@@ -10,9 +10,12 @@ import '../../widgets/common/custom_button.dart';
 import '../../models/user.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
+import '../../providers/cart_provider.dart';
+import '../../models/cart_item.dart';
 import 'cart_screen.dart';
 import '../../services/seller_service.dart';
 import '../chat/chat_screen.dart';
+import '../../screens/buyer/checkout_screen.dart';
 
 class ProductDetailsScreen extends ConsumerStatefulWidget {
   final Product product;
@@ -108,17 +111,28 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     });
 
     try {
-      await ref.read(buyerServiceProvider).addToCart(
-        widget.product.id,
-        _quantity,
+      // Add to cart using cartProvider
+      ref.read(cartProvider.notifier).addToCart(
+        CartItem(
+          product: widget.product,
+          quantity: _quantity,
+        ),
       );
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Added to cart')),
-        );
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CartScreen()),
+          SnackBar(
+            content: const Text('Added to cart'),
+            action: SnackBarAction(
+              label: 'VIEW CART',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CartScreen()),
+                );
+              },
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -332,6 +346,46 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.star,
+                                          size: 16,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${widget.product.rating?.toStringAsFixed(1) ?? '0.0'}',
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          ' (${widget.product.reviewCount ?? 0})',
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.shopping_bag_outlined,
+                                          size: 16,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${widget.product.soldCount ?? 0} sold',
+                                          style: theme.textTheme.bodySmall,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -411,24 +465,12 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.timer_outlined,
-                                          color: Color(0xFFE91E63),
-                                          size: 14,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Ends: Feb 1, 07:59 GMT',
-                                          style: TextStyle(
-                                            color: theme.colorScheme.primary,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
+                                    child: Text(
+                                      'Ends: Feb 1, 07:59',
+                                      style: TextStyle(
+                                        color: theme.colorScheme.primary,
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -704,7 +746,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                         ),
                       const SizedBox(height: 24),
 
-                      // More from this seller
+                      // More from this seller products
                       if (_sellerProducts != null && _sellerProducts!.isNotEmpty) ...[
                         Text(
                           'More from ${widget.product.sellerName}',
@@ -713,70 +755,98 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        SizedBox(
-                          height: 200,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _sellerProducts!.length,
-                            itemBuilder: (context, index) {
-                              final product = _sellerProducts![index];
-                              return GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ProductDetailsScreen(
-                                        product: product,
-                                      ),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.7,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
+                          itemCount: _sellerProducts!.length,
+                          itemBuilder: (context, index) {
+                            final product = _sellerProducts![index];
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProductDetailsScreen(
+                                      product: product,
                                     ),
-                                  );
-                                },
-                                child: Container(
-                                  width: 160,
-                                  margin: const EdgeInsets.only(right: 16),
-                                  child: Card(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: const BorderRadius.vertical(
-                                            top: Radius.circular(4),
-                                          ),
-                                          child: CachedNetworkImage(
-                                            imageUrl: product.images.first,
-                                            height: 120,
-                                            width: double.infinity,
-                                            fit: BoxFit.cover,
+                                  ),
+                                );
+                              },
+                              child: Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    AspectRatio(
+                                      aspectRatio: 1,
+                                      child: CachedNetworkImage(
+                                        imageUrl: product.images.first,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: Colors.grey[200],
+                                          child: const Center(
+                                            child: CircularProgressIndicator(),
                                           ),
                                         ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(8),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                product.name,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: theme.textTheme.titleSmall,
-                                              ),
+                                        errorWidget: (context, url, error) => Container(
+                                          color: Colors.grey[200],
+                                          child: const Icon(Icons.error),
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              product.name,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: theme.textTheme.bodyMedium,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            if (product.hasDiscount) ...[
                                               Text(
                                                 'GHS ${product.price.toStringAsFixed(2)}',
-                                                style: theme.textTheme.bodyMedium?.copyWith(
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  decoration: TextDecoration.lineThrough,
+                                                  color: theme.colorScheme.outline,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'GHS ${(product.price * (1 - product.discountPercent / 100)).toStringAsFixed(2)}',
+                                                style: theme.textTheme.titleSmall?.copyWith(
                                                   color: theme.colorScheme.primary,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
-                                            ],
-                                          ),
+                                            ] else
+                                              Text(
+                                                'GHS ${product.price.toStringAsFixed(2)}',
+                                                style: theme.textTheme.titleSmall?.copyWith(
+                                                  color: theme.colorScheme.primary,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ],
 
@@ -797,61 +867,129 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                         ),
                       const SizedBox(height: 16),
 
-                      // Quantity and Add to Cart
-                      Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: theme.colorScheme.outline,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
+                      // Bottom Navigation
+                      Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              offset: const Offset(0, -1),
+                              blurRadius: 4,
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Stack(
                               children: [
                                 IconButton(
-                                  onPressed: _quantity > 1
-                                      ? () {
-                                          setState(() {
-                                            _quantity--;
-                                          });
-                                        }
-                                      : null,
-                                  icon: const Icon(Icons.remove),
+                                  icon: const Icon(Icons.shopping_cart_outlined),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => const CartScreen()),
+                                    );
+                                  },
                                 ),
-                                Text(
-                                  '$_quantity',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: _quantity < widget.product.stockQuantity
-                                      ? () {
-                                          setState(() {
-                                            _quantity++;
-                                          });
-                                        }
-                                      : null,
-                                  icon: const Icon(Icons.add),
+                                Consumer(
+                                  builder: (context, ref, child) {
+                                    final cartItemCount = ref.watch(cartItemCountProvider);
+                                    if (cartItemCount == 0) return const SizedBox();
+                                    return Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.error,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 16,
+                                          minHeight: 16,
+                                        ),
+                                        child: Text(
+                                          '$cartItemCount',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _addToCart,
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: theme.colorScheme.onPrimary,
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(color: theme.colorScheme.primary),
+                                      ),
+                                      child: TextButton(
+                                        onPressed: _isLoading ? null : _addToCart,
+                                        style: TextButton.styleFrom(
+                                          backgroundColor: Colors.white,
+                                          foregroundColor: theme.colorScheme.primary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                        child: Text(_isLoading ? 'Adding...' : 'Add to Cart'),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Container(
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(20),
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      child: TextButton(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => CheckoutScreen(
+                                                cartItems: [CartItem(product: widget.product, quantity: _quantity)],
+                                                total: widget.product.hasDiscount
+                                                    ? widget.product.price * (1 - widget.product.discountPercent / 100) * _quantity
+                                                    : widget.product.price * _quantity,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        style: TextButton.styleFrom(
+                                          backgroundColor: theme.colorScheme.primary,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                        ),
+                                        child: const Text('Buy Now'),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: Text(_isLoading ? 'Adding to Cart...' : 'Add to Cart'),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 16),
+                          ],
+                        ),
                       ),
                     ],
                   ),

@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/chat_message.dart';
+import '../../models/product.dart';
 import '../../services/chat_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/product_service.dart';
+import '../../services/seller_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -30,11 +34,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isSending = false;
   List<ChatMessage> _messages = [];
   String? _error;
+  Product? _product;
+  String? _sellerPhoto;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    _loadProduct();
   }
 
   @override
@@ -69,6 +76,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _loadProduct() async {
+    try {
+      final product = await ref.read(productServiceProvider).getProduct(widget.productId);
+      if (product != null) {
+        // Load seller profile to get photo
+        final seller = await ref.read(sellerServiceProvider).getSellerProfileById(product.sellerId);
+        if (mounted) {
+          setState(() {
+            _product = product;
+            _sellerPhoto = seller?.logo;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading product: $e');
     }
   }
 
@@ -149,31 +174,68 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: Row(
           children: [
             CircleAvatar(
-              child: Icon(
-                Icons.store,
-                color: theme.colorScheme.onPrimary,
-              ),
+              backgroundImage: _sellerPhoto != null ? NetworkImage(_sellerPhoto!) : null,
+              child: _sellerPhoto == null ? const Icon(Icons.store) : null,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(widget.otherUserName),
-                  Text(
-                    'Product: ${widget.productId}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(width: 8),
+            Text(widget.otherUserName),
           ],
         ),
       ),
       body: Column(
         children: [
+          if (_product != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                border: Border(
+                  bottom: BorderSide(
+                    color: theme.colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: _product!.images.first,
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _product!.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        Text(
+                          _product!.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        Text(
+                          'GHS ${_product!.price.toStringAsFixed(2)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Messages List
           Expanded(
             child: _isLoading
