@@ -227,6 +227,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   void _markFieldAsChanged(String field) {
     setState(() {
       _changedFields[field] = true;
+      _hasChanges = true;
       _checkForChanges();
     });
   }
@@ -239,6 +240,17 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   void initState() {
     super.initState();
     _loadProduct();
+    // Show color variants by default if product has variants
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_originalProduct?.hasVariants ?? false) {
+        setState(() {
+          _hasVariants = true;
+          // Restore color quantities and image colors
+          _colorQuantities = Map<String, int>.from(_originalProduct?.colorQuantities ?? {});
+          _imageColors = Map<String, String>.from(_originalProduct?.imageColors ?? {});
+        });
+      }
+    });
   }
 
   @override
@@ -256,25 +268,13 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   Future<void> _loadProduct() async {
     try {
       final product = await ref.read(productServiceProvider).getProduct(widget.productId);
-      _originalProduct = product;
-      
-      _nameController.text = product.name;
-      _descriptionController.text = product.description;
-      _priceController.text = product.price.toString();
-      _stockController.text = product.stockQuantity.toString();
-      _shippingInfoController.text = product.shippingInfo ?? '';
-      
-      if (product.hasDiscount) {
-        _hasDiscount = true;
-        _discountPercent = product.discountPercent;
-        _discountPercentController.text = product.discountPercent.toString();
-        if (product.discountEndsAt != null) {
-          _discountEndsAt = product.discountEndsAt;
-          _discountEndsAtController.text = DateFormat('yyyy-MM-dd').format(product.discountEndsAt!);
-        }
-      }
-
       setState(() {
+        _originalProduct = product;
+        _nameController.text = product.name ?? '';
+        _descriptionController.text = product.description ?? '';
+        _priceController.text = product.price.toString();
+        _stockController.text = product.stockQuantity.toString();
+        _shippingInfoController.text = product.shippingInfo ?? '';
         _selectedCategory = product.category;
         _selectedSubCategory = product.subCategory ?? '';
         _existingImages = List<String>.from(product.images);
@@ -282,13 +282,24 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         _selectedSizes = List<String>.from(product.sizes);
         _colorQuantities = Map<String, int>.from(product.colorQuantities);
         _imageColors = Map<String, String>.from(product.imageColors);
+        _hasDiscount = product.hasDiscount;
+        _discountPercent = product.discountPercent;
+        _discountEndsAt = product.discountEndsAt;
+        if (_hasDiscount) {
+          _discountPercentController.text = _discountPercent.toString();
+          if (_discountEndsAt != null) {
+            _discountEndsAtController.text = DateFormat('yyyy-MM-dd').format(_discountEndsAt!);
+          }
+        }
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -351,17 +362,17 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     try {
       final images = await ImagePicker().pickMultiImage();
       if (images != null) {
-        if (_existingImages.length + _newImages.length + images.length > 5) {
+        if (_existingImages.length + _newImages.length + images.length > 10) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Maximum 5 images allowed')),
+              const SnackBar(content: Text('Maximum 10 images allowed')),
             );
           }
           return;
         }
         setState(() {
           _newImages.addAll(images.map((image) => File(image.path)));
-          _checkForChanges();
+          _markFieldAsChanged('images');  // Mark as changed when new images are added
         });
       }
     } catch (e) {
@@ -378,25 +389,27 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
 
   void _removeExistingImage(int index) {
     setState(() {
-      final color = _imageColors[_existingImages[index]];
+      final imageUrl = _existingImages[index];
+      final color = _imageColors[imageUrl];
       if (color != null) {
         _colorQuantities.remove(color);
-        _imageColors.remove(_existingImages[index]);
+        _imageColors.remove(imageUrl);
       }
       _existingImages.removeAt(index);
-      _checkForChanges();
+      _markFieldAsChanged('images');  // Mark as changed when image is removed
     });
   }
 
   void _removeNewImage(int index) {
     setState(() {
-      final color = _imageColors[_newImages[index].path];
+      final imagePath = _newImages[index].path;
+      final color = _imageColors[imagePath];
       if (color != null) {
         _colorQuantities.remove(color);
-        _imageColors.remove(_newImages[index].path);
+        _imageColors.remove(imagePath);
       }
       _newImages.removeAt(index);
-      _checkForChanges();
+      _markFieldAsChanged('images');  // Mark as changed when image is removed
     });
   }
 
@@ -478,126 +491,98 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     }
   }
 
-  Future<void> _showColorDialog(String imagePath) async {
-    final colorController = TextEditingController(text: _imageColors[imagePath]);
-    final quantityController = TextEditingController(
-      text: _colorQuantities[_imageColors[imagePath] ?? '']?.toString() ?? '0'
-    );
+  void _showColorEditDialog(String imagePath, bool isNewImage) {
+    final currentColor = _imageColors[imagePath];
+    final colorController = TextEditingController(text: currentColor);
 
-    return showDialog(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Specify Color & Quantity'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: colorController,
-              decoration: const InputDecoration(
-                labelText: 'Color Name',
-                hintText: 'e.g. Navy Blue, Rose Gold',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: quantityController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Quantity',
-                hintText: 'Enter quantity for this color',
-              ),
-            ),
-          ],
+        title: const Text('Edit Color'),
+        content: TextField(
+          controller: colorController,
+          decoration: const InputDecoration(labelText: 'Color Name'),
+          autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('CANCEL'),
           ),
           TextButton(
             onPressed: () {
-              final oldColor = _imageColors[imagePath];
-              if (oldColor != null) {
-                _colorQuantities.remove(oldColor);
+              final newColor = colorController.text.trim();
+              if (newColor.isNotEmpty) {
+                setState(() {
+                  if (currentColor != null) {
+                    // Transfer quantity from old color to new color
+                    final qty = _colorQuantities[currentColor];
+                    if (qty != null) {
+                      _colorQuantities[newColor] = qty;
+                      _colorQuantities.remove(currentColor);
+                    }
+                  } else {
+                    // If no previous color, initialize quantity to 0
+                    _colorQuantities[newColor] = 0;
+                  }
+                  _imageColors[imagePath] = newColor;
+                  _markFieldAsChanged('colors');
+                  _hasVariants = true;  // Ensure variants stay visible
+                });
               }
-              
-              setState(() {
-                _imageColors[imagePath] = colorController.text;
-                _colorQuantities[colorController.text] = int.tryParse(quantityController.text) ?? 0;
-                _hasVariants = true;
-              });
               Navigator.pop(context);
             },
-            child: const Text('Save'),
+            child: const Text('SAVE'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildVariantQuantityField(String color, int quantity) {
-    final originalQuantity = _originalProduct?.colorQuantities[color] ?? 0;
-    final hasChanged = quantity != originalQuantity;
-    
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: hasChanged ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
-          width: hasChanged ? 2 : 1,
+  void _editColorQuantity(String color) {
+    final currentQty = _colorQuantities[color] ?? 0;
+    final qtyController = TextEditingController(text: currentQty.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit Quantity for $color'),
+        content: TextField(
+          controller: qtyController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Quantity'),
+          autofocus: true,
         ),
-        borderRadius: BorderRadius.circular(8),
-        color: hasChanged ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : null,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.color_lens,
-                    color: hasChanged ? Theme.of(context).colorScheme.primary : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    color,
-                    style: TextStyle(
-                      fontWeight: hasChanged ? FontWeight.bold : FontWeight.normal,
-                      color: hasChanged ? Theme.of(context).colorScheme.primary : null,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: 100,
-              child: TextFormField(
-                initialValue: quantity.toString(),
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  suffixText: ' pcs',
-                ),
-                onChanged: (value) {
-                  final newQuantity = int.tryParse(value) ?? 0;
-                  setState(() {
-                    _colorQuantities[color] = newQuantity;
-                    _markFieldAsChanged('colorQuantities');
-                  });
-                },
-              ),
-            ),
-          ],
-        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () {
+              final qty = int.tryParse(qtyController.text);
+              if (qty != null && qty >= 0) {
+                setState(() {
+                  _colorQuantities[color] = qty;
+                  _markFieldAsChanged('quantities');  // Mark as changed when quantity is edited
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('SAVE'),
+          ),
+        ],
       ),
     );
+  }
+
+  void _removeColor(String color) {
+    setState(() {
+      _colorQuantities.remove(color);
+      // Remove color from all images that had this color
+      _imageColors.removeWhere((key, value) => value == color);
+      _markFieldAsChanged('colors');  // Mark as changed when color is removed
+    });
   }
 
   Widget _buildImageGrid() {
@@ -632,14 +617,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 right: 4,
                 child: IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => setState(() {
-                    final color = _imageColors[imageUrl];
-                    if (color != null) {
-                      _colorQuantities.remove(color);
-                      _imageColors.remove(imageUrl);
-                    }
-                    _existingImages.removeAt(index);
-                  }),
+                  onPressed: () => _removeExistingImage(index),
                   style: IconButton.styleFrom(
                     backgroundColor: Colors.white,
                     padding: const EdgeInsets.all(4),
@@ -671,7 +649,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.edit, size: 16, color: Colors.white),
-                          onPressed: () => _showColorDialog(imageUrl),
+                          onPressed: () => _showColorEditDialog(imageUrl, false),
                           constraints: const BoxConstraints(
                             minWidth: 24,
                             minHeight: 24,
@@ -706,14 +684,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 right: 4,
                 child: IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => setState(() {
-                    final color = _imageColors[imagePath];
-                    if (color != null) {
-                      _colorQuantities.remove(color);
-                      _imageColors.remove(imagePath);
-                    }
-                    _newImages.removeAt(newIndex);
-                  }),
+                  onPressed: () => _removeNewImage(newIndex),
                   style: IconButton.styleFrom(
                     backgroundColor: Colors.white,
                     padding: const EdgeInsets.all(4),
@@ -745,7 +716,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.edit, size: 16, color: Colors.white),
-                          onPressed: () => _showColorDialog(imagePath),
+                          onPressed: () => _showColorEditDialog(imagePath, true),
                           constraints: const BoxConstraints(
                             minWidth: 24,
                             minHeight: 24,
@@ -777,56 +748,10 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     );
   }
 
-  void _editColorQuantity(String color) async {
-    final controller = TextEditingController(text: _colorQuantities[color].toString());
-    final result = await showDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit Quantity for $color'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Quantity',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final quantity = int.tryParse(controller.text);
-              if (quantity != null && quantity >= 0) {
-                Navigator.pop(context, quantity);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null) {
-      setState(() {
-        _colorQuantities[color] = result;
-        _markFieldAsChanged('colorQuantities');
-      });
-    }
-  }
-
-  void _removeColor(String color) {
-    setState(() {
-      _colorQuantities.remove(color);
-      _imageColors.removeWhere((key, value) => value == color);
-      _markFieldAsChanged('colorQuantities');
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     if (_isLoading) {
       return const Scaffold(
         body: Center(
@@ -846,6 +771,20 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Product'),
+        actions: [
+          TextButton(
+            onPressed: _hasChanges ? () => _submit() : null,
+            style: TextButton.styleFrom(
+              foregroundColor: _hasChanges ? theme.colorScheme.primary : Colors.grey,
+            ),
+            child: Text(
+              'SAVE CHANGES',
+              style: TextStyle(
+                fontWeight: _hasChanges ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
       ),
       body: Form(
         key: _formKey,
@@ -865,7 +804,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Add up to 5 images (2MB each)',
+                      'Add up to 10 images (2MB each)',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
@@ -922,6 +861,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 }
                 return null;
               },
+              onChanged: (value) => _markFieldAsChanged('price'),
             ),
             const SizedBox(height: 16),
 
@@ -943,6 +883,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 }
                 return null;
               },
+              onChanged: (value) => _markFieldAsChanged('stock'),
             ),
             const SizedBox(height: 16),
 
@@ -957,6 +898,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 }
                 return null;
               },
+              onChanged: (value) => _markFieldAsChanged('shippingInfo'),
             ),
             const SizedBox(height: 16),
 
@@ -985,10 +927,12 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                   setState(() {
                     _selectedCategory = value;
                     _selectedSubCategory = '';
-                    _hasVariants = false;
-                    _selectedSizes = [];
-                    _colorQuantities = {};
-                    _imageColors = {};
+                    // Only reset variants if switching between categories that don't support variants
+                    if (!_hasVariants) {
+                      _selectedSizes = [];
+                      _colorQuantities = {};
+                      _imageColors = {};
+                    }
                     _markFieldAsChanged('category');
                   });
                 }
@@ -1033,8 +977,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                               onSelected: (selected) {
                                 setState(() {
                                   _selectedSubCategory = selected ? fullSubCategory : '';
-                                  if (selected) {
-                                    _hasVariants = false;
+                                  // Only reset variants if switching between subcategories that don't support variants
+                                  if (selected && !_hasVariants) {
                                     _selectedSizes = [];
                                     _colorQuantities = {};
                                   }
@@ -1072,6 +1016,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                               if (!value) {
                                 _selectedSizes = [];
                                 _colorQuantities = {};
+                                _imageColors = {};
                               }
                               _markFieldAsChanged('hasVariants');
                             });
@@ -1150,6 +1095,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
 
             // Price and Discount Section
             Card(
@@ -1199,7 +1145,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                       children: [
                         Text(
                           'Apply Discount',
-                          style: Theme.of(context).textTheme.titleSmall,
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(width: 16),
                         Switch(
@@ -1207,11 +1153,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                           onChanged: (value) {
                             setState(() {
                               _hasDiscount = value;
-                              if (!value) {
-                                _discountPercent = 0;
-                                _discountEndsAt = null;
-                                _discountPercentController.text = '';
-                              }
+                              _markFieldAsChanged('hasDiscount');
                             });
                           },
                         ),
@@ -1234,26 +1176,21 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                                 suffixText: '%',
                               ),
                               onChanged: (value) {
-                                final percent = double.tryParse(value) ?? 0;
                                 setState(() {
-                                  _discountPercent = percent.clamp(0, 99);
-                                  if (percent != _discountPercent) {
-                                    _discountPercentController.text = _discountPercent.toString();
-                                  }
+                                  _discountPercent = double.tryParse(value) ?? 0;
+                                  _markFieldAsChanged('discountPercent');
                                 });
                               },
                               validator: (value) {
-                                if (_hasDiscount) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter a discount percentage';
-                                  }
-                                  final percent = double.tryParse(value);
-                                  if (percent == null) {
-                                    return 'Please enter a valid number';
-                                  }
-                                  if (percent <= 0 || percent >= 100) {
-                                    return 'Percentage must be between 0 and 99';
-                                  }
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter discount percentage';
+                                }
+                                final discount = double.tryParse(value);
+                                if (discount == null) {
+                                  return 'Please enter a valid number';
+                                }
+                                if (discount <= 0 || discount >= 100) {
+                                  return 'Discount must be between 0 and 100';
                                 }
                                 return null;
                               },
@@ -1360,37 +1297,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 ),
               ),
             ),
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _hasChanges && !_submitting ? _submit : null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: _submitting
-                    ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Updating Product...'),
-                        ],
-                      )
-                    : const Text('Save Changes'),
-              ),
-            ),
-            const SizedBox(height: 32),
           ],
         ),
       ),

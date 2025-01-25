@@ -115,11 +115,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   void _onImageTapped(int index) {
     setState(() {
       _currentImageIndex = index;
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      _pageController.jumpToPage(index);
       // Update selected color based on the image
       final imageUrl = widget.product.images[index];
       final color = widget.product.imageColors[imageUrl];
