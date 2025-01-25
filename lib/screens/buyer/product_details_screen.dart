@@ -115,6 +115,11 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   void _onImageTapped(int index) {
     setState(() {
       _currentImageIndex = index;
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
       // Update selected color based on the image
       final imageUrl = widget.product.images[index];
       if (widget.product.imageColors.containsKey(imageUrl)) {
@@ -242,35 +247,76 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           itemCount: widget.product.images.length,
                           itemBuilder: (context, index) {
-                            return GestureDetector(
-                              onTap: () {
-                                _pageController.animateToPage(
-                                  index,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut,
-                                );
-                              },
-                              child: Container(
-                                width: 64,
-                                height: 64,
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: _currentImageIndex == index
-                                        ? const Color(0xFFFF4646)
-                                        : Colors.grey[300]!,
-                                    width: 2,
+                            final imageUrl = widget.product.images[index];
+                            final color = widget.product.imageColors[imageUrl];
+                            return Stack(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _onImageTapped(index),
+                                  child: Container(
+                                    width: 64,
+                                    height: 64,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: _currentImageIndex == index
+                                            ? theme.colorScheme.primary
+                                            : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: CachedNetworkImage(
+                                        imageUrl: imageUrl,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(2),
-                                  child: CachedNetworkImage(
-                                    imageUrl: widget.product.images[index],
-                                    fit: BoxFit.cover,
+                                if (color != null)
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black54,
+                                        borderRadius: const BorderRadius.only(
+                                          bottomLeft: Radius.circular(8),
+                                          bottomRight: Radius.circular(8),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            color,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (widget.product.variantQuantities != null && 
+                                              widget.product.variantQuantities!.containsKey(color))
+                                            Text(
+                                              '${widget.product.variantQuantities![color]} left',
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                color: Colors.white70,
+                                                fontSize: 9,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
+                              ],
                             );
                           },
                         ),

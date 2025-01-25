@@ -30,6 +30,7 @@ class Product {
   final int reviewCount;
   final String? sellerCity;
   final String? sellerCountry;
+  final Map<String, int>? variantQuantities;
 
   Product({
     required this.id,
@@ -61,6 +62,7 @@ class Product {
     required this.reviewCount,
     this.sellerCity,
     this.sellerCountry,
+    this.variantQuantities,
   });
 
   factory Product.fromMap(Map<String, dynamic> map, String id) {
@@ -113,6 +115,9 @@ class Product {
       reviewCount: map['reviewCount'] ?? 0,
       sellerCity: map['sellerCity'],
       sellerCountry: map['sellerCountry'],
+      variantQuantities: map['variantQuantities'] != null 
+          ? Map<String, int>.from(map['variantQuantities'])
+          : null,
     );
   }
 
@@ -146,6 +151,7 @@ class Product {
       'reviewCount': reviewCount,
       'sellerCity': sellerCity,
       'sellerCountry': sellerCountry,
+      'variantQuantities': variantQuantities,
     };
   }
 
@@ -179,6 +185,7 @@ class Product {
     int? reviewCount,
     String? sellerCity,
     String? sellerCountry,
+    Map<String, int>? variantQuantities,
   }) {
     return Product(
       id: id ?? this.id,
@@ -210,6 +217,7 @@ class Product {
       reviewCount: reviewCount ?? this.reviewCount,
       sellerCity: sellerCity ?? this.sellerCity,
       sellerCountry: sellerCountry ?? this.sellerCountry,
+      variantQuantities: variantQuantities ?? this.variantQuantities,
     );
   }
 } 
