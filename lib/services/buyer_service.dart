@@ -351,12 +351,17 @@ class BuyerService {
           'buyerInfo': {
             'name': buyer.name,
             'email': buyer.email,
+            'phone': buyer.phone ?? '',
           },
           'sellerId': sellerId,
-          'sellerName': sellerDoc.data()!['storeName'],
+          'sellerInfo': {
+            'name': sellerDoc.data()!['storeName'],
+            'email': sellerDoc.data()!['email'],
+            'phone': sellerDoc.data()!['phone'] ?? '',
+          },
           'items': sellerItems.map((item) => {
             'productId': item.product.id,
-            'productName': item.product.name,
+            'name': item.product.name,
             'price': item.product.hasDiscount 
                 ? item.product.price * (1 - item.product.discountPercent / 100)
                 : item.product.price,
@@ -384,6 +389,7 @@ class BuyerService {
             // Update color-specific stock
             batch.update(productRef, {
               'colorQuantities.${item.selectedColor}': FieldValue.increment(-item.quantity),
+              'stockQuantity': FieldValue.increment(-item.quantity),
               'soldCount': FieldValue.increment(item.quantity),
             });
             print('  - Updating color-specific stock for ${item.selectedColor}');

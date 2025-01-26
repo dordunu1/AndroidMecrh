@@ -21,7 +21,7 @@ class Seller {
   final Map<String, dynamic>? paymentDetails;
   final double averageRating;
   final int reviewCount;
-  final double shippingFee;
+  final double deliveryFee;
   final String? shippingInfo;
   final String? paymentInfo;
   final double? latitude;
@@ -50,7 +50,7 @@ class Seller {
     this.paymentDetails,
     this.averageRating = 0.0,
     this.reviewCount = 0,
-    this.shippingFee = 0.0,
+    this.deliveryFee = 0.0,
     this.shippingInfo,
     this.paymentInfo,
     this.latitude,
@@ -81,7 +81,7 @@ class Seller {
       paymentDetails: map['paymentDetails'],
       averageRating: (map['averageRating'] ?? 0.0).toDouble(),
       reviewCount: map['reviewCount'] ?? 0,
-      shippingFee: (map['shippingFee'] ?? 0.0).toDouble(),
+      deliveryFee: (map['deliveryFee'] ?? 0.0).toDouble(),
       shippingInfo: map['shippingInfo'],
       paymentInfo: map['paymentInfo'],
       latitude: map['latitude']?.toDouble(),
@@ -112,7 +112,7 @@ class Seller {
       'paymentDetails': paymentDetails,
       'averageRating': averageRating,
       'reviewCount': reviewCount,
-      'shippingFee': shippingFee,
+      'deliveryFee': deliveryFee,
       'shippingInfo': shippingInfo,
       'paymentInfo': paymentInfo,
       'latitude': latitude,
@@ -143,7 +143,7 @@ class Seller {
     Map<String, dynamic>? paymentDetails,
     double? averageRating,
     int? reviewCount,
-    double? shippingFee,
+    double? deliveryFee,
     String? shippingInfo,
     String? paymentInfo,
     double? latitude,
@@ -172,7 +172,7 @@ class Seller {
       paymentDetails: paymentDetails ?? this.paymentDetails,
       averageRating: averageRating ?? this.averageRating,
       reviewCount: reviewCount ?? this.reviewCount,
-      shippingFee: shippingFee ?? this.shippingFee,
+      deliveryFee: deliveryFee ?? this.deliveryFee,
       shippingInfo: shippingInfo ?? this.shippingInfo,
       paymentInfo: paymentInfo ?? this.paymentInfo,
       latitude: latitude ?? this.latitude,
