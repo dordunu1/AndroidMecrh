@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import '../../widgets/common/custom_button.dart';
 
 class OrderConfirmationScreen extends StatelessWidget {
-  const OrderConfirmationScreen({super.key});
+  final String orderReference;
+
+  const OrderConfirmationScreen({
+    super.key,
+    required this.orderReference,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Order Confirmation'),
+      ),
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -16,22 +24,21 @@ class OrderConfirmationScreen extends StatelessWidget {
               children: [
                 const Icon(
                   Icons.check_circle_outline,
-                  size: 96,
+                  size: 64,
                   color: Colors.green,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 const Text(
                   'Order Placed Successfully!',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Thank you for your order. You can track your order status in the Orders section.',
-                  style: TextStyle(
+                const SizedBox(height: 8),
+                Text(
+                  'Order Reference: $orderReference',
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
                   ),

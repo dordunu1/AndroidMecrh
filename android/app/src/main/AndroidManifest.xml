@@ -6,7 +6,7 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
-            android:name="io.flutter.embedding.android.FlutterActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
@@ -32,8 +32,9 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <!-- Accepts URIs that begin with YOUR_SCHEME://YOUR_HOST -->
                 <data
-                    android:scheme="merch-store-mobile"
-                    android:host="payment-callback" />
+                    android:scheme="https"
+                    android:host="merch-store-mobile.page.link"
+                    android:pathPrefix="/payment-callback" />
             </intent-filter>
             <!-- Paystack URLs -->
             <intent-filter>

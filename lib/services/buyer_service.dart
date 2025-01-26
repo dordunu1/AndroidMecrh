@@ -280,11 +280,12 @@ class BuyerService {
 
       final buyer = MerchUser.fromMap(userDoc.data()!, userDoc.id);
 
-      // Get shipping address
-      final address = buyer.shippingAddresses.firstWhere(
-        (addr) => addr.id == shippingAddressId,
-        orElse: () => throw Exception('Shipping address not found'),
-      );
+      // Get shipping address - Updated to handle both id and direct defaultShippingAddress
+      final address = buyer.defaultShippingAddress ?? 
+          buyer.shippingAddresses.firstWhere(
+            (addr) => addr.id == shippingAddressId,
+            orElse: () => throw Exception('Shipping address not found'),
+          );
 
       // Group items by seller
       final itemsBySeller = <String, List<CartItem>>{};
@@ -327,21 +328,36 @@ class BuyerService {
           'items': sellerItems.map((item) => {
             'productId': item.product.id,
             'productName': item.product.name,
-            'price': item.product.price,
+            'price': item.product.hasDiscount 
+                ? item.product.price * (1 - item.product.discountPercent / 100)
+                : item.product.price,
             'quantity': item.quantity,
+            'selectedColor': item.selectedColor,
+            'selectedSize': item.selectedSize,
+            'selectedColorImage': item.selectedColorImage,
           }).toList(),
           'total': total,
           'status': 'processing',
           'shippingAddress': address.toMap(),
           'createdAt': DateTime.now().toIso8601String(),
+          'paymentStatus': 'paid',
+          'reference': DateTime.now().millisecondsSinceEpoch.toString(),
         });
 
         // Update product stock
         for (final item in sellerItems) {
           final productRef = _firestore.collection('products').doc(item.product.id);
-          batch.update(productRef, {
-            'stock': FieldValue.increment(-item.quantity),
-          });
+          if (item.selectedColor != null) {
+            // Update color-specific stock
+            batch.update(productRef, {
+              'colorQuantities.${item.selectedColor}': FieldValue.increment(-item.quantity),
+            });
+          } else {
+            // Update general stock
+            batch.update(productRef, {
+              'stockQuantity': FieldValue.increment(-item.quantity),
+            });
+          }
         }
 
         // Update seller stats
@@ -351,8 +367,11 @@ class BuyerService {
         });
       }
 
-      // Clear cart
-      batch.delete(_firestore.collection('carts').doc(user.uid));
+      // Clear cart - Check if cart exists first
+      final cartDoc = await _firestore.collection('carts').doc(user.uid).get();
+      if (cartDoc.exists) {
+        batch.delete(_firestore.collection('carts').doc(user.uid));
+      }
 
       // Commit the batch
       await batch.commit();
@@ -444,14 +463,8 @@ class BuyerService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    final userDoc = await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    
-    if (!userDoc.exists) {
-      throw Exception('User not found');
-    }
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    if (!userDoc.exists) throw Exception('User profile not found');
 
     // Create a map with default values for missing fields
     final data = {
@@ -462,6 +475,30 @@ class BuyerService {
       'shippingAddresses': userDoc.data()!['shippingAddresses'] ?? [],
       'preferences': userDoc.data()!['preferences'] ?? {},
     };
+
+    // If no shipping addresses exist but profile has address, create one
+    if ((data['shippingAddresses'] as List).isEmpty && 
+        data['address'] != null && 
+        data['city'] != null) {
+      final address = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'name': data['name'] ?? 'Default Address',
+        'street': data['address'],
+        'city': data['city'],
+        'state': data['state'] ?? data['city'],
+        'zipCode': data['zip'] ?? '',
+        'phone': data['phone'],
+      };
+      
+      data['shippingAddresses'] = [address];
+      data['defaultShippingAddress'] = address;
+
+      // Update Firestore with the new shipping address
+      await _firestore.collection('users').doc(user.uid).update({
+        'shippingAddresses': [address],
+        'defaultShippingAddress': address,
+      });
+    }
 
     return MerchUser.fromMap(data, userDoc.id);
   }

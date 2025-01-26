@@ -74,46 +74,50 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
       final reference = DateTime.now().millisecondsSinceEpoch.toString();
 
       // Initialize payment
+      final metadata = {
+        'storeName': _storeNameController.text,
+        'storeDescription': _storeDescriptionController.text,
+        'country': _countryController.text,
+        'shippingInfo': _shippingInfoController.text,
+        'paymentInfo': _paymentInfoController.text,
+      };
+
       final paymentUrl = await ref.read(paymentServiceProvider).initializeTransaction(
         email: user.email,
-        amount: 1.0, // 1 GHS
+        amount: 100.0, // GHS 100 seller registration fee
         currency: 'GHS',
         reference: reference,
-        metadata: {
-          'storeName': _storeNameController.text,
-          'storeDescription': _storeDescriptionController.text,
-          'country': _countryController.text,
-          'shippingInfo': _shippingInfoController.text,
-          'paymentInfo': _paymentInfoController.text,
-        },
+        metadata: metadata,
       );
 
-      // Launch payment page
-      await ref.read(paymentServiceProvider).launchPaymentPage(paymentUrl);
+      final paymentSuccess = await ref.read(paymentServiceProvider).handlePayment(context, paymentUrl);
+      
+      if (!mounted) return;
 
-      // Verify payment and create seller profile
-      await ref.read(sellerServiceProvider).verifyPayment(
-        reference,
-        {
-          'storeName': _storeNameController.text,
-          'storeDescription': _storeDescriptionController.text,
-          'country': _countryController.text,
-          'shippingInfo': _shippingInfoController.text,
-          'paymentInfo': _paymentInfoController.text,
-        },
-      );
+      if (paymentSuccess) {
+        // Verify the transaction
+        final isVerified = await ref.read(paymentServiceProvider).verifyTransaction(reference);
+        
+        if (isVerified) {
+          // Continue with seller registration
+          await ref.read(sellerServiceProvider).verifyPayment(
+            reference,
+            metadata,
+          );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Congratulations! Your seller account is now active.'),
-            duration: Duration(seconds: 5),
-          ),
-        );
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/seller-home',
-          (route) => false,
-        );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Congratulations! Your seller account is now active.'),
+                duration: Duration(seconds: 5),
+              ),
+            );
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/seller-home',
+              (route) => false,
+            );
+          }
+        }
       }
     } catch (e) {
       if (mounted) {

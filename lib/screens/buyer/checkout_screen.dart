@@ -41,7 +41,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _loadUserAndSellers() async {
     try {
       // Load current user
-      final user = await ref.read(authServiceProvider).getCurrentUser();
+      final user = await ref.read(buyerServiceProvider).getCurrentUser();
+      print('Loaded user data: ${user?.toMap()}');
+      print('Default shipping address: ${user?.defaultShippingAddress?.toMap()}');
       setState(() => _currentUser = user);
 
       // Load sellers
@@ -58,28 +60,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _placeOrder() async {
-    if (_currentUser?.address == null) {
-      setState(() {
-        _error = 'Please set your shipping address before placing an order';
-      });
+    if (_currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to place an order')),
+      );
       return;
     }
 
     try {
-      // Show loading overlay
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-
-      // Generate reference
-      final reference = DateTime.now().millisecondsSinceEpoch.toString();
-
       // Initialize payment
-      final paymentUrl = await ref.read(paymentServiceProvider).initializeTransaction(
+      final paymentService = ref.read(paymentServiceProvider);
+      final reference = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final authorizationUrl = await paymentService.initializeTransaction(
         email: _currentUser!.email,
         amount: widget.total,
         currency: 'GHS',
@@ -88,73 +86,64 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           'items': widget.cartItems.map((item) => {
             'productId': item.product.id,
             'name': item.product.name,
-            'quantity': item.quantity,
+            'quantity': item.quantity.toString(),
             'color': item.selectedColor,
-            'size': item.selectedSize,
+            'size': item.selectedSize ?? '',
           }).toList(),
           'shippingAddress': {
-            'address': _currentUser!.address,
-            'city': _currentUser!.city,
-            'country': _currentUser!.country,
+            'street': _currentUser!.defaultShippingAddress?.street ?? '',
+            'city': _currentUser!.defaultShippingAddress?.city ?? '',
+            'state': _currentUser!.defaultShippingAddress?.state ?? '',
           },
         },
       );
 
-      // Close loading overlay
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      setState(() => _isLoading = false);
 
-      // Launch payment page
-      await ref.read(paymentServiceProvider).launchPaymentPage(paymentUrl);
+      // Show payment WebView and wait for result
+      final paymentSuccess = await paymentService.handlePayment(context, authorizationUrl);
 
-      // Show loading overlay again
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-      }
+      if (!mounted) return;
 
-      // Verify transaction
-      final isVerified = await ref.read(paymentServiceProvider).verifyTransaction(reference);
-      if (!isVerified) {
-        throw Exception('Payment verification failed');
-      }
+      if (paymentSuccess) {
+        setState(() => _isLoading = true);
 
-      // Place order
-      await ref.read(buyerServiceProvider).placeOrder(
-        items: widget.cartItems,
-        shippingAddressId: _currentUser!.defaultShippingAddress?.id ?? '',
-      );
+        // Verify the transaction
+        final isVerified = await paymentService.verifyTransaction(reference);
 
-      // Close loading overlay
-      if (mounted) {
-        Navigator.pop(context);
-      }
+        if (!mounted) return;
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const OrderConfirmationScreen(),
-          ),
-        );
+        if (isVerified) {
+          // Place order
+          await ref.read(buyerServiceProvider).placeOrder(
+            items: widget.cartItems,
+            shippingAddressId: _currentUser!.defaultShippingAddress?.id ?? '',
+          );
+
+          if (!mounted) return;
+
+          // Navigate to confirmation
+          await Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OrderConfirmationScreen(
+                orderReference: reference,
+              ),
+            ),
+          );
+        } else {
+          setState(() {
+            _error = 'Payment verification failed. Please contact support if payment was deducted.';
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      // Close loading overlay if open
       if (mounted) {
-        Navigator.pop(context);
-      }
-      
-      // Show error in snackbar instead of screen
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
       }
     }
   }
@@ -200,22 +189,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        if (_currentUser?.address == null)
+                        if (_currentUser?.defaultShippingAddress == null)
                           const Text('No shipping address set')
                         else
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_currentUser!.name ?? 'No name provided'),
+                              Text(_currentUser!.defaultShippingAddress!.name),
                               const SizedBox(height: 4),
-                              Text(_currentUser!.address!),
-                              if (_currentUser!.city != null) ...[
+                              Text(_currentUser!.defaultShippingAddress!.street),
+                              Text('${_currentUser!.defaultShippingAddress!.city}, ${_currentUser!.defaultShippingAddress!.state}'),
+                              Text('${_currentUser!.defaultShippingAddress!.zipCode}'),
+                              if (_currentUser!.defaultShippingAddress!.phone != null) ...[
                                 const SizedBox(height: 4),
-                                Text(_currentUser!.city!),
-                              ],
-                              if (_currentUser!.country != null) ...[
-                                const SizedBox(height: 4),
-                                Text(_currentUser!.country!),
+                                Text(_currentUser!.defaultShippingAddress!.phone!),
                               ],
                             ],
                           ),
@@ -386,7 +373,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _currentUser?.address == null ? null : _placeOrder,
+                      onPressed: _currentUser?.defaultShippingAddress == null ? null : _placeOrder,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
