@@ -40,6 +40,9 @@ class BuyerService {
         return CartItem(
           product: product,
           quantity: item['quantity'] as int,
+          selectedSize: item['selectedSize'] as String?,
+          selectedColor: item['selectedColor'] as String?,
+          selectedColorImage: item['selectedColorImage'] as String?,
         );
       }));
     } catch (e) {
@@ -47,7 +50,13 @@ class BuyerService {
     }
   }
 
-  Future<void> addToCart(String productId, int quantity) async {
+  Future<void> addToCart(
+    String productId,
+    int quantity, {
+    String? selectedSize,
+    String? selectedColor,
+    String? selectedColorImage,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
@@ -58,7 +67,13 @@ class BuyerService {
       final product = Product.fromMap(productDoc.data()!, productDoc.id);
 
       if (!product.isActive) throw Exception('Product is not available');
-      if (quantity > product.stockQuantity) throw Exception('Not enough stock');
+      
+      // Check available quantity based on color selection
+      final availableQuantity = selectedColor != null 
+          ? product.colorQuantities[selectedColor] ?? 0
+          : product.stockQuantity;
+          
+      if (quantity > availableQuantity) throw Exception('Not enough stock');
 
       final cartRef = _firestore.collection('carts').doc(user.uid);
       final cartDoc = await cartRef.get();
@@ -68,21 +83,31 @@ class BuyerService {
           'items': [{
             'productId': productId,
             'quantity': quantity,
+            'selectedSize': selectedSize,
+            'selectedColor': selectedColor,
+            'selectedColorImage': selectedColorImage,
           }],
         });
       } else {
         final items = List<Map<String, dynamic>>.from(cartDoc.data()!['items'] as List);
-        final existingItemIndex = items.indexWhere((item) => item['productId'] == productId);
+        final existingItemIndex = items.indexWhere((item) => 
+          item['productId'] == productId && 
+          item['selectedColor'] == selectedColor && 
+          item['selectedSize'] == selectedSize
+        );
 
         if (existingItemIndex != -1) {
           final existingQuantity = items[existingItemIndex]['quantity'] as int;
           final newQuantity = existingQuantity + quantity;
-          if (newQuantity > product.stockQuantity) throw Exception('Not enough stock');
+          if (newQuantity > availableQuantity) throw Exception('Not enough stock');
           items[existingItemIndex]['quantity'] = newQuantity;
         } else {
           items.add({
             'productId': productId,
             'quantity': quantity,
+            'selectedSize': selectedSize,
+            'selectedColor': selectedColor,
+            'selectedColorImage': selectedColorImage,
           });
         }
 

@@ -5,6 +5,7 @@ import '../../models/shipping_address.dart';
 import '../../services/cart_service.dart';
 import '../../services/order_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/payment_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 
@@ -85,9 +86,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _placeOrder() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('Place order button clicked');
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed');
+      return;
+    }
 
     setState(() => _isProcessing = true);
+    print('Setting processing state');
 
     try {
       final address = ShippingAddress(
@@ -99,15 +105,61 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         country: _countryController.text,
         phone: _phoneController.text,
       );
+      print('Created shipping address');
 
+      // Get current user
+      final user = await ref.read(authServiceProvider).currentUser;
+      print('Current user: ${user?.email}');
+      if (user == null) throw Exception('User not authenticated');
+
+      // Generate reference
+      final reference = DateTime.now().millisecondsSinceEpoch.toString();
+      print('Generated reference: $reference');
+
+      // Initialize payment
+      print('Initializing payment...');
+      final paymentUrl = await ref.read(paymentServiceProvider).initializeTransaction(
+        email: user.email,
+        amount: _calculateTotal(),
+        currency: 'GHS',
+        reference: reference,
+        metadata: {
+          'items': _items.map((item) => {
+            'productId': item.product.id,
+            'name': item.product.name,
+            'quantity': item.quantity,
+          }).toList(),
+          'shippingAddress': address.toMap(),
+        },
+      );
+      print('Got payment URL: $paymentUrl');
+
+      // Launch payment page
+      print('Launching payment page...');
+      await ref.read(paymentServiceProvider).launchPaymentPage(paymentUrl);
+      print('Payment page launched');
+
+      // Verify payment
+      print('Verifying payment...');
+      final isVerified = await ref.read(paymentServiceProvider).verifyTransaction(reference);
+      print('Payment verification result: $isVerified');
+      if (!isVerified) {
+        throw Exception('Payment verification failed');
+      }
+
+      // Place order
+      print('Creating order...');
       final order = await ref.read(orderServiceProvider).createOrder(
         items: _items,
         shippingAddress: address,
       );
+      print('Order created successfully');
 
       if (mounted) {
         // Clear cart and navigate to order confirmation
+        print('Clearing cart...');
         await ref.read(cartServiceProvider).clearCart();
+        print('Navigating to confirmation screen...');
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) => OrderConfirmationScreen(order: order),
@@ -115,6 +167,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
       }
     } catch (e) {
+      print('Error in place order: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString())),

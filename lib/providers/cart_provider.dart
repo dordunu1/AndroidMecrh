@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/cart_item.dart';
+import '../services/buyer_service.dart';
 
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
+  return CartNotifier(ref);
 });
 
 final cartItemCountProvider = Provider<int>((ref) {
@@ -11,9 +12,11 @@ final cartItemCountProvider = Provider<int>((ref) {
 });
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+  final Ref _ref;
+  
+  CartNotifier(this._ref) : super([]);
 
-  void addToCart(CartItem item) {
+  Future<void> addToCart(CartItem item) async {
     final existingIndex = state.indexWhere((i) => 
       i.product.id == item.product.id && 
       i.selectedColor == item.selectedColor && 
@@ -39,6 +42,15 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         existingItem.copyWith(quantity: newQuantity),
         ...state.sublist(existingIndex + 1),
       ];
+
+      // Sync with Firestore
+      await _ref.read(buyerServiceProvider).addToCart(
+        item.product.id,
+        newQuantity,
+        selectedSize: item.selectedSize,
+        selectedColor: item.selectedColor,
+        selectedColorImage: item.selectedColorImage,
+      );
     } else {
       // Check if the initial quantity is available
       final availableQuantity = item.selectedColor != null 
@@ -50,23 +62,47 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       }
       
       state = [...state, item];
+
+      // Sync with Firestore
+      await _ref.read(buyerServiceProvider).addToCart(
+        item.product.id,
+        item.quantity,
+        selectedSize: item.selectedSize,
+        selectedColor: item.selectedColor,
+        selectedColorImage: item.selectedColorImage,
+      );
     }
   }
 
-  void removeFromCart(String productId) {
+  Future<void> removeFromCart(String productId) async {
     state = state.where((item) => item.product.id != productId).toList();
+    
+    // Sync with Firestore
+    await _ref.read(buyerServiceProvider).removeFromCart(productId);
   }
 
-  void updateQuantity(String productId, int quantity) {
+  Future<void> updateQuantity(String productId, int quantity) async {
     state = state.map((item) {
       if (item.product.id == productId) {
         return item.copyWith(quantity: quantity);
       }
       return item;
     }).toList();
+
+    // Sync with Firestore
+    await _ref.read(buyerServiceProvider).updateCartItemQuantity(productId, quantity);
   }
 
-  void clearCart() {
+  Future<void> clearCart() async {
     state = [];
+    
+    // Sync with Firestore
+    await _ref.read(buyerServiceProvider).clearCart();
+  }
+
+  // Load cart from Firestore
+  Future<void> loadCart() async {
+    final items = await _ref.read(buyerServiceProvider).getCartItems();
+    state = items;
   }
 } 

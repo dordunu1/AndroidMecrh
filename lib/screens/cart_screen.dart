@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/cart_item.dart';
-import '../providers/cart_provider.dart';
+import '../services/cart_service.dart';
 import '../widgets/common/custom_button.dart';
+import '../providers/providers.dart';
 import 'checkout/checkout_screen.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -13,48 +14,100 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
+  bool _isLoading = true;
+  List<CartItem> _items = [];
+  String? _error;
+
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cartItems = ref.watch(cartProvider);
-    final totalAmount = cartItems.fold(
+  void initState() {
+    super.initState();
+    _loadCart();
+  }
+
+  Future<void> _loadCart() async {
+    try {
+      final items = await ref.read(cartServiceProvider).getCartItems();
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  double _calculateTotal() {
+    return _items.fold(
       0.0,
       (sum, item) => sum + (item.product.price * item.quantity),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            _error!,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Shopping Cart'),
         actions: [
-          if (cartItems.isNotEmpty)
+          if (_items.isNotEmpty)
             TextButton(
-              onPressed: () {
-                showDialog(
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text('Clear Cart'),
                     content: const Text('Are you sure you want to clear your cart?'),
                     actions: [
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(context, false),
                         child: const Text('CANCEL'),
                       ),
                       TextButton(
-                        onPressed: () {
-                          ref.read(cartProvider.notifier).clearCart();
-                          Navigator.pop(context);
-                        },
+                        onPressed: () => Navigator.pop(context, true),
                         child: const Text('CLEAR'),
                       ),
                     ],
                   ),
                 );
+
+                if (confirmed == true && mounted) {
+                  await ref.read(cartServiceProvider).clearCart();
+                  _loadCart();
+                }
               },
               child: const Text('Clear'),
             ),
         ],
       ),
-      body: cartItems.isEmpty
+      body: _items.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -76,9 +129,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: cartItems.length,
+              itemCount: _items.length,
               itemBuilder: (context, index) {
-                final item = cartItems[index];
+                final item = _items[index];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
                   child: Padding(
@@ -141,11 +194,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               children: [
                                 IconButton(
                                   onPressed: item.quantity > 1
-                                      ? () {
-                                          ref.read(cartProvider.notifier).updateQuantity(
+                                      ? () async {
+                                          await ref.read(cartServiceProvider).updateQuantity(
                                                 item.product.id,
                                                 item.quantity - 1,
                                               );
+                                          _loadCart();
                                         }
                                       : null,
                                   icon: const Icon(Icons.remove),
@@ -155,15 +209,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   style: theme.textTheme.titleMedium,
                                 ),
                                 IconButton(
-                                  onPressed: () {
+                                  onPressed: () async {
                                     final availableQuantity = item.selectedColor != null
                                         ? item.product.colorQuantities[item.selectedColor] ?? 0
                                         : item.product.stockQuantity;
                                     if (item.quantity < availableQuantity) {
-                                      ref.read(cartProvider.notifier).updateQuantity(
+                                      await ref.read(cartServiceProvider).updateQuantity(
                                             item.product.id,
                                             item.quantity + 1,
                                           );
+                                      _loadCart();
                                     } else {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
@@ -177,8 +232,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ],
                             ),
                             TextButton.icon(
-                              onPressed: () {
-                                ref.read(cartProvider.notifier).removeFromCart(item.product.id);
+                              onPressed: () async {
+                                await ref.read(cartServiceProvider).removeFromCart(item.product.id);
+                                _loadCart();
                               },
                               icon: const Icon(Icons.delete_outline),
                               label: const Text('Remove'),
@@ -194,7 +250,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 );
               },
             ),
-      bottomNavigationBar: cartItems.isEmpty
+      bottomNavigationBar: _items.isEmpty
           ? null
           : Container(
               padding: const EdgeInsets.all(16),
@@ -220,7 +276,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           style: theme.textTheme.titleLarge,
                         ),
                         Text(
-                          'GHS ${totalAmount.toStringAsFixed(2)}',
+                          'GHS ${_calculateTotal().toStringAsFixed(2)}',
                           style: theme.textTheme.titleLarge?.copyWith(
                             color: theme.colorScheme.primary,
                             fontWeight: FontWeight.bold,

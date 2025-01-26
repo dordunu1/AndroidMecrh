@@ -27,6 +27,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   void initState() {
     super.initState();
     _loadSellersAndFees();
+    // Load cart from Firestore
+    ref.read(cartProvider.notifier).loadCart();
   }
 
   Future<void> _loadSellersAndFees() async {

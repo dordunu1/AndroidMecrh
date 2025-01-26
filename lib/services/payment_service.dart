@@ -2,6 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final paymentServiceProvider = Provider<PaymentService>((ref) {
+  return PaymentService();
+});
 
 class PaymentService {
   static const String _baseUrl = 'https://api.paystack.co';
@@ -65,6 +70,10 @@ class PaymentService {
         webViewConfiguration: const WebViewConfiguration(
           enableJavaScript: true,
           enableDomStorage: true,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          },
         ),
       );
     } else {
