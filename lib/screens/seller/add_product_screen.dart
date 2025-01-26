@@ -2,10 +2,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/product.dart';
 import '../../services/seller_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/product_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../../widgets/feature_tour.dart';
+import '../../constants/size_standards.dart';
+import 'package:flutter/services.dart';
 
 Future<DateTime?> showDateTimePicker({
   required BuildContext context,
@@ -221,7 +227,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
-  final _stockController = TextEditingController();
+  final _quantityController = TextEditingController();
   final _shippingInfoController = TextEditingController();
   final _discountPercentController = TextEditingController();
   
@@ -243,15 +249,31 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   final Map<String, String> _imageColors = {};
   final TextEditingController _colorController = TextEditingController();
+  final Map<String, TextEditingController> _colorQuantityControllers = {};
   int _currentImageIndex = 0;
+
+  double _uploadProgress = 0;
+  String _uploadStatus = '';
 
   bool get isFootwearProduct => 
     _selectedCategory == 'clothing' && 
     _selectedSubCategory.split(' - ')[0] == 'Footwear';
 
+  bool _showFeatureTour = false;
+  final Map<String, GlobalKey> _tourKeys = {
+    'images': GlobalKey(),
+    'name': GlobalKey(),
+    'description': GlobalKey(),
+    'price': GlobalKey(),
+    'category': GlobalKey(),
+    'variants': GlobalKey(),
+    'sizes': GlobalKey(),
+  };
+
   @override
   void initState() {
     super.initState();
+    _checkFirstTime();
     // Show guide when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddProductGuide();
@@ -263,10 +285,11 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
-    _stockController.dispose();
+    _quantityController.dispose();
     _shippingInfoController.dispose();
     _discountPercentController.dispose();
     _colorController.dispose();
+    _colorQuantityControllers.values.forEach((controller) => controller.dispose());
     super.dispose();
   }
 
@@ -453,379 +476,549 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     );
   }
 
+  Future<void> _checkFirstTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstTime = prefs.getBool('seller_add_product_tour_shown') ?? true;
+    
+    if (isFirstTime) {
+      if (mounted) {
+        setState(() => _showFeatureTour = true);
+      }
+      await prefs.setBool('seller_add_product_tour_shown', false);
+    }
+  }
+
+  List<FeatureTourStep> _getFeatureTourSteps() {
+    return [
+      FeatureTourStep(
+        title: 'Product Images',
+        description: 'Add multiple images of your product. The first image will be the main display image.',
+        targetKey: _tourKeys['images']!,
+      ),
+      FeatureTourStep(
+        title: 'Product Details',
+        description: 'Enter your product name, description, and pricing information.',
+        targetKey: _tourKeys['name']!,
+      ),
+      FeatureTourStep(
+        title: 'Category Selection',
+        description: 'Choose the appropriate category and subcategory for your product.',
+        targetKey: _tourKeys['category']!,
+      ),
+      FeatureTourStep(
+        title: 'Color Variants',
+        description: 'If your product comes in different colors, you can add them here with separate images.',
+        targetKey: _tourKeys['variants']!,
+      ),
+      FeatureTourStep(
+        title: 'Size Options',
+        description: 'Add available sizes based on international standards for your product category.',
+        targetKey: _tourKeys['sizes']!,
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Product'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Image Upload Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Product Images',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Add up to 10 images (2MB each)',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 16),
-                    if (_selectedImages.isEmpty)
-                      InkWell(
-                        onTap: _pickImages,
-                        child: Container(
-                          height: 200,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add_photo_alternate_outlined, size: 48),
-                                SizedBox(height: 8),
-                                Text('Add Images'),
-                              ],
-                            ),
-                          ),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text('Add Product'),
+          ),
+          body: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Image Upload Section
+                Card(
+                  key: _tourKeys['images'],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Product Images',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                      )
-                    else
-                      SizedBox(
-                        height: 200,
-                        child: Stack(
-                          children: [
-                            PageView.builder(
-                              itemCount: _selectedImages.length + (_selectedImages.length < 10 ? 1 : 0),
-                              onPageChanged: (index) {
-                                setState(() {
-                                  _currentImageIndex = index;
-                                });
-                              },
-                              itemBuilder: (context, index) {
-                                if (index == _selectedImages.length) {
-                                  return Center(
-                                    child: TextButton.icon(
-                                      onPressed: _pickImages,
-                                      icon: const Icon(Icons.add_photo_alternate),
-                                      label: const Text('Add More'),
-                                    ),
-                                  );
-                                }
-
-                                final imageKey = _selectedImages[index].path;
-                                final color = _imageColors[imageKey];
-
-                                return Stack(
+                        const SizedBox(height: 4),
+                        Text(
+                          'Add up to 10 images (2MB each)',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 16),
+                        if (_selectedImages.isEmpty)
+                          InkWell(
+                            onTap: _pickImages,
+                            child: Container(
+                              height: 200,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Center(
-                                      child: Image.file(
-                                        _selectedImages[index],
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    Positioned(
-                                      top: 8,
-                                      right: 8,
-                                      child: Row(
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit),
-                                            onPressed: () => _showColorEditDialog(index),
-                                            style: IconButton.styleFrom(
-                                              backgroundColor: Colors.white,
-                                              padding: const EdgeInsets.all(8),
+                                    Icon(Icons.add_photo_alternate_outlined, size: 48),
+                                    SizedBox(height: 8),
+                                    Text('Add Images'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          SizedBox(
+                            height: 200,
+                            child: Stack(
+                              children: [
+                                PageView.builder(
+                                  itemCount: _selectedImages.length + (_selectedImages.length < 10 ? 1 : 0),
+                                  onPageChanged: (index) {
+                                    setState(() {
+                                      _currentImageIndex = index;
+                                    });
+                                  },
+                                  itemBuilder: (context, index) {
+                                    if (index == _selectedImages.length) {
+                                      return Center(
+                                        child: TextButton.icon(
+                                          onPressed: _pickImages,
+                                          icon: const Icon(Icons.add_photo_alternate),
+                                          label: const Text('Add More'),
+                                        ),
+                                      );
+                                    }
+
+                                    final imageKey = _selectedImages[index].path;
+                                    final color = _imageColors[imageKey];
+
+                                    return Stack(
+                                      children: [
+                                        Center(
+                                          child: Image.file(
+                                            _selectedImages[index],
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 8,
+                                          right: 8,
+                                          child: Row(
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.edit),
+                                                onPressed: () => _showColorEditDialog(index),
+                                                style: IconButton.styleFrom(
+                                                  backgroundColor: Colors.white,
+                                                  padding: const EdgeInsets.all(8),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete),
+                                                onPressed: () => _removeImage(index),
+                                                style: IconButton.styleFrom(
+                                                  backgroundColor: Colors.white,
+                                                  padding: const EdgeInsets.all(8),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (color != null)
+                                          Positioned(
+                                            bottom: 8,
+                                            left: 8,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                color,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete),
-                                            onPressed: () => _removeImage(index),
-                                            style: IconButton.styleFrom(
-                                              backgroundColor: Colors.white,
-                                              padding: const EdgeInsets.all(8),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (color != null)
-                                      Positioned(
-                                        bottom: 8,
-                                        left: 8,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                // Page indicator dots
+                                if (_selectedImages.length > 1)
+                                  Positioned(
+                                    bottom: 16,
+                                    left: 0,
+                                    right: 0,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: List.generate(
+                                        _selectedImages.length + (_selectedImages.length < 10 ? 1 : 0),
+                                        (index) => Container(
+                                          width: 8,
+                                          height: 8,
+                                          margin: const EdgeInsets.symmetric(horizontal: 4),
                                           decoration: BoxDecoration(
-                                            color: Colors.black54,
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            color,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                            ),
+                                            shape: BoxShape.circle,
+                                            color: index == _currentImageIndex
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Colors.grey.withOpacity(0.5),
                                           ),
                                         ),
                                       ),
-                                  ],
-                                );
-                              },
-                            ),
-                            // Page indicator dots
-                            if (_selectedImages.length > 1)
-                              Positioned(
-                                bottom: 16,
-                                left: 0,
-                                right: 0,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: List.generate(
-                                    _selectedImages.length + (_selectedImages.length < 10 ? 1 : 0),
-                                    (index) => Container(
-                                      width: 8,
-                                      height: 8,
-                                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: index == _currentImageIndex
-                                            ? Theme.of(context).colorScheme.primary
-                                            : Colors.grey.withOpacity(0.5),
-                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Category and Subcategory Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Product Category',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Main Category Dropdown
-                    DropdownButtonFormField<String>(
-                      value: _selectedCategory.isEmpty ? null : _selectedCategory,
-                      decoration: const InputDecoration(
-                        labelText: 'Category',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        {'value': 'clothing', 'label': 'Clothing'},
-                        {'value': 'accessories', 'label': 'Accessories'},
-                        {'value': 'electronics', 'label': 'Electronics'},
-                        {'value': 'home', 'label': 'Home'},
-                        {'value': 'art', 'label': 'Art'},
-                        {'value': 'collectibles', 'label': 'Collectibles'},
-                      ].map((category) {
-                        return DropdownMenuItem(
-                          value: category['value'],
-                          child: Text(category['label']!),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCategory = value ?? '';
-                          _selectedSubCategory = '';
-                          _hasVariants = false;
-                          _selectedSizes = [];
-                          _selectedColors = [];
-                          _colorQuantities = {};
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select a category';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Subcategories Section
-                    if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories' || 
-                        _selectedCategory == 'electronics' || _selectedCategory == 'art' ||
-                        _selectedCategory == 'home')
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Product Type',
-                            style: Theme.of(context).textTheme.titleSmall,
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              ...(_selectedCategory == 'clothing' ? CLOTHING_SUBCATEGORIES :
-                                 _selectedCategory == 'accessories' ? ACCESSORIES_SUBCATEGORIES :
-                                 _selectedCategory == 'electronics' ? ELECTRONICS_SUBCATEGORIES :
-                                 _selectedCategory == 'art' ? ART_SUBCATEGORIES :
-                                 _selectedCategory == 'home' ? HOME_SUBCATEGORIES : {})
-                                .entries
-                                .expand((mainCategory) {
-                                  return mainCategory.value.map((subItem) {
-                                    final fullSubCategory = '${mainCategory.key} - $subItem';
-                                    return FilterChip(
-                                      selected: _selectedSubCategory == fullSubCategory,
-                                      label: Text(subItem),
-                                      onSelected: (selected) {
-                                        setState(() {
-                                          _selectedSubCategory = selected ? fullSubCategory : '';
-                                          if (selected) {
-                                            _hasVariants = false;
-                                            _selectedSizes = [];
-                                            _selectedColors = [];
-                                            _colorQuantities = {};
-                                          }
-                                        });
-                                      },
-                                    );
-                                  });
-                                }).toList(),
-                            ],
-                          ),
-                        ],
-                      ),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            // Variants Section - Now shown for all categories
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                // Product Details Section
+                Card(
+                  key: _tourKeys['name'],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Color Variants',
+                          'Product Details',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        const SizedBox(width: 16),
-                        Switch(
-                          value: _hasVariants,
-                          onChanged: (value) {
-                            setState(() {
-                              _hasVariants = value;
-                              if (!value) {
-                                _selectedSizes = [];
-                                _selectedColors = [];
-                                _colorQuantities = {};
-                              }
-                            });
+                        const SizedBox(height: 16),
+                        CustomTextField(
+                          controller: _nameController,
+                          label: 'Product Name',
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter a product name';
+                            }
+                            return null;
                           },
+                        ),
+                        const SizedBox(height: 16),
+                        CustomTextField(
+                          controller: _descriptionController,
+                          label: 'Description',
+                          maxLines: 5,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter a product description';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _priceController,
+                                label: 'Price (GHS)',
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Required';
+                                  }
+                                  if (double.tryParse(value) == null) {
+                                    return 'Invalid price';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _quantityController,
+                                label: 'Quantity',
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter quantity';
+                                  }
+                                  if (int.tryParse(value) == null) {
+                                    return 'Invalid quantity';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    if (_hasVariants) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Guide: How to add color variants',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 4),
-                      const Card(
-                        child: Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Column(
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Category Section
+                Card(
+                  key: _tourKeys['category'],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Product Category',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Main Category Dropdown
+                        DropdownButtonFormField<String>(
+                          value: _selectedCategory.isEmpty ? null : _selectedCategory,
+                          decoration: const InputDecoration(
+                            labelText: 'Category',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            {'value': 'clothing', 'label': 'Clothing'},
+                            {'value': 'accessories', 'label': 'Accessories'},
+                            {'value': 'electronics', 'label': 'Electronics'},
+                            {'value': 'home', 'label': 'Home'},
+                            {'value': 'art', 'label': 'Art'},
+                            {'value': 'collectibles', 'label': 'Collectibles'},
+                          ].map((category) {
+                            return DropdownMenuItem(
+                              value: category['value'],
+                              child: Text(category['label']!),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCategory = value ?? '';
+                              _selectedSubCategory = '';
+                              _hasVariants = false;
+                              _selectedSizes = [];
+                              _selectedColors = [];
+                              _colorQuantities = {};
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please select a category';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Subcategories Section
+                        if (_selectedCategory == 'clothing' || _selectedCategory == 'accessories' || 
+                            _selectedCategory == 'electronics' || _selectedCategory == 'art' ||
+                            _selectedCategory == 'home')
+                          Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('1. Upload product images above'),
-                              Text('2. Click the pencil icon (✏️) on each image'),
-                              Text('3. Enter the color name for that variant'),
-                              Text('4. Set the quantity available for each color below'),
-                              Text('Note: Each image should represent a different color variant'),
+                              Text(
+                                'Product Type',
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  ...(_selectedCategory == 'clothing' ? CLOTHING_SUBCATEGORIES :
+                                     _selectedCategory == 'accessories' ? ACCESSORIES_SUBCATEGORIES :
+                                     _selectedCategory == 'electronics' ? ELECTRONICS_SUBCATEGORIES :
+                                     _selectedCategory == 'art' ? ART_SUBCATEGORIES :
+                                     _selectedCategory == 'home' ? HOME_SUBCATEGORIES : {})
+                                    .entries
+                                    .expand((mainCategory) {
+                                      return mainCategory.value.map((subItem) {
+                                        final fullSubCategory = '${mainCategory.key} - $subItem';
+                                        return FilterChip(
+                                          selected: _selectedSubCategory == fullSubCategory,
+                                          label: Text(subItem),
+                                          onSelected: (selected) {
+                                            setState(() {
+                                              _selectedSubCategory = selected ? fullSubCategory : '';
+                                              if (selected) {
+                                                _hasVariants = false;
+                                                _selectedSizes = [];
+                                                _selectedColors = [];
+                                                _colorQuantities = {};
+                                              }
+                                            });
+                                          },
+                                        );
+                                      });
+                                    }).toList(),
+                                ],
+                              ),
                             ],
                           ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Variants Section
+                _buildVariantsSection(),
+              ],
+            ),
+          ),
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isLoading) ...[
+                  Text(_uploadStatus),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: _uploadProgress / 100,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                ElevatedButton(
+                  onPressed: _isLoading ? null : () async {
+                    if (_formKey.currentState!.validate()) {
+                      await _submitForm();
+                    }
+                  },
+                  child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                      )
+                    : const Text('Add Product'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        if (_showFeatureTour)
+          FeatureTour(
+            steps: _getFeatureTourSteps(),
+            onComplete: () {
+              setState(() => _showFeatureTour = false);
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildVariantsSection() {
+    return Card(
+      key: _tourKeys['variants'],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Product Variants',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 16),
+            
+            // Color Variants
+            SwitchListTile(
+              title: const Text('Add Color Variants'),
+              value: _hasVariants,
+              onChanged: (value) {
+                setState(() {
+                  _hasVariants = value;
+                  if (!value) {
+                    _selectedColors = [];
+                    _colorQuantities = {};
+                  }
+                });
+              },
+            ),
+            if (_hasVariants) ... [
+              const SizedBox(height: 8),
+              Text(
+                'Guide: How to add color variants',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 4),
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('1. Upload product images above'),
+                      Text('2. Click the pencil icon (✏️) on each image'),
+                      Text('3. Enter the color name for that variant'),
+                      Text('4. Set the quantity available for each color below'),
+                      Text('Note: Each image should represent a different color variant'),
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-            
-            const SizedBox(height: 16),
-
-            // Price and Discount Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Price & Discount',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Price Field
-                    Row(
+              const SizedBox(height: 16),
+              // Add stock management for color variants
+              if (_imageColors.isNotEmpty) ...[
+                Text(
+                  'Stock Management',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                ...(_imageColors.values.map((color) {
+                  _colorQuantityControllers.putIfAbsent(
+                    color, 
+                    () => TextEditingController(text: _colorQuantities[color]?.toString() ?? '0')
+                  );
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
                       children: [
                         Expanded(
-                          child: TextFormField(
-                            controller: _priceController,
+                          flex: 2,
+                          child: Text(color),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: CustomTextField(
+                            controller: _colorQuantityControllers[color],
+                            label: 'Quantity',
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Price',
-                              hintText: '0.00',
-                              prefixText: 'GHS ',
-                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                _colorQuantities[color] = int.tryParse(value) ?? 0;
+                              });
+                            },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter a price';
+                                return 'Required';
                               }
-                              if (double.tryParse(value) == null) {
-                                return 'Please enter a valid number';
-                              }
-                              if (double.parse(value) <= 0) {
-                                return 'Price must be greater than 0';
+                              if (int.tryParse(value) == null) {
+                                return 'Invalid';
                               }
                               return null;
                             },
@@ -833,329 +1026,65 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-
-                    // Discount Switch
-                    Row(
+                  );
+                })).toList(),
+                if (_colorQuantities.isNotEmpty) ...[
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Apply Discount',
+                          'Total Stock:',
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
-                        const SizedBox(width: 16),
-                        Switch(
-                          value: _hasDiscount,
-                          onChanged: (value) {
-                            setState(() {
-                              _hasDiscount = value;
-                              if (!value) {
-                                _discountPercent = 0;
-                                _discountEndsAt = null;
-                                _discountPercentController.text = '';
-                              }
-                            });
-                          },
+                        Text(
+                          _colorQuantities.values.fold(0, (sum, qty) => sum + qty).toString(),
+                          style: Theme.of(context).textTheme.titleSmall,
                         ),
                       ],
                     ),
-
-                    if (_hasDiscount) ...[
-                      const SizedBox(height: 16),
-                      
-                      // Discount Percentage
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _discountPercentController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Discount Percentage',
-                                border: OutlineInputBorder(),
-                                suffixText: '%',
-                              ),
-                              onChanged: (value) {
-                                final percent = double.tryParse(value) ?? 0;
-                                setState(() {
-                                  _discountPercent = percent.clamp(0, 99);
-                                  if (percent != _discountPercent) {
-                                    _discountPercentController.text = _discountPercent.toString();
-                                  }
-                                });
-                              },
-                              validator: (value) {
-                                if (_hasDiscount) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter a discount percentage';
-                                  }
-                                  final percent = double.tryParse(value);
-                                  if (percent == null) {
-                                    return 'Please enter a valid number';
-                                  }
-                                  if (percent <= 0 || percent >= 100) {
-                                    return 'Percentage must be between 0 and 99';
-                                  }
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Discount End Date
-                      InkWell(
-                        onTap: () async {
-                          final now = DateTime.now();
-                          final picked = await showDateTimePicker(
-                            context: context,
-                            initialDate: _discountEndsAt ?? now.add(const Duration(days: 1)),
-                            firstDate: now,
-                            lastDate: now.add(const Duration(days: 365)),
-                          );
-                          if (picked != null) {
-                            setState(() => _discountEndsAt = picked);
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Discount Ends At',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: Icon(
-                              Icons.calendar_today,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          child: Text(
-                            _discountEndsAt != null
-                                ? _discountEndsAt!.toLocal().toString().split('.')[0]
-                                : 'Select date and time',
-                          ),
-                        ),
-                      ),
-
-                      // Discounted Price Preview
-                      if (_discountPercent > 0 && double.tryParse(_priceController.text) != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Original Price:'),
-                                  Text(
-                                    'GHS ${double.parse(_priceController.text)}',
-                                    style: const TextStyle(
-                                      decoration: TextDecoration.lineThrough,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Discounted Price:',
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    'GHS ${(double.parse(_priceController.text) * (1 - _discountPercent / 100)).toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Shipping Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Shipping Details',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Shipping Information
-                    TextFormField(
-                      controller: _shippingInfoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Shipping Information',
-                        border: OutlineInputBorder(),
-                        hintText: 'e.g., Worldwide shipping available',
-                      ),
-                      maxLines: 2,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Name
-            CustomTextField(
-              controller: _nameController,
-              label: 'Name',
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a name';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Description
-            CustomTextField(
-              controller: _descriptionController,
-              label: 'Description',
-              maxLines: 5,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a description';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Stock
-            CustomTextField(
-              controller: _stockController,
-              label: 'Stock',
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter stock quantity';
-                }
-                final stock = int.tryParse(value);
-                if (stock == null) {
-                  return 'Please enter a valid number';
-                }
-                if (stock < 0) {
-                  return 'Stock cannot be negative';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Color Summary Section
-            if (_hasVariants && _imageColors.isNotEmpty) ...[
-              Text(
-                'Color Variants',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ..._imageColors.entries.map((entry) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(entry.value),
-                            SizedBox(
-                              width: 120,
-                              child: TextFormField(
-                                initialValue: '${_colorQuantities[entry.value] ?? 0}',
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.end,
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  suffixText: ' pcs',
-                                ),
-                                onChanged: (value) {
-                                  final quantity = int.tryParse(value) ?? 0;
-                                  setState(() {
-                                    _colorQuantities[entry.value] = quantity;
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      )).toList(),
-                      if (_colorQuantities.isNotEmpty) ...[
-                        const Divider(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Total Stock:'),
-                            Text(
-                              '${_colorQuantities.values.fold(0, (sum, qty) => sum + qty)} pieces',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
                   ),
-                ),
-              ),
+                ],
+              ],
             ],
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submitForm,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: _submitting
-                    ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Adding Product...'),
-                        ],
-                      )
-                    : const Text('Add Product'),
+            
+            // Size Variants
+            if (_selectedCategory == 'clothing' || 
+                _selectedCategory == 'accessories' ||
+                _selectedSubCategory.contains('Footwear'))
+              Column(
+                key: _tourKeys['sizes'],
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  Text(
+                    'Available Sizes',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _getAvailableSizes()
+                      .map((size) => FilterChip(
+                        selected: _selectedSizes.contains(size),
+                        label: Text(size),
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedSizes.add(size);
+                            } else {
+                              _selectedSizes.remove(size);
+                            }
+                          });
+                        },
+                      ))
+                      .toList(),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -1167,74 +1096,99 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
     if (_selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one image')),
+        const SnackBar(content: Text('Please add at least one product image')),
       );
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _uploadProgress = 0;
+      _uploadStatus = 'Preparing to upload images...';
+    });
 
     try {
       // Upload images
-      final imageUrls = await Future.wait(
-        _selectedImages.map((file) => ref.read(storageServiceProvider).uploadFile(file, 'products')),
-      );
-
-      // Create image colors map with uploaded URLs
-      final imageColors = <String, String>{};
+      final storageService = ref.read(storageServiceProvider);
+      final imageUrls = <String>[];
+      
       for (var i = 0; i < _selectedImages.length; i++) {
-        final color = _imageColors[_selectedImages[i].path];
-        if (color != null) {
-          imageColors[imageUrls[i]] = color;
-        }
+        setState(() {
+          _uploadStatus = 'Uploading image ${i + 1} of ${_selectedImages.length}';
+          _uploadProgress = (i / _selectedImages.length) * 50; // First 50% for images
+        });
+        
+        final url = await storageService.uploadProductImage(_selectedImages[i]);
+        imageUrls.add(url);
       }
 
-      // Get seller profile
-      final seller = await ref.read(sellerServiceProvider).getSellerProfile();
-      
+      setState(() {
+        _uploadStatus = 'Creating product...';
+        _uploadProgress = 50; // Next 50% for product creation
+      });
+
+      // Create product
       final product = Product(
-        id: '',
-        sellerId: '',
-        sellerName: '',
+        id: '',  // Will be set by Firestore
+        sellerId: ref.read(authServiceProvider).currentUser?.uid ?? '',
+        sellerName: ref.read(authServiceProvider).currentUser?.displayName ?? '',
         name: _nameController.text,
         description: _descriptionController.text,
         price: double.parse(_priceController.text),
         stockQuantity: _hasVariants 
           ? _colorQuantities.values.fold(0, (sum, qty) => sum + qty)
-          : int.parse(_stockController.text),
+          : int.parse(_quantityController.text),
+        images: imageUrls,
         category: _selectedCategory,
         subCategory: _selectedSubCategory,
-        images: imageUrls,
         isActive: true,
         createdAt: DateTime.now().toIso8601String(),
-        updatedAt: DateTime.now().toIso8601String(),
-        shippingInfo: _shippingInfoController.text,
         hasVariants: _hasVariants,
         sizes: _selectedSizes,
-        colors: _selectedColors,
+        colors: _imageColors.values.toList(),
         colorQuantities: _colorQuantities,
+        imageColors: _imageColors,
         hasDiscount: _hasDiscount,
         discountPercent: _discountPercent,
         discountEndsAt: _discountEndsAt,
         discountedPrice: _hasDiscount ? 
           double.parse(_priceController.text) * (1 - _discountPercent / 100) : 
           null,
-        imageColors: imageColors,
         soldCount: 0,
         rating: 0,
         reviewCount: 0,
+        shippingInfo: _shippingInfoController.text,
       );
 
-      await ref.read(sellerServiceProvider).createProduct(product);
+      setState(() {
+        _uploadStatus = 'Saving product details...';
+        _uploadProgress = 75;
+      });
+
+      await ref.read(productServiceProvider).createProduct(product.toMap());
+
+      setState(() {
+        _uploadStatus = 'Product added successfully!';
+        _uploadProgress = 100;
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product added successfully')),
+          const SnackBar(
+            content: Text('Product added successfully! Click refresh to see your products.'),
+            duration: Duration(seconds: 3),
+          ),
         );
-        Navigator.pop(context);
+        
+        // Wait for the progress to be visible before closing
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _uploadStatus = 'Error: ${e.toString()}';
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString())),
         );
@@ -1244,5 +1198,32 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  List<String> _getAvailableSizes() {
+    if (_selectedCategory == 'clothing') {
+      if (_selectedSubCategory.startsWith("Men's Wear")) {
+        if (_selectedSubCategory.contains('Pants')) {
+          return MENS_CLOTHING_SIZES['Pants & Trousers']!;
+        } else if (_selectedSubCategory.contains('Suits')) {
+          return MENS_CLOTHING_SIZES['Suits']!;
+        }
+        return MENS_CLOTHING_SIZES['Shirts & T-Shirts']!;
+      } else if (_selectedSubCategory.startsWith("Women's Wear")) {
+        if (_selectedSubCategory.contains('Pants') || _selectedSubCategory.contains('Skirts')) {
+          return WOMENS_CLOTHING_SIZES['Pants & Skirts']!;
+        } else if (_selectedSubCategory.contains('Blouses')) {
+          return WOMENS_CLOTHING_SIZES['Blouses']!;
+        }
+        return WOMENS_CLOTHING_SIZES['Dresses & Tops']!;
+      } else if (_selectedSubCategory.startsWith('Footwear')) {
+        final footwearTypes = ['Sneakers', 'Formal Shoes', 'Boots', 'Slippers', 'Sandals'];
+        final type = _selectedSubCategory.split(' - ').last;
+        if (footwearTypes.contains(type)) {
+          return SHOE_SIZES;
+        }
+      }
+    }
+    return [];
   }
 } 

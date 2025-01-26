@@ -25,6 +25,7 @@ class CustomTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final void Function(String)? onSubmitted;
   final EdgeInsetsGeometry? contentPadding;
+  final String? prefixText;
 
   const CustomTextField({
     super.key,
@@ -51,6 +52,7 @@ class CustomTextField extends StatelessWidget {
     this.textInputAction,
     this.onSubmitted,
     this.contentPadding,
+    this.prefixText,
   });
 
   @override

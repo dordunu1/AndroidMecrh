@@ -32,8 +32,8 @@ class _SellerPromotionBubbleState extends State<SellerPromotionBubble> with Sing
 
     _controller.forward();
 
-    // Auto-hide after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
+    // Auto-hide after 10 seconds
+    Future.delayed(const Duration(seconds: 10), () {
       if (mounted) {
         _hide();
       }

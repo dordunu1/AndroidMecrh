@@ -126,6 +126,25 @@ class StorageService {
     }
   }
 
+  Future<String> uploadProductImage(File file) async {
+    final userId = currentUserId;
+    if (userId == null) throw Exception('User not authenticated');
+    
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}${p.extension(file.path)}';
+      final ref = _storage.ref().child('products/$fileName');
+      
+      final uploadTask = await ref.putFile(file);
+      if (uploadTask.state == TaskState.success) {
+        return await ref.getDownloadURL();
+      }
+      
+      throw Exception('Failed to upload product image');
+    } catch (e) {
+      throw Exception('Failed to upload product image: $e');
+    }
+  }
+
   String _getContentType(String extension) {
     switch (extension.toLowerCase()) {
       case '.jpg':
