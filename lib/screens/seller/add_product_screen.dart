@@ -270,6 +270,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     'sizes': GlobalKey(),
   };
 
+  String _selectedJewelryType = '';
+
   @override
   void initState() {
     super.initState();
@@ -278,6 +280,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddProductGuide();
     });
+    _selectedJewelryType = '';
   }
 
   @override
@@ -724,6 +727,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
+                        // Price and Quantity Row
                         Row(
                           children: [
                             Expanded(
@@ -764,6 +768,21 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 16),
+
+                        // Shipping Info
+                        CustomTextField(
+                          controller: _shippingInfoController,
+                          label: 'Shipping Info',
+                          maxLines: 3,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter shipping information';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
@@ -1051,43 +1070,86 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ],
             
             // Size Variants
-            if (_selectedCategory == 'clothing' || 
-                _selectedCategory == 'accessories' ||
-                _selectedSubCategory.contains('Footwear'))
-              Column(
-                key: _tourKeys['sizes'],
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  Text(
-                    'Available Sizes',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _getAvailableSizes()
-                      .map((size) => FilterChip(
-                        selected: _selectedSizes.contains(size),
-                        label: Text(size),
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedSizes.add(size);
-                            } else {
-                              _selectedSizes.remove(size);
-                            }
-                          });
-                        },
-                      ))
-                      .toList(),
-                  ),
-                ],
-              ),
+            _buildSizeSection(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSizeSection() {
+    return Column(
+      key: _tourKeys['sizes'],
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Text(
+              'Available Sizes',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            if (_selectedSubCategory.endsWith('Jewelry')) ...[
+              const SizedBox(width: 8),
+              TextButton.icon(
+                icon: const Icon(Icons.edit, size: 16),
+                label: Text(_selectedJewelryType.isEmpty ? 'Select Type' : _selectedJewelryType),
+                onPressed: () async {
+                  final result = await showDialog<String>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Select Jewelry Type'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            title: const Text('Necklaces'),
+                            onTap: () => Navigator.pop(context, 'Necklaces'),
+                          ),
+                          ListTile(
+                            title: const Text('Bracelets'),
+                            onTap: () => Navigator.pop(context, 'Bracelets'),
+                          ),
+                          ListTile(
+                            title: const Text('Rings'),
+                            onTap: () => Navigator.pop(context, 'Rings'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                  if (result != null) {
+                    setState(() {
+                      _selectedJewelryType = result;
+                      _selectedSizes = [];
+                    });
+                  }
+                },
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _getAvailableSizes()
+            .map((size) => FilterChip(
+              selected: _selectedSizes.contains(size),
+              label: Text(size),
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedSizes.add(size);
+                  } else {
+                    _selectedSizes.remove(size);
+                  }
+                });
+              },
+            ))
+            .toList(),
+        ),
+      ],
     );
   }
 
@@ -1174,9 +1236,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Product added successfully! Click refresh to see your products.'),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: const Text('Product added successfully! Click refresh to see your products.'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
         
@@ -1222,6 +1285,21 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         if (footwearTypes.contains(type)) {
           return SHOE_SIZES;
         }
+      }
+    } else if (_selectedCategory == 'accessories') {
+      if (_selectedSubCategory.endsWith('Jewelry')) {
+        if (_selectedJewelryType == 'Necklaces') {
+          return JEWELRY_SIZES['Necklaces']!;
+        } else if (_selectedJewelryType == 'Bracelets') {
+          return JEWELRY_SIZES['Bracelets']!;
+        } else if (_selectedJewelryType == 'Rings') {
+          return JEWELRY_SIZES['Rings']!;
+        }
+        return [];
+      } else if (_selectedSubCategory.endsWith('Hats')) {
+        return HAT_SIZES['US-UK']!;
+      } else if (_selectedSubCategory.endsWith('Belts')) {
+        return BELT_SIZES;
       }
     }
     return [];

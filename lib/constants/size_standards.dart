@@ -117,6 +117,38 @@ const RING_SIZES = {
   ],
 };
 
+const RING_SIZES_US_UK = [
+  'US 3 / UK F',
+  'US 4 / UK H',
+  'US 5 / UK J',
+  'US 6 / UK L',
+  'US 7 / UK N',
+  'US 8 / UK P',
+  'US 9 / UK R',
+  'US 10 / UK T',
+  'US 11 / UK V',
+  'US 12 / UK X',
+  'US 13 / UK Z',
+];
+
+const JEWELRY_SIZES = {
+  'Necklaces': [
+    'Choker (14-16 inches / 35-40 cm)',
+    'Princess (17-19 inches / 43-48 cm)',
+    'Matinee (20-24 inches / 50-60 cm)',
+    'Opera (28-34 inches / 71-86 cm)',
+    'Rope (36-42 inches / 91-107 cm)',
+  ],
+  'Bracelets': [
+    'XS (6.5 inches / 16.5 cm)',
+    'S (7 inches / 17.8 cm)',
+    'M (7.5 inches / 19 cm)',
+    'L (8 inches / 20.3 cm)',
+    'XL (8.5 inches / 21.6 cm)',
+  ],
+  'Rings': RING_SIZES_US_UK,
+};
+
 const HAT_SIZES = {
   'US-UK': [
     'XS (6 7/8 - 7)',
@@ -172,8 +204,9 @@ List<String> getSizesForProduct(String category, String subCategory) {
       }
     }
   } else if (category == 'accessories') {
-    if (subCategoryName == 'Rings' || subCategory.contains('Jewelry')) {
-      return RING_SIZES['US-UK']!;
+    if (subCategoryName == 'Jewelry') {
+      // Show a dialog to select jewelry type first
+      return [...JEWELRY_SIZES['Necklaces']!, ...JEWELRY_SIZES['Bracelets']!, ...JEWELRY_SIZES['Rings']!];
     } else if (subCategoryName == 'Hats') {
       return HAT_SIZES['US-UK']!;
     } else if (subCategoryName == 'Belts') {

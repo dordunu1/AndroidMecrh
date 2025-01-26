@@ -8,6 +8,7 @@ import '../../services/storage_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../constants/size_standards.dart';
 
 const CLOTHING_SUBCATEGORIES = {
   "Men's Wear": [
@@ -219,6 +220,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   bool _hasDiscount = false;
   double _discountPercent = 0.0;
   DateTime? _discountEndsAt;
+  String _selectedJewelryType = '';
 
   bool get isFootwearProduct => 
     _selectedCategory == 'clothing' && 
@@ -239,6 +241,7 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedJewelryType = '';
     _loadProduct();
     // Show color variants by default if product has variants
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -585,6 +588,48 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     });
   }
 
+  List<String> _getAvailableSizes() {
+    if (_selectedCategory == 'clothing') {
+      if (_selectedSubCategory.startsWith("Men's Wear")) {
+        if (_selectedSubCategory.contains('Pants')) {
+          return MENS_CLOTHING_SIZES['Pants & Trousers']!;
+        } else if (_selectedSubCategory.contains('Suits')) {
+          return MENS_CLOTHING_SIZES['Suits']!;
+        }
+        return MENS_CLOTHING_SIZES['Shirts & T-Shirts']!;
+      } else if (_selectedSubCategory.startsWith("Women's Wear")) {
+        if (_selectedSubCategory.contains('Pants') || _selectedSubCategory.contains('Skirts')) {
+          return WOMENS_CLOTHING_SIZES['Pants & Skirts']!;
+        } else if (_selectedSubCategory.contains('Blouses')) {
+          return WOMENS_CLOTHING_SIZES['Blouses']!;
+        }
+        return WOMENS_CLOTHING_SIZES['Dresses & Tops']!;
+      } else if (_selectedSubCategory.startsWith('Footwear')) {
+        final footwearTypes = ['Sneakers', 'Formal Shoes', 'Boots', 'Slippers', 'Sandals'];
+        final type = _selectedSubCategory.split(' - ').last;
+        if (footwearTypes.contains(type)) {
+          return SHOE_SIZES;
+        }
+      }
+    } else if (_selectedCategory == 'accessories') {
+      if (_selectedSubCategory.endsWith('Jewelry')) {
+        if (_selectedJewelryType == 'Necklaces') {
+          return JEWELRY_SIZES['Necklaces']!;
+        } else if (_selectedJewelryType == 'Bracelets') {
+          return JEWELRY_SIZES['Bracelets']!;
+        } else if (_selectedJewelryType == 'Rings') {
+          return JEWELRY_SIZES['Rings']!;
+        }
+        return [];
+      } else if (_selectedSubCategory.endsWith('Hats')) {
+        return HAT_SIZES['US-UK']!;
+      } else if (_selectedSubCategory.endsWith('Belts')) {
+        return BELT_SIZES;
+      }
+    }
+    return [];
+  }
+
   Widget _buildImageGrid() {
     return GridView.builder(
       shrinkWrap: true,
@@ -594,143 +639,9 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
-      itemCount: _existingImages.length + _newImages.length + 1,
+      itemCount: _existingImages.length + _newImages.length + (_existingImages.length + _newImages.length < 10 ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index < _existingImages.length) {
-          // Existing image
-          final imageUrl = _existingImages[index];
-          final color = _imageColors[imageUrl];
-          return Stack(
-            children: [
-              AspectRatio(
-                aspectRatio: 1,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => _removeExistingImage(index),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.all(4),
-                  ),
-                ),
-              ),
-              if (_hasVariants)
-                Positioned(
-                  bottom: 4,
-                  left: 4,
-                  right: 4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            color ?? 'Set Color',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 16, color: Colors.white),
-                          onPressed: () => _showColorEditDialog(imageUrl, false),
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 24,
-                          ),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          );
-        } else if (index < _existingImages.length + _newImages.length) {
-          // New image
-          final newIndex = index - _existingImages.length;
-          final imagePath = _newImages[newIndex].path;
-          final color = _imageColors[imagePath];
-          return Stack(
-            children: [
-              AspectRatio(
-                aspectRatio: 1,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    _newImages[newIndex],
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => _removeNewImage(newIndex),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.all(4),
-                  ),
-                ),
-              ),
-              if (_hasVariants)
-                Positioned(
-                  bottom: 4,
-                  left: 4,
-                  right: 4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            color ?? 'Set Color',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 16, color: Colors.white),
-                          onPressed: () => _showColorEditDialog(imagePath, true),
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 24,
-                          ),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          );
-        } else {
-          // Add image button
+        if (index == _existingImages.length + _newImages.length) {
           return InkWell(
             onTap: _pickImages,
             child: Container(
@@ -738,12 +649,88 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                 border: Border.all(color: Colors.grey),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Center(
-                child: Icon(Icons.add_photo_alternate_outlined, size: 32),
-              ),
+              child: const Icon(Icons.add_photo_alternate),
             ),
           );
         }
+
+        final isExistingImage = index < _existingImages.length;
+        final imageKey = isExistingImage 
+          ? _existingImages[index]
+          : _newImages[index - _existingImages.length].path;
+        final color = _imageColors[imageKey];
+
+        return Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: isExistingImage
+                ? CachedNetworkImage(
+                    imageUrl: _existingImages[index],
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(Icons.error),
+                  )
+                : Image.file(
+                    _newImages[index - _existingImages.length],
+                    fit: BoxFit.cover,
+                  ),
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () => _showColorEditDialog(imageKey, !isExistingImage),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.all(4),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20),
+                    onPressed: () => isExistingImage 
+                      ? _removeExistingImage(index)
+                      : _removeNewImage(index - _existingImages.length),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.all(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (color != null)
+              Positioned(
+                bottom: 4,
+                left: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    color,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
       },
     );
   }
@@ -1091,207 +1078,77 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                           ],
                         ),
                     ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Price and Discount Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Price & Discount',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Price Field
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _priceController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Price',
-                              hintText: '0.00',
-                              prefixText: 'GHS ',
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter a price';
-                              }
-                              if (double.tryParse(value) == null) {
-                                return 'Please enter a valid number';
-                              }
-                              if (double.parse(value) <= 0) {
-                                return 'Price must be greater than 0';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Discount Switch
-                    Row(
-                      children: [
-                        Text(
-                          'Apply Discount',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(width: 16),
-                        Switch(
-                          value: _hasDiscount,
-                          onChanged: (value) {
-                            setState(() {
-                              _hasDiscount = value;
-                              _markFieldAsChanged('hasDiscount');
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-
-                    if (_hasDiscount) ...[
-                      const SizedBox(height: 16),
-                      
-                      // Discount Percentage
-                      Row(
+                    // Size Variants
+                    if (_selectedCategory == 'clothing' || 
+                        _selectedCategory == 'accessories' ||
+                        _selectedSubCategory.contains('Footwear'))
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _discountPercentController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Discount Percentage',
-                                border: OutlineInputBorder(),
-                                suffixText: '%',
-                              ),
-                              onChanged: (value) {
-                                setState(() {
-                                  _discountPercent = double.tryParse(value) ?? 0;
-                                  _markFieldAsChanged('discountPercent');
-                                });
-                              },
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter discount percentage';
-                                }
-                                final discount = double.tryParse(value);
-                                if (discount == null) {
-                                  return 'Please enter a valid number';
-                                }
-                                if (discount <= 0 || discount >= 100) {
-                                  return 'Discount must be between 0 and 100';
-                                }
-                                return null;
-                              },
-                            ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Available Sizes',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _getAvailableSizes()
+                              .map((size) => FilterChip(
+                                selected: _selectedSizes.contains(size),
+                                label: Text(size),
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedSizes.add(size);
+                                    } else {
+                                      _selectedSizes.remove(size);
+                                    }
+                                  });
+                                },
+                              ))
+                              .toList(),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-
-                      // Discount End Date
-                      InkWell(
-                        onTap: () async {
-                          final now = DateTime.now();
-                          final date = await showDatePicker(
+                    if (_selectedSubCategory.endsWith('Jewelry')) ...[
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: Text(_selectedJewelryType.isEmpty ? 'Select Type' : _selectedJewelryType),
+                        onPressed: () async {
+                          final result = await showDialog<String>(
                             context: context,
-                            initialDate: _discountEndsAt ?? now.add(const Duration(days: 1)),
-                            firstDate: now,
-                            lastDate: now.add(const Duration(days: 365)),
+                            builder: (context) => AlertDialog(
+                              title: const Text('Select Jewelry Type'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ListTile(
+                                    title: const Text('Necklaces'),
+                                    onTap: () => Navigator.pop(context, 'Necklaces'),
+                                  ),
+                                  ListTile(
+                                    title: const Text('Bracelets'),
+                                    onTap: () => Navigator.pop(context, 'Bracelets'),
+                                  ),
+                                  ListTile(
+                                    title: const Text('Rings'),
+                                    onTap: () => Navigator.pop(context, 'Rings'),
+                                  ),
+                                ],
+                              ),
+                            ),
                           );
-                          
-                          if (date != null) {
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(_discountEndsAt ?? now.add(const Duration(days: 1))),
-                            );
-                            
-                            if (time != null) {
-                              setState(() {
-                                _discountEndsAt = DateTime(
-                                  date.year,
-                                  date.month,
-                                  date.day,
-                                  time.hour,
-                                  time.minute,
-                                );
-                                _discountEndsAtController.text = _discountEndsAt!.toIso8601String();
-                              });
-                            }
+                          if (result != null) {
+                            setState(() {
+                              _selectedJewelryType = result;
+                              _selectedSizes = [];
+                            });
                           }
                         },
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Discount Ends At',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: Icon(
-                              Icons.calendar_today,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          child: Text(
-                            _discountEndsAt != null
-                                ? DateFormat('yyyy-MM-dd HH:mm').format(_discountEndsAt!)
-                                : 'Select date and time',
-                          ),
-                        ),
                       ),
-
-                      // Discounted Price Preview
-                      if (_discountPercent > 0 && double.tryParse(_priceController.text) != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Original Price:'),
-                                  Text(
-                                    'GHS ${double.parse(_priceController.text)}',
-                                    style: const TextStyle(
-                                      decoration: TextDecoration.lineThrough,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Discounted Price:',
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    'GHS ${(double.parse(_priceController.text) * (1 - _discountPercent / 100)).toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ],
                   ],
                 ),
