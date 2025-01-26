@@ -8,6 +8,7 @@ import '../../services/review_service.dart';
 import '../../models/review.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../models/user.dart';
+import '../../models/seller.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
 import '../../providers/cart_provider.dart';
@@ -45,6 +46,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   String? _sellerCity;
   String? _sellerCountry;
   String? _selectedColor;
+  Seller? _seller;
 
   @override
   void initState() {
@@ -62,6 +64,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
       final seller = await ref.read(sellerServiceProvider).getSellerProfileById(widget.product.sellerId);
       if (seller != null) {
         setState(() {
+          _seller = seller;
           _sellerCity = seller.city;
           _sellerCountry = seller.country;
         });
@@ -409,7 +412,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          widget.product.sellerName,
+                                          _seller?.storeName ?? 'Loading...',
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: theme.colorScheme.primary,
                                           ),
@@ -436,7 +439,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                                   MaterialPageRoute(
                                                     builder: (context) => ChatScreen(
                                                       conversationId: conversationId,
-                                                      otherUserName: widget.product.sellerName,
+                                                      otherUserName: _seller?.storeName ?? 'Store',
                                                       productId: widget.product.id,
                                                     ),
                                                   ),

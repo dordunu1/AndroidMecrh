@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart';
 import '../../models/cart_item.dart';
+import '../../models/seller.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/seller_service.dart';
@@ -20,11 +21,34 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isLoading = false;
   Set<String> _selectedItems = {};
   Map<String, double> _sellerShippingFees = {};
+  Map<String, Seller?> _sellers = {};
 
   @override
   void initState() {
     super.initState();
-    _calculateShippingFees();
+    _loadSellersAndFees();
+  }
+
+  Future<void> _loadSellersAndFees() async {
+    setState(() => _isLoading = true);
+    try {
+      final cartItems = ref.read(cartProvider);
+      
+      // Load sellers
+      final sellerIds = cartItems.map((item) => item.product.sellerId).toSet();
+      for (final sellerId in sellerIds) {
+        final seller = await ref.read(sellerServiceProvider).getSellerProfileById(sellerId);
+        setState(() {
+          _sellers[sellerId] = seller;
+        });
+      }
+
+      await _calculateShippingFees();
+    } catch (e) {
+      print('Error loading sellers: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _calculateShippingFees() async {
@@ -213,7 +237,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    firstItem.product.sellerName,
+                                    _sellers[sellerId]?.storeName ?? 'Loading...',
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color: theme.colorScheme.primary,
                                     ),
