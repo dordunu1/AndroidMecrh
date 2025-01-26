@@ -41,7 +41,7 @@ class MerchApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.darkTheme(),
-        themeMode: ThemeMode.light,
+        themeMode: themeMode,
         initialRoute: Routes.splash,
         routes: Routes.getRoutes(),
       ),
