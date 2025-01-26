@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../models/seller.dart';
 import '../../services/seller_service.dart';
 import '../../services/storage_service.dart';
@@ -24,6 +26,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
   String? _error;
   Seller? _seller;
   String? _sellerStatus;
+  bool _isFollowing = false;
 
   final Map<String, double> _shippingFees = {
     'Accra': 15.0,
@@ -111,14 +114,15 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     });
 
     try {
-      // Load the seller profile first
       final seller = await ref.read(sellerServiceProvider).getSellerProfile();
       final status = await ref.read(sellerServiceProvider).getSellerStatus();
+      final currentUser = await ref.read(authServiceProvider).getCurrentUser();
       
       if (mounted) {
         setState(() {
           _seller = seller;
           _sellerStatus = status;
+          _isFollowing = seller.followers.contains(currentUser?.id);
           _isLoading = false;
         });
       }
@@ -132,6 +136,84 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     }
   }
 
+  Future<void> _toggleFollow() async {
+    try {
+      setState(() => _isLoading = true);
+      
+      if (_isFollowing) {
+        await ref.read(sellerServiceProvider).unfollowSeller(_seller!.id);
+      } else {
+        await ref.read(sellerServiceProvider).followSeller(_seller!.id);
+      }
+
+      await _loadSellerProfile();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _openMap() async {
+    if (_seller?.latitude == null || _seller?.longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Store location is not available')),
+      );
+      return;
+    }
+
+    final url = 'https://www.google.com/maps/search/?api=1&query=${_seller!.latitude},${_seller!.longitude}';
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open map')),
+        );
+      }
+    }
+  }
+
+  Widget _buildLocationSection() {
+    if (_seller?.latitude == null || _seller?.longitude == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: ListTile(
+        leading: const Icon(Icons.location_on),
+        title: const Text('Store Location'),
+        subtitle: Text(_seller?.address ?? 'Location available'),
+        trailing: IconButton(
+          icon: const Icon(Icons.map),
+          onPressed: _openMap,
+        ),
+        onTap: _openMap,
+      ),
+    );
+  }
+
+  Widget _buildFollowSection() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: ListTile(
+        leading: const FaIcon(FontAwesomeIcons.users),
+        title: Text('${_seller?.followersCount ?? 0} Followers'),
+        trailing: CustomButton(
+          onPressed: _isLoading ? null : _toggleFollow,
+          text: _isFollowing ? 'Unfollow' : 'Follow',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -142,7 +224,6 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Show error message if there's an error
     if (_error != null) {
       return Scaffold(
         body: SafeArea(
@@ -196,7 +277,6 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
       );
     }
 
-    // Show profile screen if seller profile exists
     return Scaffold(
       body: SafeArea(
         child: ListView(
@@ -205,34 +285,105 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: colorScheme.primary,
-                    backgroundImage: _seller?.logo != null
-                        ? NetworkImage(_seller!.logo!)
-                        : null,
-                    child: _seller?.logo == null
-                        ? Icon(
-                            Icons.store,
-                            size: 40,
-                            color: colorScheme.onPrimary,
-                          )
-                        : null,
+                  // Profile Header with Avatar and Follow Button
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: colorScheme.primary,
+                        backgroundImage: _seller?.logo != null
+                            ? NetworkImage(_seller!.logo!)
+                            : null,
+                        child: _seller?.logo == null
+                            ? Icon(
+                                Icons.store,
+                                size: 40,
+                                color: colorScheme.onPrimary,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _seller?.storeName ?? '',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _seller?.email ?? '',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      CustomButton(
+                        onPressed: _isLoading ? null : _toggleFollow,
+                        text: _isFollowing ? 'Unfollow' : 'Follow',
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    _seller?.storeName ?? '',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  
+                  // Store Description
+                  if (_seller?.description != null && _seller!.description.isNotEmpty)
+                    Text(
+                      _seller!.description,
+                      style: theme.textTheme.bodyLarge,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _seller?.email ?? '',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.6),
-                    ),
+                  const SizedBox(height: 16),
+
+                  // Store Stats
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.star,
+                        size: 16,
+                        color: colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${_seller?.averageRating ?? 0.0} Rating',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Icon(
+                        Icons.reviews,
+                        size: 16,
+                        color: colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${_seller?.reviewCount ?? 0} Reviews',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      FaIcon(
+                        FontAwesomeIcons.users,
+                        size: 14,
+                        color: colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${_seller?.followersCount ?? 0} Followers',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
                   ),
                   if (_sellerStatus != null && _sellerStatus != 'approved') ...[
                     const SizedBox(height: 16),
@@ -263,6 +414,9 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
                 ],
               ),
             ),
+
+            // Location Section
+            _buildLocationSection(),
 
             // Store Settings Section
             Padding(

@@ -24,6 +24,10 @@ class Seller {
   final double shippingFee;
   final String? shippingInfo;
   final String? paymentInfo;
+  final double? latitude;
+  final double? longitude;
+  final int followersCount;
+  final List<String> followers;
 
   Seller({
     required this.id,
@@ -49,6 +53,10 @@ class Seller {
     this.shippingFee = 0.0,
     this.shippingInfo,
     this.paymentInfo,
+    this.latitude,
+    this.longitude,
+    this.followersCount = 0,
+    this.followers = const [],
   });
 
   factory Seller.fromMap(Map<String, dynamic> map, String id) {
@@ -76,6 +84,10 @@ class Seller {
       shippingFee: (map['shippingFee'] ?? 0.0).toDouble(),
       shippingInfo: map['shippingInfo'],
       paymentInfo: map['paymentInfo'],
+      latitude: map['latitude']?.toDouble(),
+      longitude: map['longitude']?.toDouble(),
+      followersCount: map['followersCount'] ?? 0,
+      followers: List<String>.from(map['followers'] ?? []),
     );
   }
 
@@ -103,6 +115,10 @@ class Seller {
       'shippingFee': shippingFee,
       'shippingInfo': shippingInfo,
       'paymentInfo': paymentInfo,
+      'latitude': latitude,
+      'longitude': longitude,
+      'followersCount': followersCount,
+      'followers': followers,
     };
   }
 
@@ -130,6 +146,10 @@ class Seller {
     double? shippingFee,
     String? shippingInfo,
     String? paymentInfo,
+    double? latitude,
+    double? longitude,
+    int? followersCount,
+    List<String>? followers,
   }) {
     return Seller(
       id: id ?? this.id,
@@ -155,6 +175,10 @@ class Seller {
       shippingFee: shippingFee ?? this.shippingFee,
       shippingInfo: shippingInfo ?? this.shippingInfo,
       paymentInfo: paymentInfo ?? this.paymentInfo,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      followersCount: followersCount ?? this.followersCount,
+      followers: followers ?? this.followers,
     );
   }
 } 

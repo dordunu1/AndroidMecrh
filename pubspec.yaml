@@ -33,6 +33,9 @@ dependencies:
   http: ^1.1.2
   uuid: ^4.2.2
   webview_flutter: ^4.4.2
+  geolocator: ^10.1.0
+  permission_handler: ^11.0.1
+  font_awesome_flutter: ^10.6.0
 
 dev_dependencies:
   flutter_test:

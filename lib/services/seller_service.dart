@@ -614,38 +614,48 @@ class SellerService {
     }
   }
 
-  Future<void> verifyPayment(String reference, Map<String, dynamic> sellerData) async {
-    final user = _auth.currentUser;
-    if (user == null) throw Exception('User not authenticated');
+  Future<void> verifyPayment(String reference, Map<String, dynamic> metadata) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw 'User not authenticated';
 
-    // Create seller profile
-    await _firestore.collection('sellers').doc(user.uid).set({
-      'userId': user.uid,
-      'email': user.email,
-      'storeName': sellerData['storeName'] ?? 'My Store',
-      'description': sellerData['storeDescription'] ?? '',
-      'address': '',
-      'city': '',
-      'state': '',
-      'country': sellerData['country'] ?? '',
-      'zip': '',
-      'phone': '',
-      'shippingInfo': sellerData['shippingInfo'] ?? '',
-      'paymentInfo': sellerData['paymentInfo'] ?? '',
-      'isVerified': false,
-      'createdAt': DateTime.now().toIso8601String(),
-      'updatedAt': DateTime.now().toIso8601String(),
-      'balance': 0.0,
-      'averageRating': 0.0,
-      'reviewCount': 0,
-    });
+    final sellerId = currentUser.uid;
+    final sellerRef = _firestore.collection('sellers').doc(sellerId);
+    final userRef = _firestore.collection('users').doc(sellerId);
+
+    final batch = _firestore.batch();
+
+    final seller = Seller(
+      id: sellerId,
+      userId: currentUser.uid,
+      storeName: metadata['storeName'] ?? '',
+      description: metadata['storeDescription'] ?? '',
+      address: metadata['address'] ?? '',
+      city: '',
+      state: '',
+      country: metadata['country'] ?? '',
+      zip: '',
+      phone: '',
+      email: currentUser.email ?? '',
+      createdAt: DateTime.now().toIso8601String(),
+      shippingInfo: metadata['shippingInfo'] ?? '',
+      paymentInfo: metadata['paymentInfo'] ?? '',
+      latitude: metadata['latitude']?.toDouble(),
+      longitude: metadata['longitude']?.toDouble(),
+      followers: [],
+      followersCount: 0,
+    );
+
+    // Update seller document
+    batch.set(sellerRef, seller.toMap());
 
     // Update user document to mark as seller
-    await _firestore.collection('users').doc(user.uid).update({
+    batch.update(userRef, {
       'isSeller': true,
-      'sellerId': user.uid,
-      'sellerSince': FieldValue.serverTimestamp(),
+      'sellerId': sellerId,
+      'updatedAt': DateTime.now().toIso8601String(),
     });
+
+    await batch.commit();
   }
 
   Future<List<MerchUser>> getSellersByIds(List<String> sellerIds) async {
@@ -692,5 +702,51 @@ class SellerService {
       print('Failed to get seller profile: $e');
       return null;
     }
+  }
+
+  Future<void> followSeller(String sellerId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw 'User not authenticated';
+
+    final sellerRef = _firestore.collection('sellers').doc(sellerId);
+    final sellerDoc = await sellerRef.get();
+    
+    if (!sellerDoc.exists) throw 'Seller not found';
+
+    await _firestore.runTransaction((transaction) async {
+      final seller = Seller.fromMap(sellerDoc.data()!, sellerId);
+      final updatedFollowers = List<String>.from(seller.followers);
+      
+      if (!updatedFollowers.contains(currentUser.uid)) {
+        updatedFollowers.add(currentUser.uid);
+        transaction.update(sellerRef, {
+          'followers': updatedFollowers,
+          'followersCount': FieldValue.increment(1),
+        });
+      }
+    });
+  }
+
+  Future<void> unfollowSeller(String sellerId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw 'User not authenticated';
+
+    final sellerRef = _firestore.collection('sellers').doc(sellerId);
+    final sellerDoc = await sellerRef.get();
+    
+    if (!sellerDoc.exists) throw 'Seller not found';
+
+    await _firestore.runTransaction((transaction) async {
+      final seller = Seller.fromMap(sellerDoc.data()!, sellerId);
+      final updatedFollowers = List<String>.from(seller.followers);
+      
+      if (updatedFollowers.contains(currentUser.uid)) {
+        updatedFollowers.remove(currentUser.uid);
+        transaction.update(sellerRef, {
+          'followers': updatedFollowers,
+          'followersCount': FieldValue.increment(-1),
+        });
+      }
+    });
   }
 } 
