@@ -136,6 +136,14 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     if (!mounted) return;
 
     try {
+      // Validate size selection if product has sizes
+      if (widget.product.sizes.isNotEmpty && (_selectedSize == null || _selectedSize!.isEmpty)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a size')),
+        );
+        return;
+      }
+
       // Get the color-specific image URL by finding the image URL (key) that maps to the selected color (value)
       String? colorImage;
       String? finalColor = _selectedColor;
@@ -177,7 +185,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         finalColor = firstColorEntry.value;
       }
 
-      print('Adding to cart - Color: $finalColor, Image: $colorImage'); // Debug print
+      print('Adding to cart - Color: $finalColor, Image: $colorImage, Size: $_selectedSize'); // Debug print
 
       ref.read(cartProvider.notifier).addToCart(
         CartItem(
@@ -191,7 +199,10 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Added to cart')),
+          const SnackBar(
+            content: Text('Added to cart'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {

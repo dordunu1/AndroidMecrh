@@ -1173,15 +1173,23 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       // Upload images
       final storageService = ref.read(storageServiceProvider);
       final imageUrls = <String>[];
+      final newImageColors = <String, String>{};
       
       for (var i = 0; i < _selectedImages.length; i++) {
         setState(() {
           _uploadStatus = 'Uploading image ${i + 1} of ${_selectedImages.length}';
-          _uploadProgress = (i / _selectedImages.length) * 50; // First 50% for images
+          _uploadProgress = (i / _selectedImages.length) * 40; // First 40% for images
         });
         
-        final url = await storageService.uploadProductImage(_selectedImages[i]);
+        final file = _selectedImages[i];
+        final url = await storageService.uploadProductImage(file);
         imageUrls.add(url);
+        
+        // Transfer the color from local path to uploaded URL
+        final color = _imageColors[file.path];
+        if (color != null) {
+          newImageColors[url] = color;
+        }
       }
 
       setState(() {
@@ -1189,7 +1197,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         _uploadProgress = 50; // Next 50% for product creation
       });
 
-      // Create product
+      // Create product with updated image colors
       final product = Product(
         id: '',  // Will be set by Firestore
         sellerId: ref.read(authServiceProvider).currentUser?.uid ?? '',
@@ -1207,9 +1215,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         createdAt: DateTime.now().toIso8601String(),
         hasVariants: _hasVariants,
         sizes: _selectedSizes,
-        colors: _imageColors.values.toList(),
+        colors: newImageColors.values.toList(),
         colorQuantities: _colorQuantities,
-        imageColors: _imageColors,
+        imageColors: newImageColors,
         hasDiscount: _hasDiscount,
         discountPercent: _discountPercent,
         discountEndsAt: _discountEndsAt,

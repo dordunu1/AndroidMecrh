@@ -294,6 +294,16 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
             _discountEndsAtController.text = DateFormat('yyyy-MM-dd').format(_discountEndsAt!);
           }
         }
+        // Load jewelry type if it exists
+        if (_selectedSubCategory.endsWith('Jewelry') && _selectedSizes.isNotEmpty) {
+          if (_selectedSizes.any((size) => size.contains('inches'))) {
+            _selectedJewelryType = 'Necklaces';
+          } else if (_selectedSizes.any((size) => size.contains('cm'))) {
+            _selectedJewelryType = 'Bracelets';
+          } else {
+            _selectedJewelryType = 'Rings';
+          }
+        }
         _isLoading = false;
       });
     } catch (e) {
@@ -1001,7 +1011,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                             setState(() {
                               _hasVariants = value;
                               if (!value) {
-                                _selectedSizes = [];
                                 _colorQuantities = {};
                                 _imageColors = {};
                               }
@@ -1078,82 +1087,100 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                           ],
                         ),
                     ],
-                    // Size Variants
-                    if (_selectedCategory == 'clothing' || 
-                        _selectedCategory == 'accessories' ||
-                        _selectedSubCategory.contains('Footwear'))
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 16),
-                          Text(
-                            'Available Sizes',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _getAvailableSizes()
-                              .map((size) => FilterChip(
-                                selected: _selectedSizes.contains(size),
-                                label: Text(size),
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedSizes.add(size);
-                                    } else {
-                                      _selectedSizes.remove(size);
-                                    }
-                                  });
-                                },
-                              ))
-                              .toList(),
-                          ),
-                        ],
-                      ),
-                    if (_selectedSubCategory.endsWith('Jewelry')) ...[
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        icon: const Icon(Icons.edit, size: 16),
-                        label: Text(_selectedJewelryType.isEmpty ? 'Select Type' : _selectedJewelryType),
-                        onPressed: () async {
-                          final result = await showDialog<String>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Select Jewelry Type'),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ListTile(
-                                    title: const Text('Necklaces'),
-                                    onTap: () => Navigator.pop(context, 'Necklaces'),
-                                  ),
-                                  ListTile(
-                                    title: const Text('Bracelets'),
-                                    onTap: () => Navigator.pop(context, 'Bracelets'),
-                                  ),
-                                  ListTile(
-                                    title: const Text('Rings'),
-                                    onTap: () => Navigator.pop(context, 'Rings'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                          if (result != null) {
-                            setState(() {
-                              _selectedJewelryType = result;
-                              _selectedSizes = [];
-                            });
-                          }
-                        },
-                      ),
-                    ],
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Size Section (Moved outside variants card)
+            if (_selectedCategory == 'clothing' || 
+                _selectedCategory == 'accessories' ||
+                _selectedSubCategory.contains('Footwear'))
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Available Sizes',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (_selectedSubCategory.endsWith('Jewelry')) ...[
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              icon: const Icon(Icons.edit, size: 16),
+                              label: Text(_selectedJewelryType.isEmpty ? 'Select Type' : _selectedJewelryType),
+                              onPressed: () async {
+                                final result = await showDialog<String>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Select Jewelry Type'),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ListTile(
+                                          title: const Text('Necklaces'),
+                                          onTap: () => Navigator.pop(context, 'Necklaces'),
+                                        ),
+                                        ListTile(
+                                          title: const Text('Bracelets'),
+                                          onTap: () => Navigator.pop(context, 'Bracelets'),
+                                        ),
+                                        ListTile(
+                                          title: const Text('Rings'),
+                                          onTap: () => Navigator.pop(context, 'Rings'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                                if (result != null) {
+                                  setState(() {
+                                    _selectedJewelryType = result;
+                                    // Only clear sizes if changing jewelry type
+                                    if (_selectedSizes.isNotEmpty) {
+                                      final currentType = _selectedSizes.first.contains('inches') ? 'Necklaces' :
+                                                        _selectedSizes.first.contains('cm') ? 'Bracelets' : 'Rings';
+                                      if (currentType != result) {
+                                        _selectedSizes = [];
+                                      }
+                                    }
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _getAvailableSizes()
+                          .map((size) => FilterChip(
+                            selected: _selectedSizes.contains(size),
+                            label: Text(size),
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedSizes.add(size);
+                                } else {
+                                  _selectedSizes.remove(size);
+                                }
+                                _markFieldAsChanged('sizes');
+                              });
+                            },
+                          ))
+                          .toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
