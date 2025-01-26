@@ -14,6 +14,7 @@ class Order {
   final DateTime? updatedAt;
   final String? trackingNumber;
   final String? shippingCarrier;
+  final double deliveryFee;
 
   Order({
     required this.id,
@@ -26,6 +27,7 @@ class Order {
     required this.total,
     required this.status,
     required this.createdAt,
+    required this.deliveryFee,
     this.updatedAt,
     this.trackingNumber,
     this.shippingCarrier,
@@ -77,6 +79,7 @@ class Order {
       updatedAt: map['updatedAt'] != null ? parseDateTime(map['updatedAt']) : null,
       trackingNumber: map['trackingNumber'] as String?,
       shippingCarrier: map['shippingCarrier'] as String?,
+      deliveryFee: (map['deliveryFee'] ?? map['shippingFee'] ?? 0.0).toDouble(),
     );
   }
 
@@ -94,6 +97,7 @@ class Order {
       'updatedAt': updatedAt?.toIso8601String(),
       'trackingNumber': trackingNumber,
       'shippingCarrier': shippingCarrier,
+      'deliveryFee': deliveryFee,
     };
   }
 }

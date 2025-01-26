@@ -359,7 +359,7 @@ class _OrderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '\$${order.total.toStringAsFixed(2)}',
+                  'GHS ${order.total.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -369,6 +369,11 @@ class _OrderCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Created on ${_formatDate(order.createdAt)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Delivery Fee: GHS ${order.deliveryFee.toStringAsFixed(2)}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -396,7 +401,7 @@ class _OrderCard extends StatelessWidget {
                     child: Text(item.productName),
                   ),
                   Text(
-                    '\$${(item.price * item.quantity).toStringAsFixed(2)}',
+                    'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),

@@ -320,18 +320,29 @@ class BuyerService {
         // Calculate shipping fee based on location
         double shippingFee = 0.0;
         print('Calculating shipping fee:');
-        print('  - Buyer country: ${buyer.country?.toLowerCase()}');
+        print('  - Buyer country: ${address.country.toLowerCase()}');
         print('  - Seller country: ${sellerDoc.data()!['country']?.toLowerCase()}');
-        print('  - Buyer city: ${buyer.city?.toLowerCase()}');
+        print('  - Buyer city: ${address.city.toLowerCase()}');
         print('  - Seller city: ${sellerDoc.data()!['city']?.toLowerCase()}');
         
-        if (buyer.country?.toLowerCase() != 'ghana' || sellerDoc.data()!['country']?.toLowerCase() != 'ghana') {
+        final buyerCountry = address.country.toLowerCase().trim();
+        final sellerCountry = sellerDoc.data()!['country']?.toLowerCase().trim() ?? '';
+        final buyerCity = address.city.toLowerCase().trim();
+        final sellerCity = sellerDoc.data()!['city']?.toLowerCase().trim() ?? '';
+        
+        print('After trimming:');
+        print('  - Buyer country: "$buyerCountry"');
+        print('  - Seller country: "$sellerCountry"');
+        print('  - Buyer city: "$buyerCity"');
+        print('  - Seller city: "$sellerCity"');
+        
+        if (buyerCountry != 'ghana' || sellerCountry != 'ghana') {
           shippingFee = 1.0; // International shipping
-          print('  - International shipping fee: $shippingFee');
+          print('  - International shipping fee: $shippingFee (countries do not match ghana)');
         } else {
           // Local shipping
-          shippingFee = (buyer.city?.toLowerCase() == sellerDoc.data()!['city']?.toLowerCase()) ? 0.5 : 0.7;
-          print('  - Local shipping fee: $shippingFee');
+          shippingFee = (buyerCity == sellerCity) ? 0.5 : 0.7;
+          print('  - Local shipping fee: $shippingFee (same city: ${buyerCity == sellerCity})');
         }
 
         // Add extra fee if more than 5 items
@@ -371,7 +382,7 @@ class BuyerService {
             'selectedColorImage': item.selectedColorImage,
           }).toList(),
           'total': total,
-          'shippingFee': shippingFee,
+          'deliveryFee': shippingFee,
           'status': 'processing',
           'shippingAddress': address.toMap(),
           'createdAt': DateTime.now().toIso8601String(),
