@@ -5,7 +5,7 @@ class CustomTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
   final String? hint;
-  final String? helper;
+  final String? helperText;
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
   final bool obscureText;
@@ -32,7 +32,7 @@ class CustomTextField extends StatelessWidget {
     this.controller,
     this.label,
     this.hint,
-    this.helper,
+    this.helperText,
     this.validator,
     this.keyboardType,
     this.obscureText = false,
@@ -64,7 +64,8 @@ class CustomTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        helperText: helper,
+        helperText: helperText,
+        helperMaxLines: 2,
         errorText: errorText,
         suffixIcon: suffixIcon,
         prefixIcon: prefixIcon,

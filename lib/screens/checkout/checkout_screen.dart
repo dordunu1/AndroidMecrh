@@ -4,7 +4,7 @@ import '../../models/cart_item.dart';
 import '../../models/shipping_address.dart';
 import '../../services/cart_service.dart';
 import '../../services/order_service.dart';
-import '../../services/auth_service.dart';
+import '../../services/buyer_service.dart';
 import '../../services/payment_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
@@ -27,8 +27,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _isLoading = true;
   bool _isProcessing = false;
   List<CartItem> _items = [];
-  List<ShippingAddress> _savedAddresses = [];
-  ShippingAddress? _selectedAddress;
   String? _error;
 
   @override
@@ -56,24 +54,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     try {
       final items = await ref.read(cartServiceProvider).getCartItems();
-      final user = await ref.read(authServiceProvider).getCurrentUser();
+      final user = await ref.read(buyerServiceProvider).getCurrentUser();
 
       if (mounted) {
         setState(() {
           _items = items;
-          _savedAddresses = user?.shippingAddresses ?? [];
-          _selectedAddress = user?.defaultShippingAddress;
+          _addressController.text = user.address;
+          _cityController.text = user.city;
+          _stateController.text = user.state;
+          _zipController.text = user.zip;
+          _countryController.text = user.country;
+          _phoneController.text = user.phone;
           _isLoading = false;
         });
-
-        if (_selectedAddress != null) {
-          _addressController.text = _selectedAddress!.address;
-          _cityController.text = _selectedAddress!.city;
-          _stateController.text = _selectedAddress!.state;
-          _zipController.text = _selectedAddress!.zip;
-          _countryController.text = _selectedAddress!.country;
-          _phoneController.text = _selectedAddress!.phone;
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -96,20 +89,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     print('Setting processing state');
 
     try {
-      final address = ShippingAddress(
-        id: _selectedAddress?.id ?? '',
-        address: _addressController.text,
-        city: _cityController.text,
-        state: _stateController.text,
-        zip: _zipController.text,
-        country: _countryController.text,
-        phone: _phoneController.text,
-      );
-      print('Created shipping address');
-
       // Get current user
-      final user = await ref.read(authServiceProvider).currentUser;
-      print('Current user: ${user?.email}');
+      final user = await ref.read(buyerServiceProvider).getCurrentUser();
+      print('Current user: ${user.email}');
       if (user == null) throw Exception('User not authenticated');
 
       // Generate reference
@@ -129,7 +111,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             'name': item.product.name,
             'quantity': item.quantity,
           }).toList(),
-          'shippingAddress': address.toMap(),
+          'shippingAddress': {
+            'name': user.name,
+            'street': _addressController.text,
+            'city': _cityController.text,
+            'state': _stateController.text,
+            'zipCode': _zipController.text,
+            'country': _countryController.text,
+            'phone': _phoneController.text,
+          },
         },
       );
       print('Got payment URL: $paymentUrl');
@@ -151,7 +141,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       print('Creating order...');
       final order = await ref.read(orderServiceProvider).createOrder(
         items: _items,
-        shippingAddress: address,
+        shippingAddress: {
+          'name': user.name,
+          'street': _addressController.text,
+          'city': _cityController.text,
+          'state': _stateController.text,
+          'zipCode': _zipController.text,
+          'country': _countryController.text,
+          'phone': _phoneController.text,
+        },
       );
       print('Order created successfully');
 
@@ -283,83 +281,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Saved Addresses
-                  if (_savedAddresses.isNotEmpty) ...[
-                    Text(
-                      'Saved Addresses',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _savedAddresses.length,
-                        separatorBuilder: (context, index) => const SizedBox(width: 16),
-                        itemBuilder: (context, index) {
-                          final address = _savedAddresses[index];
-                          final isSelected = _selectedAddress?.id == address.id;
-
-                          return InkWell(
-                            onTap: () {
-                              setState(() {
-                                _selectedAddress = address;
-                                _addressController.text = address.address;
-                                _cityController.text = address.city;
-                                _stateController.text = address.state;
-                                _zipController.text = address.zip;
-                                _countryController.text = address.country;
-                                _phoneController.text = address.phone;
-                              });
-                            },
-                            child: Container(
-                              width: 200,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? theme.colorScheme.primary.withOpacity(0.1)
-                                    : null,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.outline.withOpacity(0.2),
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    address.address,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${address.city}, ${address.state}',
-                                    style: theme.textTheme.bodySmall,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    '${address.zip}, ${address.country}',
-                                    style: theme.textTheme.bodySmall,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
 
                   // Shipping Address
                   Text(

@@ -70,7 +70,7 @@ class AuthService {
         password: password,
       );
       
-      // Create user profile in Firestore
+      // Create user profile in Firestore with only essential fields
       await _firestore.collection('users').doc(credential.user!.uid).set({
         'email': email.trim(),
         'name': email.split('@')[0], // Default name from email
@@ -79,15 +79,6 @@ class AuthService {
         'isAdmin': false,
         'isSeller': false,
         'isBuyer': true,
-        'sellerId': null,
-        'sellerSince': null,
-        'address': '',
-        'city': '',
-        'state': '',
-        'country': '',
-        'zip': '',
-        'shippingAddresses': [],
-        'defaultShippingAddress': null,
         'createdAt': FieldValue.serverTimestamp(),
         'lastLoginAt': FieldValue.serverTimestamp(),
         'preferences': {},
@@ -197,27 +188,20 @@ class AuthService {
 
   Future<UserCredential> signInWithGoogle() async {
     try {
-      // Create a new Google Sign-In instance
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) throw Exception('Google Sign-In cancelled');
 
-      // Get authentication details from request
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-      // Create credential
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in with Firebase
       final userCredential = await _auth.signInWithCredential(credential);
-
-      // Check if this is a new user
       final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
       
       if (!userDoc.exists) {
-        // Create new user profile in Firestore
+        // Create new user profile in Firestore with only essential fields
         await _firestore.collection('users').doc(userCredential.user!.uid).set({
           'email': userCredential.user!.email,
           'name': userCredential.user!.displayName ?? userCredential.user!.email!.split('@')[0],
@@ -226,21 +210,11 @@ class AuthService {
           'isAdmin': false,
           'isSeller': false,
           'isBuyer': true,
-          'sellerId': null,
-          'sellerSince': null,
-          'address': '',
-          'city': '',
-          'state': '',
-          'country': '',
-          'zip': '',
-          'shippingAddresses': [],
-          'defaultShippingAddress': null,
           'createdAt': FieldValue.serverTimestamp(),
           'lastLoginAt': FieldValue.serverTimestamp(),
           'preferences': {},
         });
       } else {
-        // Only update lastLoginAt for existing users
         await _firestore.collection('users').doc(userCredential.user!.uid).update({
           'lastLoginAt': FieldValue.serverTimestamp(),
         });

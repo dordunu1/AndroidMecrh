@@ -54,6 +54,13 @@ class Order {
   String get flag => status;
 
   factory Order.fromMap(Map<String, dynamic> map, String id) {
+    DateTime parseDateTime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
     return Order(
       id: id,
       buyerId: map['buyerId'] as String,
@@ -66,8 +73,8 @@ class Order {
       ),
       total: (map['total'] as num).toDouble(),
       status: map['status'] as String,
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt'] as String) : null,
+      createdAt: parseDateTime(map['createdAt']),
+      updatedAt: map['updatedAt'] != null ? parseDateTime(map['updatedAt']) : null,
       trackingNumber: map['trackingNumber'] as String?,
       shippingCarrier: map['shippingCarrier'] as String?,
     );

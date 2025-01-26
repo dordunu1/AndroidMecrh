@@ -4,6 +4,7 @@ class ShippingAddress {
   final String street;
   final String city;
   final String state;
+  final String country;
   final String zipCode;
   final String? phone;
 
@@ -13,6 +14,7 @@ class ShippingAddress {
     required this.street,
     required this.city,
     required this.state,
+    required this.country,
     required this.zipCode,
     this.phone,
   });
@@ -24,6 +26,7 @@ class ShippingAddress {
       street: map['street'] ?? '',
       city: map['city'] ?? '',
       state: map['state'] ?? '',
+      country: map['country'] ?? '',
       zipCode: map['zipCode'] ?? '',
       phone: map['phone'],
     );
@@ -35,6 +38,7 @@ class ShippingAddress {
       'street': street,
       'city': city,
       'state': state,
+      'country': country,
       'zipCode': zipCode,
       'phone': phone,
     };
@@ -51,6 +55,7 @@ class ShippingAddress {
     String? street,
     String? city,
     String? state,
+    String? country,
     String? zipCode,
     String? phone,
   }) {
@@ -60,6 +65,7 @@ class ShippingAddress {
       street: street ?? this.street,
       city: city ?? this.city,
       state: state ?? this.state,
+      country: country ?? this.country,
       zipCode: zipCode ?? this.zipCode,
       phone: phone ?? this.phone,
     );

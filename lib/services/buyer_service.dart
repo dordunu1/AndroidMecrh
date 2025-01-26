@@ -309,11 +309,40 @@ class BuyerService {
         final sellerDoc = await _firestore.collection('sellers').doc(sellerId).get();
         if (!sellerDoc.exists) throw Exception('Seller not found');
 
-        // Calculate total
-        double total = 0;
-        for (final item in sellerItems) {
-          total += item.product.price * item.quantity;
+        // Calculate total and shipping fee
+        double total = sellerItems.fold(
+          0.0,
+          (sum, item) => sum + (item.product.hasDiscount
+              ? item.product.price * (1 - item.product.discountPercent / 100) * item.quantity
+              : item.product.price * item.quantity),
+        );
+
+        // Calculate shipping fee based on location
+        double shippingFee = 0.0;
+        print('Calculating shipping fee:');
+        print('  - Buyer country: ${buyer.country?.toLowerCase()}');
+        print('  - Seller country: ${sellerDoc.data()!['country']?.toLowerCase()}');
+        print('  - Buyer city: ${buyer.city?.toLowerCase()}');
+        print('  - Seller city: ${sellerDoc.data()!['city']?.toLowerCase()}');
+        
+        if (buyer.country?.toLowerCase() != 'ghana' || sellerDoc.data()!['country']?.toLowerCase() != 'ghana') {
+          shippingFee = 1.0; // International shipping
+          print('  - International shipping fee: $shippingFee');
+        } else {
+          // Local shipping
+          shippingFee = (buyer.city?.toLowerCase() == sellerDoc.data()!['city']?.toLowerCase()) ? 0.5 : 0.7;
+          print('  - Local shipping fee: $shippingFee');
         }
+
+        // Add extra fee if more than 5 items
+        int totalQuantity = sellerItems.fold(0, (sum, item) => sum + item.quantity);
+        if (totalQuantity > 5) {
+          shippingFee += 0.3;
+          print('  - Added extra fee for more than 5 items: +0.3');
+        }
+        print('  - Final shipping fee: $shippingFee');
+
+        total += shippingFee; // Add shipping fee to total
 
         // Create order
         final orderRef = _firestore.collection('orders').doc();
@@ -337,6 +366,7 @@ class BuyerService {
             'selectedColorImage': item.selectedColorImage,
           }).toList(),
           'total': total,
+          'shippingFee': shippingFee,
           'status': 'processing',
           'shippingAddress': address.toMap(),
           'createdAt': DateTime.now().toIso8601String(),
@@ -347,16 +377,23 @@ class BuyerService {
         // Update product stock
         for (final item in sellerItems) {
           final productRef = _firestore.collection('products').doc(item.product.id);
+          print('Updating stock for product ${item.product.name}:');
+          print('  - Current stock: ${item.selectedColor != null ? item.product.colorQuantities[item.selectedColor] : item.product.stockQuantity}');
+          print('  - Quantity to deduct: ${item.quantity}');
           if (item.selectedColor != null) {
             // Update color-specific stock
             batch.update(productRef, {
               'colorQuantities.${item.selectedColor}': FieldValue.increment(-item.quantity),
+              'soldCount': FieldValue.increment(item.quantity),
             });
+            print('  - Updating color-specific stock for ${item.selectedColor}');
           } else {
             // Update general stock
             batch.update(productRef, {
               'stockQuantity': FieldValue.increment(-item.quantity),
+              'soldCount': FieldValue.increment(item.quantity),
             });
+            print('  - Updating general stock');
           }
         }
 
@@ -375,6 +412,7 @@ class BuyerService {
 
       // Commit the batch
       await batch.commit();
+      print('Batch operation committed successfully - stock updates should be applied');
     } catch (e) {
       throw Exception('Failed to place order: $e');
     }
@@ -466,41 +504,8 @@ class BuyerService {
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
     if (!userDoc.exists) throw Exception('User profile not found');
 
-    // Create a map with default values for missing fields
-    final data = {
-      ...userDoc.data()!,
-      'isBuyer': userDoc.data()!['isBuyer'] ?? true,
-      'isAdmin': userDoc.data()!['isAdmin'] ?? false,
-      'isSeller': userDoc.data()!['isSeller'] ?? false,
-      'shippingAddresses': userDoc.data()!['shippingAddresses'] ?? [],
-      'preferences': userDoc.data()!['preferences'] ?? {},
-    };
-
-    // If no shipping addresses exist but profile has address, create one
-    if ((data['shippingAddresses'] as List).isEmpty && 
-        data['address'] != null && 
-        data['city'] != null) {
-      final address = {
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'name': data['name'] ?? 'Default Address',
-        'street': data['address'],
-        'city': data['city'],
-        'state': data['state'] ?? data['city'],
-        'zipCode': data['zip'] ?? '',
-        'phone': data['phone'],
-      };
-      
-      data['shippingAddresses'] = [address];
-      data['defaultShippingAddress'] = address;
-
-      // Update Firestore with the new shipping address
-      await _firestore.collection('users').doc(user.uid).update({
-        'shippingAddresses': [address],
-        'defaultShippingAddress': address,
-      });
-    }
-
-    return MerchUser.fromMap(data, userDoc.id);
+    // Just return the user data as is without any modifications
+    return MerchUser.fromMap(userDoc.data()!, userDoc.id);
   }
 
   Future<void> updateProfile(MerchUser user) async {

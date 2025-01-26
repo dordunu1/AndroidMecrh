@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../widgets/common/custom_button.dart';
+import 'buyer_orders_screen.dart';
 
 class OrderConfirmationScreen extends StatelessWidget {
   final String orderReference;
@@ -57,7 +58,12 @@ class OrderConfirmationScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 CustomButton(
                   onPressed: () {
-                    // TODO: Navigate to orders screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BuyerOrdersScreen(),
+                      ),
+                    );
                   },
                   text: 'View Orders',
                   backgroundColor: Colors.grey[200],

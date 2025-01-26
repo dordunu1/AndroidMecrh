@@ -84,7 +84,7 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
 
       final paymentUrl = await ref.read(paymentServiceProvider).initializeTransaction(
         email: user.email,
-        amount: 100.0, // GHS 100 seller registration fee
+        amount: 1.0, // GHS 100 seller registration fee
         currency: 'GHS',
         reference: reference,
         metadata: metadata,

@@ -440,8 +440,8 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
                 CustomTextField(
                   controller: _shippingInfoController,
                   label: 'Shipping Information',
+                  helperText: 'Enter your shipping policy and delivery timeframes',
                   maxLines: 3,
-                  helper: 'Enter your shipping policy and delivery timeframes',
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter shipping information';
@@ -453,8 +453,8 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
                 CustomTextField(
                   controller: _paymentInfoController,
                   label: 'Payment Information',
+                  helperText: 'Enter your accepted payment methods and terms',
                   maxLines: 3,
-                  helper: 'Enter your accepted payment methods and terms',
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter payment information';
