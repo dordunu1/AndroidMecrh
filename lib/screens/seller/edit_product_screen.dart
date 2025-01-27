@@ -10,6 +10,39 @@ import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../constants/size_standards.dart';
 
+Future<DateTime?> showDateTimePicker({
+  required BuildContext context,
+  required DateTime initialDate,
+  required DateTime firstDate,
+  required DateTime lastDate,
+}) async {
+  final DateTime? date = await showDatePicker(
+    context: context,
+    initialDate: initialDate,
+    firstDate: firstDate,
+    lastDate: lastDate,
+  );
+
+  if (date == null) return null;
+
+  if (!context.mounted) return null;
+
+  final TimeOfDay? time = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(initialDate),
+  );
+
+  return time == null
+      ? null
+      : DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        );
+}
+
 const CLOTHING_SUBCATEGORIES = {
   "Men's Wear": [
     "T-Shirts",
@@ -745,6 +778,10 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     );
   }
 
+  String _formatDate(DateTime date) {
+    return DateFormat('MMM d, y HH:mm').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -887,16 +924,104 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
             // Shipping Info
             CustomTextField(
               controller: _shippingInfoController,
-              label: 'Shipping Info',
+              label: 'Shipping Information',
+              hint: 'Enter shipping details, handling time, etc.',
               maxLines: 3,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter shipping information';
-                }
-                return null;
-              },
-              onChanged: (value) => _markFieldAsChanged('shippingInfo'),
             ),
+            
+            // Discount Section
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Apply Discount',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                Switch(
+                  value: _hasDiscount,
+                  onChanged: (value) {
+                    setState(() {
+                      _hasDiscount = value;
+                      if (!value) {
+                        _discountPercentController.clear();
+                        _discountEndsAt = null;
+                      }
+                      _changedFields['hasDiscount'] = true;
+                      _checkForChanges();
+                    });
+                  },
+                ),
+              ],
+            ),
+            if (_hasDiscount) ...[
+              const SizedBox(height: 16),
+              CustomTextField(
+                controller: _discountPercentController,
+                label: 'Discount Percentage',
+                hint: 'Enter discount percentage (e.g. 10)',
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (value) {
+                  if (value.isNotEmpty) {
+                    final percent = double.tryParse(value);
+                    if (percent != null) {
+                      setState(() {
+                        _discountPercent = percent;
+                        _changedFields['discountPercent'] = true;
+                        _checkForChanges();
+                      });
+                    }
+                  }
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter discount percentage';
+                  }
+                  final percent = double.tryParse(value);
+                  if (percent == null) {
+                    return 'Please enter a valid number';
+                  }
+                  if (percent <= 0 || percent >= 100) {
+                    return 'Percentage must be between 0 and 100';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  'Discount End Date',
+                  style: theme.textTheme.titleSmall,
+                ),
+                subtitle: Text(
+                  _discountEndsAt != null
+                      ? 'Ends on ${_formatDate(_discountEndsAt!)}'
+                      : 'Not set',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.calendar_today),
+                  onPressed: () async {
+                    final date = await showDateTimePicker(
+                      context: context,
+                      initialDate: _discountEndsAt ?? DateTime.now().add(const Duration(days: 7)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _discountEndsAt = date;
+                        _changedFields['discountEndsAt'] = true;
+                        _checkForChanges();
+                      });
+                    }
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Category

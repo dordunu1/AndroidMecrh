@@ -12,6 +12,7 @@ import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/feature_tour.dart';
 import '../../constants/size_standards.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 Future<DateTime?> showDateTimePicker({
   required BuildContext context,
@@ -521,6 +522,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     ];
   }
 
+  String _formatDate(DateTime date) {
+    return DateFormat('MMM d, y HH:mm').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -773,15 +778,98 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         // Shipping Info
                         CustomTextField(
                           controller: _shippingInfoController,
-                          label: 'Shipping Info',
+                          label: 'Shipping Information',
+                          hint: 'Enter shipping details, handling time, etc.',
                           maxLines: 3,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter shipping information';
-                            }
-                            return null;
-                          },
                         ),
+                        
+                        // Discount Section
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Apply Discount',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                            Switch(
+                              value: _hasDiscount,
+                              onChanged: (value) {
+                                setState(() {
+                                  _hasDiscount = value;
+                                  if (!value) {
+                                    _discountPercentController.clear();
+                                    _discountEndsAt = null;
+                                  }
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        if (_hasDiscount) ...[
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: _discountPercentController,
+                            label: 'Discount Percentage',
+                            hint: 'Enter discount percentage (e.g. 10)',
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            onChanged: (value) {
+                              if (value.isNotEmpty) {
+                                final percent = double.tryParse(value);
+                                if (percent != null) {
+                                  setState(() {
+                                    _discountPercent = percent;
+                                  });
+                                }
+                              }
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter discount percentage';
+                              }
+                              final percent = double.tryParse(value);
+                              if (percent == null) {
+                                return 'Please enter a valid number';
+                              }
+                              if (percent <= 0 || percent >= 100) {
+                                return 'Percentage must be between 0 and 100';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              'Discount End Date',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            subtitle: Text(
+                              _discountEndsAt != null
+                                  ? 'Ends on ${_formatDate(_discountEndsAt!)}'
+                                  : 'Not set',
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.calendar_today),
+                              onPressed: () async {
+                                final date = await showDateTimePicker(
+                                  context: context,
+                                  initialDate: _discountEndsAt ?? DateTime.now().add(const Duration(days: 7)),
+                                  firstDate: DateTime.now(),
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                );
+                                if (date != null) {
+                                  setState(() {
+                                    _discountEndsAt = date;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                       ],
                     ),
