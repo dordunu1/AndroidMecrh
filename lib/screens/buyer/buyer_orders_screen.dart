@@ -352,7 +352,7 @@ class _OrderCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Order #${order.id}',
+                            'Order #${order.id.substring(0, 8)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                             ),

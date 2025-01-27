@@ -180,7 +180,9 @@ class _OrderCard extends StatelessWidget {
               children: [
                 Text(
                   'Order #${order.id.substring(0, 8)}',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 _StatusChip(status: order.status),
               ],

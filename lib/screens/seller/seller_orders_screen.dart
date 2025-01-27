@@ -278,7 +278,7 @@ class _OrderCard extends StatelessWidget {
                   children: [
                     Text(
                       'Order #${order.id.substring(0, 8)}',
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
