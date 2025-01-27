@@ -51,11 +51,21 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   Seller? _seller;
   StreamSubscription? _productSubscription;
   late Product _product;
+  String? _selectedColorImage;
 
   @override
   void initState() {
     super.initState();
     _product = widget.product;
+    // Auto-select color if there's only one
+    if (widget.product.colors.length == 1) {
+      _selectedColor = widget.product.colors.first;
+      _selectedColorImage = widget.product.imageColors.entries
+          .firstWhere(
+            (entry) => entry.value == _selectedColor,
+            orElse: () => MapEntry(widget.product.images.first, _selectedColor ?? '')
+          ).key;
+    }
     _loadInitialData();
     _setupRealtimeUpdates();
   }
@@ -1127,14 +1137,43 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                               height: 48,
                               child: ElevatedButton(
                                 onPressed: () {
+                                  // Validate color selection if product has variants
+                                  if (widget.product.hasVariants && _selectedColor == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Please select a color')),
+                                    );
+                                    return;
+                                  }
+
+                                  // Validate size selection if product has sizes
+                                  if (widget.product.sizes.isNotEmpty && _selectedSize == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Please select a size')),
+                                    );
+                                    return;
+                                  }
+
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => CheckoutScreen(
-                                        cartItems: [CartItem(product: widget.product, quantity: _quantity)],
-                                        total: widget.product.hasDiscount
+                                        cartItems: [CartItem(
+                                          product: widget.product, 
+                                          quantity: _quantity,
+                                          selectedColor: _selectedColor,
+                                          selectedSize: _selectedSize,
+                                          selectedColorImage: _selectedColorImage ?? 
+                                              (_selectedColor != null 
+                                                ? widget.product.imageColors.entries
+                                                    .firstWhere(
+                                                      (entry) => entry.value == _selectedColor,
+                                                      orElse: () => MapEntry(widget.product.images.first, '')
+                                                    ).key
+                                                : widget.product.images.first),
+                                        )],
+                                        total: (widget.product.hasDiscount
                                             ? widget.product.price * (1 - widget.product.discountPercent / 100) * _quantity
-                                            : widget.product.price * _quantity,
+                                            : widget.product.price * _quantity) + widget.product.deliveryFee,
                                       ),
                                     ),
                                   );

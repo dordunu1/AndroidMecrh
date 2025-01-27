@@ -354,22 +354,29 @@ class _OrderCard extends StatelessWidget {
               style: theme.textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
+            if (order.shippingAddress['street'] != null || order.shippingAddress['address'] != null)
+              Text(
+                order.shippingAddress['street'] ?? order.shippingAddress['address'] ?? '',
+                style: theme.textTheme.bodyMedium,
+              ),
             Text(
-              order.shippingAddress['address'],
+              [
+                order.shippingAddress['city'],
+                order.shippingAddress['state'],
+                order.shippingAddress['zipCode'] ?? order.shippingAddress['zip']
+              ].where((e) => e != null).join(', '),
               style: theme.textTheme.bodyMedium,
             ),
-            Text(
-              '${order.shippingAddress['city']}, ${order.shippingAddress['state']} ${order.shippingAddress['zip']}',
-              style: theme.textTheme.bodyMedium,
-            ),
-            Text(
-              order.shippingAddress['country'],
-              style: theme.textTheme.bodyMedium,
-            ),
-            Text(
-              'Phone: ${order.shippingAddress['phone']}',
-              style: theme.textTheme.bodyMedium,
-            ),
+            if (order.shippingAddress['country'] != null)
+              Text(
+                order.shippingAddress['country'] as String,
+                style: theme.textTheme.bodyMedium,
+              ),
+            if (order.shippingAddress['phone'] != null)
+              Text(
+                'Phone: ${order.shippingAddress['phone']}',
+                style: theme.textTheme.bodyMedium,
+              ),
           ],
         ),
       ),

@@ -130,16 +130,17 @@ class OrderItem {
   String get productName => name;
 
   factory OrderItem.fromMap(Map<String, dynamic> map) {
+    final options = map['options'] as Map<String, dynamic>?;
     return OrderItem(
       productId: map['productId'] ?? '',
       name: map['name'] ?? '',
       price: (map['price'] ?? 0.0).toDouble(),
       quantity: map['quantity']?.toInt() ?? 0,
       imageUrl: map['imageUrl'],
-      selectedColor: map['selectedColor'],
-      selectedColorImage: map['selectedColorImage'],
-      selectedSize: map['selectedSize'],
-      options: map['options'] != null ? Map<String, dynamic>.from(map['options']) : null,
+      selectedColor: options?['selectedColor'] ?? map['selectedColor'],
+      selectedColorImage: options?['selectedColorImage'] ?? map['selectedColorImage'],
+      selectedSize: options?['selectedSize'] ?? map['selectedSize'],
+      options: options,
     );
   }
 
@@ -150,10 +151,11 @@ class OrderItem {
       'price': price,
       'quantity': quantity,
       'imageUrl': imageUrl,
-      'selectedColor': selectedColor,
-      'selectedColorImage': selectedColorImage,
-      'selectedSize': selectedSize,
-      'options': options,
+      'options': {
+        'selectedColor': selectedColor,
+        'selectedColorImage': selectedColorImage,
+        'selectedSize': selectedSize,
+      },
     };
   }
 } 

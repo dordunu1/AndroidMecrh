@@ -6,15 +6,19 @@ import '../models/seller.dart';
 import '../models/refund.dart';
 import '../models/withdrawal.dart';
 
-final adminServiceProvider = Provider((ref) => AdminService());
+final adminServiceProvider = Provider<AdminService>((ref) {
+  return AdminService(FirebaseFirestore.instance, FirebaseAuth.instance);
+});
 
 class AdminService {
-  final _db = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+
+  AdminService(this._firestore, this._auth);
 
   Future<List<app_order.Order>> getOrders({String? search, String? status}) async {
     try {
-      var query = _db.collection('orders')
+      var query = _firestore.collection('orders')
           .orderBy('createdAt', descending: true);
 
       if (status != null && status != 'all') {
@@ -43,7 +47,7 @@ class AdminService {
 
   Future<List<Seller>> getSellers({String? status}) async {
     try {
-      var query = _db.collection('sellers')
+      var query = _firestore.collection('sellers')
           .orderBy('createdAt', descending: true);
 
       if (status != null && status.isNotEmpty) {
@@ -61,7 +65,7 @@ class AdminService {
 
   Future<void> verifyStore(String sellerId, bool isVerified, {String? message}) async {
     try {
-      await _db.collection('sellers').doc(sellerId).update({
+      await _firestore.collection('sellers').doc(sellerId).update({
         'isVerified': isVerified,
         'verificationMessage': message,
         'verifiedAt': isVerified ? DateTime.now().toIso8601String() : null,
@@ -75,7 +79,7 @@ class AdminService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    final snapshot = await _db.collection('orders')
+    final snapshot = await _firestore.collection('orders')
       .where('createdAt', isGreaterThanOrEqualTo: start.toIso8601String())
       .where('createdAt', isLessThanOrEqualTo: end.toIso8601String())
       .orderBy('createdAt', descending: true)
@@ -86,7 +90,7 @@ class AdminService {
 
   Future<List<Refund>> getRefunds({String? search, String? status}) async {
     try {
-      var query = _db.collection('refunds')
+      var query = _firestore.collection('refunds')
           .orderBy('createdAt', descending: true);
 
       if (status != null && status != 'all') {
@@ -112,37 +116,47 @@ class AdminService {
     }
   }
 
-  Future<void> updateRefundStatus(String refundId, String status, {String? adminNote}) async {
+  Future<void> updateRefundStatus(String refundId, String status) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    final refundDoc = await _db.collection('refunds').doc(refundId).get();
-    if (!refundDoc.exists) throw Exception('Refund not found');
+    final isUserAdmin = await isAdmin(user.uid);
+    if (!isUserAdmin) throw Exception('User is not an admin');
 
-    final refund = Refund.fromMap(refundDoc.data()!, refundDoc.id);
-
-    final batch = _db.batch();
-
-    // Update refund status
-    batch.update(_db.collection('refunds').doc(refundId), {
+    await _firestore.collection('refunds').doc(refundId).update({
       'status': status,
-      'resolvedAt': DateTime.now().toIso8601String(),
-      if (adminNote != null) 'adminNote': adminNote,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    // If approved, update seller balance
     if (status == 'approved') {
-      batch.update(_db.collection('sellers').doc(refund.sellerId), {
-        'balance': FieldValue.increment(-refund.amount),
+      final refund = await _firestore.collection('refunds').doc(refundId).get();
+      final refundData = refund.data()!;
+      final orderId = refundData['orderId'];
+      final amount = refundData['amount'];
+
+      // Update order status
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': 'refunded',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Get the order to find the seller
+      final order = await _firestore.collection('orders').doc(orderId).get();
+      final orderData = order.data()!;
+      final sellerId = orderData['sellerId'];
+
+      // Update seller's balance and stats
+      await _firestore.collection('sellers').doc(sellerId).update({
+        'balance': FieldValue.increment(-amount),
+        'totalSales': FieldValue.increment(-amount),
+        'totalOrders': FieldValue.increment(-1),
       });
     }
-
-    await batch.commit();
   }
 
   Future<List<Withdrawal>> getWithdrawals({String? search, String? status}) async {
     try {
-      var query = _db.collection('withdrawals')
+      var query = _firestore.collection('withdrawals')
           .orderBy('createdAt', descending: true);
 
       if (status != null && status != 'all') {
@@ -168,34 +182,49 @@ class AdminService {
     }
   }
 
-  Future<void> updateWithdrawalStatus(String withdrawalId, String status, {String? adminNote}) async {
+  Future<void> updateWithdrawalStatus(String withdrawalId, String status) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    await _db.collection('withdrawals').doc(withdrawalId).update({
+    final isUserAdmin = await isAdmin(user.uid);
+    if (!isUserAdmin) throw Exception('User is not an admin');
+
+    await _firestore.collection('withdrawals').doc(withdrawalId).update({
       'status': status,
-      'resolvedAt': DateTime.now().toIso8601String(),
-      if (adminNote != null) 'adminNote': adminNote,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<Map<String, dynamic>> getDashboardData() async {
+  Future<Map<String, dynamic>> getDashboardStats() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    final isUserAdmin = await isAdmin(user.uid);
+    if (!isUserAdmin) throw Exception('User is not an admin');
+
     try {
+      // Get all orders with proper date filtering
       final now = DateTime.now();
       final startOfMonth = DateTime(now.year, now.month, 1);
+      
+      final ordersSnapshot = await _firestore
+          .collection('orders')
+          .where('createdAt', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
+          .orderBy('createdAt', descending: true)
+          .get();
 
-      final ordersSnapshot = await _db.collection('orders')
-        .where('createdAt', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
-        .get();
+      final orders = ordersSnapshot.docs.map((doc) => app_order.Order.fromMap(doc.data(), doc.id)).toList();
 
+      // Calculate order stats
       var totalSales = 0.0;
+      var platformFees = 0.0;
       var totalOrders = 0;
       var processingOrders = 0;
 
-      for (final doc in ordersSnapshot.docs) {
-        final order = app_order.Order.fromMap(doc.data(), doc.id);
+      for (final order in orders) {
         if (order.status != 'cancelled' && order.status != 'refunded') {
           totalSales += order.total;
+          platformFees += order.total * 0.1; // 10% platform fee
           totalOrders++;
         }
         if (order.status == 'processing') {
@@ -203,39 +232,94 @@ class AdminService {
         }
       }
 
-      final sellersSnapshot = await _db.collection('sellers').get();
-      final totalSellers = sellersSnapshot.docs.length;
-      final pendingVerifications = sellersSnapshot.docs
-        .where((doc) => doc.data()['isVerified'] == false)
-        .length;
+      // Get active sellers
+      final sellersSnapshot = await _firestore
+          .collection('sellers')
+          .where('isActive', isEqualTo: true)
+          .get();
+      
+      final sellers = sellersSnapshot.docs.map((doc) => Seller.fromMap(doc.data()!, doc.id)).toList();
 
-      final refundsSnapshot = await _db.collection('refunds')
-        .where('status', isEqualTo: 'pending')
-        .get();
-      final pendingRefunds = refundsSnapshot.docs.length;
+      // Calculate top sellers based on total sales
+      final sellerSales = <String, double>{};
+      for (final order in orders) {
+        if (order.status != 'cancelled' && order.status != 'refunded') {
+          sellerSales[order.sellerId] = (sellerSales[order.sellerId] ?? 0) + order.total;
+        }
+      }
 
-      final withdrawalsSnapshot = await _db.collection('withdrawals')
-        .where('status', isEqualTo: 'pending')
-        .get();
-      final pendingWithdrawals = withdrawalsSnapshot.docs.length;
+      final topSellers = sellers.where((seller) => sellerSales.containsKey(seller.id))
+          .toList()
+        ..sort((a, b) => (sellerSales[b.id] ?? 0).compareTo(sellerSales[a.id] ?? 0));
+
+      // Get total products count
+      final productsSnapshot = await _firestore
+          .collection('products')
+          .where('isActive', isEqualTo: true)
+          .count()
+          .get();
+
+      // Get pending verifications count
+      final pendingVerificationsSnapshot = await _firestore
+          .collection('sellers')
+          .where('isVerified', isEqualTo: false)
+          .count()
+          .get();
+
+      // Get pending withdrawals
+      final pendingWithdrawalsSnapshot = await _firestore
+          .collection('withdrawals')
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      // Get pending refunds
+      final pendingRefundsSnapshot = await _firestore
+          .collection('refunds')
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      // Prepare pending actions list
+      final pendingActions = [
+        ...pendingWithdrawalsSnapshot.docs.map((doc) => {
+          'id': doc.id,
+          'type': 'withdrawal',
+          'amount': doc.data()['amount'],
+          'sellerName': doc.data()['sellerName'],
+          'createdAt': doc.data()['createdAt'],
+        }),
+        ...pendingRefundsSnapshot.docs.map((doc) => {
+          'id': doc.id,
+          'type': 'refund',
+          'amount': doc.data()['amount'],
+          'orderId': doc.data()['orderId'],
+          'createdAt': doc.data()['createdAt'],
+        }),
+      ]..sort((a, b) => b['createdAt'].compareTo(a['createdAt']));
 
       return {
-        'totalSales': totalSales,
-        'totalOrders': totalOrders,
-        'processingOrders': processingOrders,
-        'totalSellers': totalSellers,
-        'pendingVerifications': pendingVerifications,
-        'pendingRefunds': pendingRefunds,
-        'pendingWithdrawals': pendingWithdrawals,
+        'stats': {
+          'totalSales': totalSales,
+          'platformFees': platformFees,
+          'totalOrders': totalOrders,
+          'processingOrders': processingOrders,
+          'activeSellers': sellersSnapshot.docs.length,
+          'totalProducts': productsSnapshot.count,
+          'pendingVerifications': pendingVerificationsSnapshot.count,
+          'pendingWithdrawals': pendingWithdrawalsSnapshot.docs.length,
+          'pendingRefunds': pendingRefundsSnapshot.docs.length,
+        },
+        'recentOrders': orders.take(5).toList(),
+        'topSellers': topSellers.take(5).toList(),
+        'pendingActions': pendingActions,
       };
     } catch (e) {
-      throw Exception('Failed to get dashboard data: $e');
+      throw Exception('Failed to get dashboard stats: $e');
     }
   }
 
   Future<List<Seller>> getPendingVerifications({String? search}) async {
     try {
-      final snapshot = await _db.collection('sellers')
+      final snapshot = await _firestore.collection('sellers')
         .where('isVerified', isEqualTo: false)
         .get();
 
@@ -261,24 +345,45 @@ class AdminService {
     String? message,
   }) async {
     try {
-      final refundDoc = await _db.collection('refunds').doc(refundId).get();
+      final refundDoc = await _firestore.collection('refunds').doc(refundId).get();
       if (!refundDoc.exists) throw Exception('Refund not found');
 
       final refund = Refund.fromMap(refundDoc.data()!, refundDoc.id);
+      final orderDoc = await _firestore.collection('orders').doc(refund.orderId).get();
+      
+      if (!orderDoc.exists) throw Exception('Order not found');
 
-      final batch = _db.batch();
+      final batch = _firestore.batch();
 
       // Update refund status
-      batch.update(_db.collection('refunds').doc(refundId), {
+      batch.update(_firestore.collection('refunds').doc(refundId), {
         'status': approved ? 'approved' : 'rejected',
         'resolvedAt': DateTime.now().toIso8601String(),
         if (message != null) 'adminNote': message,
       });
 
-      // If approved, update seller balance
+      // If approved:
+      // 1. Update seller balance
+      // 2. Update seller total sales
+      // 3. Update order status
       if (approved) {
-        batch.update(_db.collection('sellers').doc(refund.sellerId), {
+        // Update seller balance and stats
+        batch.update(_firestore.collection('sellers').doc(refund.sellerId), {
           'balance': FieldValue.increment(-refund.amount),
+          'totalSales': FieldValue.increment(-refund.amount),
+          'totalOrders': FieldValue.increment(-1),
+        });
+
+        // Update order status to refunded
+        batch.update(_firestore.collection('orders').doc(refund.orderId), {
+          'status': 'refunded',
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+      } else {
+        // If rejected, update order status back to previous state
+        batch.update(_firestore.collection('orders').doc(refund.orderId), {
+          'status': 'cancelled',
+          'updatedAt': DateTime.now().toIso8601String(),
         });
       }
 
@@ -294,7 +399,7 @@ class AdminService {
     String? message,
   }) async {
     try {
-      await _db.collection('withdrawals').doc(withdrawalId).update({
+      await _firestore.collection('withdrawals').doc(withdrawalId).update({
         'status': approved ? 'approved' : 'rejected',
         'processedAt': DateTime.now().toIso8601String(),
         if (message != null) 'adminNote': message,
@@ -302,5 +407,27 @@ class AdminService {
     } catch (e) {
       throw Exception('Failed to process withdrawal: $e');
     }
+  }
+
+  Future<bool> isAdmin(String userId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      return doc.exists && doc.data()?['isAdmin'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> updateSellerVerification(String sellerId, bool isVerified) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    final isUserAdmin = await isAdmin(user.uid);
+    if (!isUserAdmin) throw Exception('User is not an admin');
+
+    await _firestore.collection('sellers').doc(sellerId).update({
+      'isVerified': isVerified,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 } 

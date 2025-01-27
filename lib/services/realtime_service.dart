@@ -2,22 +2,30 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/order.dart' as app_order;
 import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../models/review.dart';
 import 'auth_service.dart';
+import '../models/seller.dart';
+import '../services/admin_service.dart';
 
 final realtimeServiceProvider = Provider<RealtimeService>((ref) {
-  return RealtimeService(ref);
+  return RealtimeService(
+    FirebaseFirestore.instance,
+    FirebaseAuth.instance,
+    ref.read(adminServiceProvider),
+  );
 });
 
 class RealtimeService {
-  final Ref _ref;
-  final _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+  final AdminService _adminService;
   final Map<String, StreamSubscription> _listeners = {};
 
-  RealtimeService(this._ref);
+  RealtimeService(this._firestore, this._auth, this._adminService);
 
   // ============= Seller Dashboard Listeners =============
   
@@ -285,6 +293,146 @@ class RealtimeService {
         });
 
     _listeners['buyer_orders_$buyerId'] = subscription;
+    return subscription;
+  }
+
+  // ============= Admin Dashboard Listeners =============
+  
+  /// Listen to admin dashboard statistics in real-time
+  Future<StreamSubscription> listenToAdminDashboard(Function(Map<String, dynamic>) onUpdate) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    final isAdmin = await _adminService.isAdmin(user.uid);
+    if (!isAdmin) throw Exception('User is not an admin');
+
+    // Create streams for all admin-related data
+    final ordersStream = _firestore
+        .collection('orders')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+
+    final sellersStream = _firestore
+        .collection('sellers')
+        .snapshots();
+
+    final productsStream = _firestore
+        .collection('products')
+        .where('isActive', isEqualTo: true)
+        .snapshots();
+
+    final withdrawalsStream = _firestore
+        .collection('withdrawals')
+        .where('status', isEqualTo: 'pending')
+        .snapshots();
+
+    final refundsStream = _firestore
+        .collection('refunds')
+        .where('status', isEqualTo: 'pending')
+        .snapshots();
+
+    // Combine all streams
+    final subscription = Rx.combineLatest5(
+      ordersStream,
+      sellersStream,
+      productsStream,
+      withdrawalsStream,
+      refundsStream,
+      (
+        QuerySnapshot orders,
+        QuerySnapshot sellers,
+        QuerySnapshot products,
+        QuerySnapshot withdrawals,
+        QuerySnapshot refunds,
+      ) {
+        // Convert orders to list
+        final ordersList = orders.docs
+            .map((doc) => app_order.Order.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList();
+
+        // Calculate order stats
+        var totalSales = 0.0;
+        var platformFees = 0.0;
+        var totalOrders = 0;
+        var processingOrders = 0;
+
+        for (final order in ordersList) {
+          if (order.status != 'cancelled' && order.status != 'refunded') {
+            totalSales += order.total;
+            platformFees += order.total * 0.1; // 10% platform fee
+            totalOrders++;
+          }
+          if (order.status == 'processing') {
+            processingOrders++;
+          }
+        }
+
+        // Convert sellers to list and calculate top sellers
+        final sellersList = sellers.docs
+            .map((doc) => Seller.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList();
+
+        final sellerSales = <String, double>{};
+        for (final order in ordersList) {
+          if (order.status != 'cancelled' && order.status != 'refunded') {
+            sellerSales[order.sellerId] = (sellerSales[order.sellerId] ?? 0) + order.total;
+          }
+        }
+
+        final topSellers = sellersList
+            .where((seller) => sellerSales.containsKey(seller.id))
+            .toList()
+          ..sort((a, b) => (sellerSales[b.id] ?? 0).compareTo(sellerSales[a.id] ?? 0));
+
+        // Prepare pending actions
+        final pendingActions = [
+          ...withdrawals.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return {
+              'id': doc.id,
+              'type': 'withdrawal',
+              'amount': data['amount'],
+              'sellerName': data['sellerName'],
+              'createdAt': data['createdAt'],
+            };
+          }),
+          ...refunds.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return {
+              'id': doc.id,
+              'type': 'refund',
+              'amount': data['amount'],
+              'orderId': data['orderId'],
+              'createdAt': data['createdAt'],
+            };
+          }),
+        ]..sort((a, b) => b['createdAt'].compareTo(a['createdAt']));
+
+        return {
+          'stats': {
+            'totalSales': totalSales,
+            'platformFees': platformFees,
+            'totalOrders': totalOrders,
+            'processingOrders': processingOrders,
+            'activeSellers': sellers.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['isActive'] == true;
+            }).length,
+            'totalProducts': products.size,
+            'pendingVerifications': sellers.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['isVerified'] == false;
+            }).length,
+            'pendingWithdrawals': withdrawals.size,
+            'pendingRefunds': refunds.size,
+          },
+          'recentOrders': ordersList.take(5).toList(),
+          'topSellers': topSellers.take(5).toList(),
+          'pendingActions': pendingActions,
+        };
+      },
+    ).listen(onUpdate);
+
     return subscription;
   }
 

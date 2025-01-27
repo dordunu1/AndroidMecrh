@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../models/seller.dart';
 
 class TopSellersList extends StatelessWidget {
-  final List<Map<String, dynamic>> sellers;
+  final List<Seller> sellers;
+  final Function(Seller)? onSellerTap;
 
   const TopSellersList({
     super.key,
     required this.sellers,
+    this.onSellerTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
     if (sellers.isEmpty) {
       return Center(
         child: Text(
           'No sellers found',
-          style: TextStyle(
-            color: colorScheme.onSurface.withOpacity(0.6),
-          ),
+          style: theme.textTheme.bodyLarge,
         ),
       );
     }
@@ -31,55 +31,48 @@ class TopSellersList extends StatelessWidget {
       separatorBuilder: (context, index) => const Divider(),
       itemBuilder: (context, index) {
         final seller = sellers[index];
-        return Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+        return ListTile(
+          onTap: onSellerTap != null ? () => onSellerTap!(seller) : null,
+          contentPadding: EdgeInsets.zero,
+          leading: CircleAvatar(
+            backgroundImage: seller.logo != null
+                ? NetworkImage(seller.logo!)
+                : null,
+            child: seller.logo == null
+                ? Text(
+                    seller.storeName[0].toUpperCase(),
+                    style: theme.textTheme.titleMedium,
+                  )
+                : null,
+          ),
+          title: Row(
+            children: [
+              Text(
+                seller.storeName,
+                style: theme.textTheme.titleMedium,
               ),
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+              const SizedBox(width: 8),
+              if (seller.isVerified)
+                Icon(
+                  Icons.verified,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Text(
+                '${seller.reviewCount} reviews • GHS ${seller.balance.toStringAsFixed(2)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        seller['name'] ?? 'Unknown Store',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                  Text(
-                    '${seller['orders']} orders',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              '\$${(seller['total'] as double).toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ],
+            ],
+          ),
+          trailing: const Icon(Icons.chevron_right),
         );
       },
     );

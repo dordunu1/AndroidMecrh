@@ -32,6 +32,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   MerchUser? _currentUser;
   Map<String, Seller?> _sellers = {};
 
+  double get _total => widget.total;
+
   @override
   void initState() {
     super.initState();

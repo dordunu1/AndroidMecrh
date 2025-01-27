@@ -410,9 +410,12 @@ class BuyerService {
                 ? item.product.price * (1 - item.product.discountPercent / 100)
                 : item.product.price,
             'quantity': item.quantity,
-            'selectedColor': item.selectedColor,
-            'selectedSize': item.selectedSize,
-            'selectedColorImage': item.selectedColorImage,
+            'imageUrl': item.selectedColorImage ?? item.product.images.first,
+            'options': {
+              'selectedColor': item.selectedColor,
+              'selectedSize': item.selectedSize,
+              'selectedColorImage': item.selectedColorImage,
+            },
           }).toList(),
           'total': total,
           'deliveryFee': shippingFee,
@@ -505,6 +508,7 @@ class BuyerService {
   Future<void> requestRefund({
     required String orderId,
     required String reason,
+    required String phoneNumber,
     required List<String> images,
   }) async {
     try {
@@ -520,28 +524,27 @@ class BuyerService {
         throw Exception('Not authorized to request refund for this order');
       }
 
-      if (order.status != 'delivered') {
-        throw Exception('Refund can only be requested for delivered orders');
-      }
-
-      // Get user profile
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) throw Exception('User profile not found');
-
-      final buyer = MerchUser.fromMap(userDoc.data()!, userDoc.id);
-
+      // Create refund document
       await _firestore.collection('refunds').add({
         'orderId': orderId,
         'buyerId': user.uid,
-        'buyerName': buyer.name,
+        'buyerName': order.buyerName,
         'sellerId': order.sellerId,
         'sellerName': order.sellerName,
         'amount': order.total,
         'reason': reason,
+        'phoneNumber': phoneNumber,
         'images': images,
         'status': 'pending',
         'createdAt': DateTime.now().toIso8601String(),
       });
+
+      // Update order status to 'refund_requested'
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': 'refund_requested',
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+
     } catch (e) {
       throw Exception('Failed to request refund: $e');
     }

@@ -7,6 +7,7 @@ import '../../services/buyer_service.dart';
 import '../../services/realtime_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/common/custom_text_field.dart';
+import 'refund_request_screen.dart';
 
 class BuyerOrdersScreen extends ConsumerStatefulWidget {
   const BuyerOrdersScreen({super.key});
@@ -262,7 +263,7 @@ class StatusFilterChip extends StatelessWidget {
   }
 }
 
-class _OrderCard extends ConsumerWidget {
+class _OrderCard extends ConsumerStatefulWidget {
   final Order order;
   final VoidCallback? onCancel;
 
@@ -271,12 +272,17 @@ class _OrderCard extends ConsumerWidget {
     this.onCancel,
   });
 
+  @override
+  ConsumerState<_OrderCard> createState() => _OrderCardState();
+}
+
+class _OrderCardState extends ConsumerState<_OrderCard> {
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   Color _getStatusColor(BuildContext context) {
-    switch (order.status) {
+    switch (widget.order.status) {
       case 'processing':
         return Colors.blue;
       case 'shipped':
@@ -322,7 +328,7 @@ class _OrderCard extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
     return Card(
@@ -342,14 +348,14 @@ class _OrderCard extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Order #${order.id.substring(0, 8)}',
+                            'Order #${widget.order.id.substring(0, 8)}',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'by ${order.sellerName}',
+                            'by ${widget.order.sellerName}',
                             style: TextStyle(
                               color: theme.textTheme.bodySmall?.color,
                             ),
@@ -367,7 +373,7 @@ class _OrderCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
-                        order.status.toUpperCase(),
+                        widget.order.status.toUpperCase(),
                         style: TextStyle(
                           fontSize: 12,
                           color: _getStatusColor(context),
@@ -379,7 +385,7 @@ class _OrderCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'GHS ${order.total.toStringAsFixed(2)}',
+                  'GHS ${widget.order.total.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -388,17 +394,17 @@ class _OrderCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Created on ${_formatDate(order.createdAt)}',
+                  'Created on ${_formatDate(widget.order.createdAt)}',
                   style: theme.textTheme.bodySmall,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Items: ${order.items.fold(0, (sum, item) => sum + item.quantity)}',
+                  'Items: ${widget.order.items.fold(0, (sum, item) => sum + item.quantity)}',
                   style: theme.textTheme.bodySmall,
                 ),
 
                 // Show tracking info if available
-                if (order.trackingNumber != null && order.shippingCarrier != null) ...[
+                if (widget.order.trackingNumber != null && widget.order.shippingCarrier != null) ...[
                   const SizedBox(height: 8),
                   const Divider(),
                   const SizedBox(height: 8),
@@ -410,40 +416,84 @@ class _OrderCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Carrier: ${order.shippingCarrier}',
+                    'Carrier: ${widget.order.shippingCarrier}',
                     style: theme.textTheme.bodyMedium,
                   ),
                   Text(
-                    'Tracking Number: ${order.trackingNumber}',
+                    'Tracking Number: ${widget.order.trackingNumber}',
                     style: theme.textTheme.bodyMedium,
                   ),
                 ],
 
                 // Show Received button if order is shipped
-                if (order.status == 'shipped') ...[
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () async {
-                        try {
-                          await ref.read(buyerServiceProvider).updateOrderStatus(
-                            order.id,
-                            'delivered',
-                          );
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to update order status: $e'),
-                                backgroundColor: theme.colorScheme.error,
+                if (widget.order.status == 'shipped') ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  ButtonBar(
+                    children: [
+                      TextButton(
+                        onPressed: () async {
+                          try {
+                            await ref.read(buyerServiceProvider).updateOrderStatus(widget.order.id, 'delivered');
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString())),
+                              );
+                            }
+                          }
+                        },
+                        child: const Text('Mark as Received'),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // Show refund button for cancelled orders
+                if (widget.order.status == 'cancelled') ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  ButtonBar(
+                    children: [
+                      TextButton(
+                        onPressed: () async {
+                          try {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => RefundRequestScreen(order: widget.order),
                               ),
                             );
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString())),
+                              );
+                            }
                           }
-                        }
-                      },
-                      child: const Text('Mark as Received'),
-                    ),
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error,
+                        ),
+                        child: const Text('Request Refund'),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // Show cancel button only for processing orders
+                if (widget.order.status == 'processing' && widget.onCancel != null) ...[
+                  const Divider(height: 1),
+                  ButtonBar(
+                    children: [
+                      TextButton(
+                        onPressed: widget.onCancel,
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text('Cancel Order'),
+                      ),
+                    ],
                   ),
                 ],
               ],
@@ -454,10 +504,10 @@ class _OrderCard extends ConsumerWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
-            itemCount: order.items.length,
+            itemCount: widget.order.items.length,
             separatorBuilder: (context, index) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
-              final item = order.items[index];
+              final item = widget.order.items[index];
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -542,20 +592,6 @@ class _OrderCard extends ConsumerWidget {
               );
             },
           ),
-          if (onCancel != null) ...[
-            const Divider(height: 1),
-            ButtonBar(
-              children: [
-                TextButton(
-                  onPressed: onCancel,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
-                  ),
-                  child: const Text('Cancel Order'),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );

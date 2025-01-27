@@ -31,6 +31,7 @@ class Product {
   final String? sellerCity;
   final String? sellerCountry;
   final Map<String, int>? variantQuantities;
+  final double deliveryFee;
 
   Product({
     required this.id,
@@ -63,6 +64,7 @@ class Product {
     this.sellerCity,
     this.sellerCountry,
     this.variantQuantities,
+    this.deliveryFee = 0.0,
   });
 
   factory Product.fromMap(Map<String, dynamic> map, String id) {
@@ -118,6 +120,7 @@ class Product {
       variantQuantities: map['variantQuantities'] != null 
           ? Map<String, int>.from(map['variantQuantities'])
           : null,
+      deliveryFee: (map['deliveryFee'] ?? 0.0).toDouble(),
     );
   }
 
@@ -152,6 +155,7 @@ class Product {
       'sellerCity': sellerCity,
       'sellerCountry': sellerCountry,
       'variantQuantities': variantQuantities,
+      'deliveryFee': deliveryFee,
     };
   }
 
@@ -186,6 +190,7 @@ class Product {
     String? sellerCity,
     String? sellerCountry,
     Map<String, int>? variantQuantities,
+    double? deliveryFee,
   }) {
     return Product(
       id: id ?? this.id,
@@ -218,6 +223,7 @@ class Product {
       sellerCity: sellerCity ?? this.sellerCity,
       sellerCountry: sellerCountry ?? this.sellerCountry,
       variantQuantities: variantQuantities ?? this.variantQuantities,
+      deliveryFee: deliveryFee ?? this.deliveryFee,
     );
   }
 } 
