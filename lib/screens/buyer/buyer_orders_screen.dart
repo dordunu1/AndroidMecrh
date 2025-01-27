@@ -262,7 +262,7 @@ class StatusFilterChip extends StatelessWidget {
   }
 }
 
-class _OrderCard extends StatelessWidget {
+class _OrderCard extends ConsumerWidget {
   final Order order;
   final VoidCallback? onCancel;
 
@@ -322,7 +322,7 @@ class _OrderCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     
     return Card(
@@ -393,9 +393,59 @@ class _OrderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Delivery Fee: GHS ${order.deliveryFee.toStringAsFixed(2)}',
+                  'Items: ${order.items.fold(0, (sum, item) => sum + item.quantity)}',
                   style: theme.textTheme.bodySmall,
                 ),
+
+                // Show tracking info if available
+                if (order.trackingNumber != null && order.shippingCarrier != null) ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tracking Information',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Carrier: ${order.shippingCarrier}',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  Text(
+                    'Tracking Number: ${order.trackingNumber}',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+
+                // Show Received button if order is shipped
+                if (order.status == 'shipped') ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () async {
+                        try {
+                          await ref.read(buyerServiceProvider).updateOrderStatus(
+                            order.id,
+                            'delivered',
+                          );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to update order status: $e'),
+                                backgroundColor: theme.colorScheme.error,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Mark as Received'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

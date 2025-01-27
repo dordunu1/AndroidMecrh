@@ -49,6 +49,7 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
         resource.data.sellerId == request.auth.uid ||
+        resource.data.buyerId == request.auth.uid ||
         isAdmin()
       );
     }

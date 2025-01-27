@@ -63,6 +63,8 @@ class Order {
       return DateTime.now();
     }
 
+    final shippingInfo = map['shippingInfo'] as Map<String, dynamic>?;
+
     return Order(
       id: id,
       buyerId: map['buyerId'] as String,
@@ -77,8 +79,8 @@ class Order {
       status: map['status'] as String,
       createdAt: parseDateTime(map['createdAt']),
       updatedAt: map['updatedAt'] != null ? parseDateTime(map['updatedAt']) : null,
-      trackingNumber: map['trackingNumber'] as String?,
-      shippingCarrier: map['shippingCarrier'] as String?,
+      trackingNumber: shippingInfo?['trackingNumber'] as String?,
+      shippingCarrier: shippingInfo?['shippingCarrier'] as String?,
       deliveryFee: (map['deliveryFee'] ?? map['shippingFee'] ?? 0.0).toDouble(),
     );
   }

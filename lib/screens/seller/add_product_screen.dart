@@ -1197,11 +1197,14 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         _uploadProgress = 50; // Next 50% for product creation
       });
 
+      // Get seller profile to get the store name
+      final seller = await ref.read(sellerServiceProvider).getSellerProfile();
+
       // Create product with updated image colors
       final product = Product(
         id: '',  // Will be set by Firestore
         sellerId: ref.read(authServiceProvider).currentUser?.uid ?? '',
-        sellerName: ref.read(authServiceProvider).currentUser?.displayName ?? '',
+        sellerName: seller.storeName,
         name: _nameController.text,
         description: _descriptionController.text,
         price: double.parse(_priceController.text),

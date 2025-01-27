@@ -242,7 +242,7 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _OrderCard extends StatelessWidget {
+class _OrderCard extends ConsumerWidget {
   final Order order;
   final void Function(String) onUpdateStatus;
 
@@ -251,8 +251,100 @@ class _OrderCard extends StatelessWidget {
     required this.onUpdateStatus,
   });
 
+  Future<void> _showShippingDialog(BuildContext context, WidgetRef ref) async {
+    final trackingController = TextEditingController();
+    final carrierController = TextEditingController();
+    bool hasTracking = false;
+    
+    final result = await showDialog<Map<String, String?>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Shipping Details'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Has Tracking Number'),
+                value: hasTracking,
+                onChanged: (value) {
+                  setState(() {
+                    hasTracking = value;
+                  });
+                },
+              ),
+              if (hasTracking) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: trackingController,
+                  decoration: const InputDecoration(
+                    labelText: 'Tracking Number',
+                    hintText: 'Enter tracking number',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: carrierController,
+                  decoration: const InputDecoration(
+                    labelText: 'Shipping Carrier',
+                    hintText: 'Enter shipping carrier name',
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (hasTracking && (trackingController.text.isEmpty || carrierController.text.isEmpty)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill in all tracking fields')),
+                  );
+                  return;
+                }
+                Navigator.pop(context, {
+                  'trackingNumber': hasTracking ? trackingController.text : null,
+                  'shippingCarrier': hasTracking ? carrierController.text : null,
+                });
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null) {
+      try {
+        if (result['trackingNumber'] != null && result['shippingCarrier'] != null) {
+          await ref.read(sellerServiceProvider).updateShippingInfo(
+            order.id,
+            {
+              'trackingNumber': result['trackingNumber'],
+              'shippingCarrier': result['shippingCarrier'],
+            },
+          );
+        }
+        onUpdateStatus('shipped');
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update shipping info: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     return Card(
@@ -468,7 +560,7 @@ class _OrderCard extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       child: FilledButton(
-                        onPressed: () => onUpdateStatus('shipped'),
+                        onPressed: () => _showShippingDialog(context, ref),
                         child: const Text('Mark as Shipped'),
                       ),
                     ),

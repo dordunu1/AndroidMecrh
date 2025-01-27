@@ -266,6 +266,39 @@ class BuyerService {
     }
   }
 
+  Future<void> updateOrderStatus(String orderId, String status) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final orderDoc = await _firestore.collection('orders').doc(orderId).get();
+      if (!orderDoc.exists) throw Exception('Order not found');
+
+      final order = app_order.Order.fromMap(orderDoc.data()!, orderDoc.id);
+
+      if (order.buyerId != user.uid) {
+        throw Exception('Not authorized to update this order');
+      }
+
+      // Only allow buyers to mark orders as delivered
+      if (status != 'delivered') {
+        throw Exception('Invalid status update');
+      }
+
+      // Only allow marking shipped orders as delivered
+      if (order.status != 'shipped') {
+        throw Exception('Order must be shipped before marking as delivered');
+      }
+
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': status,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      throw Exception('Failed to update order status: $e');
+    }
+  }
+
   Future<void> placeOrder({
     required List<CartItem> items,
     required String shippingAddressId,
