@@ -263,160 +263,175 @@ class _OrderCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Order ID and Status
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Order Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Order #${order.id.substring(0, 8)}',
-                  style: theme.textTheme.titleMedium,
-                ),
-                _StatusChip(status: order.status),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Buyer Info
-            ListTile(
-              title: Text(
-                'Buyer: ${order.buyerName}',
-                style: theme.textTheme.titleMedium,
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Created on ${_formatDate(order.createdAt)}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Shipping Address:',
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  Text(order.shippingAddress['address']),
-                  Text(
-                    '${order.shippingAddress['city']}, ${order.shippingAddress['state']} ${order.shippingAddress['zip']}',
-                  ),
-                  Text(order.shippingAddress['country']),
-                  Text('Phone: ${order.shippingAddress['phone']}'),
-                ],
-              ),
-            ),
-
-            // Order Details
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total: GHS ${order.total.toStringAsFixed(2)}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Items
-            Text(
-              'Items:',
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 4),
-            ...order.items.map((item) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
+                // Order ID and Status
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '${item.quantity}x',
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      'Order #${order.id.substring(0, 8)}',
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        item.productName,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    _StatusChip(status: order.status),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Buyer Info and Date
+                Text(
+                  'Buyer: ${order.buyerInfo['name'] ?? 'Unknown'}',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Created on ${_formatDate(order.createdAt)}',
+                  style: theme.textTheme.bodySmall,
+                ),
+
+                // Order Total and Delivery Fee
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'GHS ${order.total.toStringAsFixed(2)}',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Delivery Fee: GHS ${order.deliveryFee.toStringAsFixed(2)}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              );
-            }),
-            const SizedBox(height: 8),
+              ],
+            ),
+          ),
 
-            // Shipping Address
-            Text(
-              'Shipping Address:',
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              order.shippingAddress['address'],
-              style: theme.textTheme.bodyMedium,
-            ),
-            Text(
-              '${order.shippingAddress['city']}, ${order.shippingAddress['state']} ${order.shippingAddress['zip']}',
-              style: theme.textTheme.bodyMedium,
-            ),
-            Text(
-              order.shippingAddress['country'],
-              style: theme.textTheme.bodyMedium,
-            ),
-            Text(
-              'Phone: ${order.shippingAddress['phone']}',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            if (order.status == 'processing')
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => onUpdateStatus(order, 'cancelled'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () => onUpdateStatus(order, 'shipped'),
-                      child: const Text('Mark as Shipped'),
-                    ),
-                  ),
-                ],
-              )
-            else if (order.status == 'shipped')
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => onUpdateStatus(order, 'delivered'),
-                  child: const Text('Mark as Delivered'),
+          // Order Items
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Items',
+                  style: theme.textTheme.titleSmall,
                 ),
+                const SizedBox(height: 8),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: order.items.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final item = order.items[index];
+                    return Row(
+                      children: [
+                        Text(
+                          '${item.quantity}x',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            item.productName,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                        Text(
+                          'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // Shipping Address
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Shipping Address',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(order.shippingAddress['address'] ?? ''),
+                Text(
+                  '${order.shippingAddress['city'] ?? ''}, ${order.shippingAddress['state'] ?? ''} ${order.shippingAddress['zip'] ?? ''}',
+                ),
+                Text(order.shippingAddress['country'] ?? ''),
+                Text('Phone: ${order.shippingAddress['phone'] ?? ''}'),
+              ],
+            ),
+          ),
+
+          // Action Buttons
+          if (order.status == 'processing' || order.status == 'shipped') ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  if (order.status == 'processing') ...[
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => onUpdateStatus(order, 'cancelled'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => onUpdateStatus(order, 'shipped'),
+                        child: const Text('Mark as Shipped'),
+                      ),
+                    ),
+                  ] else if (order.status == 'shipped')
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => onUpdateStatus(order, 'delivered'),
+                        child: const Text('Mark as Delivered'),
+                      ),
+                    ),
+                ],
               ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

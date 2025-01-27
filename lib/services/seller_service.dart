@@ -357,61 +357,40 @@ class SellerService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-
       // Get seller profile
       final sellerDoc = await _firestore.collection('sellers').doc(user.uid).get();
       if (!sellerDoc.exists) throw Exception('Seller profile not found');
 
-      // Get orders for the current month
-      final ordersSnapshot = await _firestore
-          .collection('orders')
-          .where('sellerId', isEqualTo: user.uid)
-          .where('createdAt', isGreaterThanOrEqualTo: startOfMonth)
-          .get();
+      // Get all orders for the seller
+      final orders = await getOrders();
+      
+      // Calculate statistics
+      final totalSales = orders.fold(0.0, (sum, order) => 
+        order.status != 'cancelled' && order.status != 'refunded' 
+          ? sum + order.total 
+          : sum
+      );
+      
+      final processingOrders = orders.where((order) => order.status == 'processing').length;
 
-      final orders = ordersSnapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return app_order.Order.fromMap(data as Map<String, dynamic>, doc.id);
-      }).toList();
-
-      // Calculate order statistics
-      double totalSales = 0;
-      int processingOrders = 0;
-      int completedOrders = 0;
-      int cancelledOrders = 0;
-
-      for (final order in orders) {
-        totalSales += order.total;
-        if (order.status == 'processing') processingOrders++;
-        if (order.status == 'delivered') completedOrders++;
-        if (order.status == 'cancelled') cancelledOrders++;
-      }
-
-      // Get total products
-      final productsCount = await _firestore
+      // Get total products count
+      final productsSnapshot = await _firestore
           .collection('products')
           .where('sellerId', isEqualTo: user.uid)
           .count()
           .get();
-
-      // Get recent orders
-      final recentOrders = orders
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       return {
         'statistics': {
           'totalSales': totalSales,
           'balance': sellerDoc.data()?['balance'] ?? 0.0,
           'totalOrders': orders.length,
-          'totalProducts': productsCount.count,
           'processingOrders': processingOrders,
+          'totalProducts': productsSnapshot.count,
           'averageRating': sellerDoc.data()?['averageRating'] ?? 0.0,
           'reviewCount': sellerDoc.data()?['reviewCount'] ?? 0,
         },
-        'recentOrders': recentOrders.take(10).map((order) => order.toMap()).toList(),
+        'recentOrders': orders.take(5).toList(),
       };
     } catch (e) {
       throw Exception('Failed to get dashboard data: $e');
@@ -651,8 +630,10 @@ class SellerService {
     // Update user document to mark as seller
     batch.update(userRef, {
       'isSeller': true,
+      'isBuyer': false,
       'sellerId': sellerId,
       'updatedAt': DateTime.now().toIso8601String(),
+      'becameSellerAt': DateTime.now().toIso8601String(),
     });
 
     await batch.commit();
