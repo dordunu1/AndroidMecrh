@@ -342,28 +342,87 @@ class _OrderCard extends StatelessWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: order.items.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  separatorBuilder: (context, index) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final item = order.items[index];
                     return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${item.quantity}x',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                        if (item.selectedColorImage != null) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              item.selectedColorImage!,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 80,
+                                  height: 80,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.error),
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
+                          const SizedBox(width: 12),
+                        ],
                         Expanded(
-                          child: Text(
-                            item.productName,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                        Text(
-                          'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${item.quantity}x ${item.name}',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                              if (item.selectedColor != null) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: _getColorFromString(item.selectedColor!),
+                                        border: Border.all(color: Colors.grey),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      item.selectedColor!,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.secondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              if (item.selectedSize != null) ...[
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.secondary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Size: ${item.selectedSize}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.secondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ],
@@ -438,6 +497,35 @@ class _OrderCard extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  Color _getColorFromString(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'red':
+        return Colors.red;
+      case 'blue':
+        return Colors.blue;
+      case 'green':
+        return Colors.green;
+      case 'yellow':
+        return Colors.yellow;
+      case 'purple':
+        return Colors.purple;
+      case 'orange':
+        return Colors.orange;
+      case 'pink':
+        return Colors.pink;
+      case 'brown':
+        return Colors.brown;
+      case 'grey':
+        return Colors.grey;
+      case 'black':
+        return Colors.black;
+      case 'white':
+        return Colors.white;
+      default:
+        return Colors.grey;
+    }
   }
 }
 
