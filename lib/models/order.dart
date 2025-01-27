@@ -108,6 +108,9 @@ class OrderItem {
   final double price;
   final int quantity;
   final String? imageUrl;
+  final String? selectedColor;
+  final String? selectedColorImage;
+  final String? selectedSize;
   final Map<String, dynamic>? options;
 
   OrderItem({
@@ -116,6 +119,9 @@ class OrderItem {
     required this.price,
     required this.quantity,
     this.imageUrl,
+    this.selectedColor,
+    this.selectedColorImage,
+    this.selectedSize,
     this.options,
   });
 
@@ -128,6 +134,9 @@ class OrderItem {
       price: (map['price'] ?? 0.0).toDouble(),
       quantity: map['quantity']?.toInt() ?? 0,
       imageUrl: map['imageUrl'],
+      selectedColor: map['selectedColor'],
+      selectedColorImage: map['selectedColorImage'],
+      selectedSize: map['selectedSize'],
       options: map['options'] != null ? Map<String, dynamic>.from(map['options']) : null,
     );
   }
@@ -139,6 +148,9 @@ class OrderItem {
       'price': price,
       'quantity': quantity,
       'imageUrl': imageUrl,
+      'selectedColor': selectedColor,
+      'selectedColorImage': selectedColorImage,
+      'selectedSize': selectedSize,
       'options': options,
     };
   }
