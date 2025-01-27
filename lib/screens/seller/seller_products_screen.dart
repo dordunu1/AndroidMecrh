@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/product.dart';
 import '../../services/seller_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/realtime_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/product_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -21,37 +24,59 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
   bool _isLoading = true;
   List<Product> _products = [];
   String? _error;
+  StreamSubscription? _productsSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _setupRealtimeUpdates();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _productsSubscription?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadProducts() async {
+  Future<void> _setupRealtimeUpdates() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final products = await ref.read(sellerServiceProvider).getProducts(
-        category: _selectedCategory == 'all' ? null : _selectedCategory,
-        search: _searchController.text.isEmpty ? null : _searchController.text,
-      );
+      final user = ref.read(authServiceProvider).currentUser;
+      if (user == null) throw Exception('User not authenticated');
 
-      if (mounted) {
-        setState(() {
-          _products = products;
-          _isLoading = false;
-        });
-      }
+      _productsSubscription?.cancel();
+      _productsSubscription = ref
+          .read(realtimeServiceProvider)
+          .listenToProducts(
+            user.uid,
+            (products) {
+              if (mounted) {
+                setState(() {
+                  // Filter products based on search and category
+                  _products = products.where((product) {
+                    bool matchesSearch = true;
+                    if (_searchController.text.isNotEmpty) {
+                      matchesSearch = product.name.toLowerCase().contains(_searchController.text.toLowerCase());
+                    }
+                    
+                    bool matchesCategory = true;
+                    if (_selectedCategory != 'all') {
+                      matchesCategory = product.category == _selectedCategory;
+                    }
+                    
+                    return matchesSearch && matchesCategory;
+                  }).toList();
+                  
+                  _isLoading = false;
+                });
+              }
+            },
+          );
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -73,7 +98,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        _loadProducts();
+        _setupRealtimeUpdates();
       }
     } catch (e) {
       if (mounted) {
@@ -118,7 +143,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          _loadProducts();
+          _setupRealtimeUpdates();
         }
       } catch (e) {
         if (mounted) {
@@ -142,7 +167,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
     );
 
     if (result == true && mounted) {
-      _loadProducts();
+      _setupRealtimeUpdates();
     }
   }
 
@@ -155,7 +180,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
     );
 
     if (result == true && mounted) {
-      _loadProducts();
+      _setupRealtimeUpdates();
     }
   }
 
@@ -168,7 +193,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
         title: const Text('Products'),
         actions: [
           IconButton(
-            onPressed: _loadProducts,
+            onPressed: _setupRealtimeUpdates,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -184,7 +209,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                   controller: _searchController,
                   label: 'Search Products',
                   prefixIcon: const Icon(Icons.search),
-                  onSubmitted: (_) => _loadProducts(),
+                  onSubmitted: (_) => _setupRealtimeUpdates(),
                 ),
                 const SizedBox(height: 16),
                 SingleChildScrollView(
@@ -197,7 +222,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedCategory = 'all');
-                            _loadProducts();
+                            _setupRealtimeUpdates();
                           }
                         },
                       ),
@@ -208,7 +233,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedCategory = 'electronics');
-                            _loadProducts();
+                            _setupRealtimeUpdates();
                           }
                         },
                       ),
@@ -219,7 +244,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedCategory = 'fashion');
-                            _loadProducts();
+                            _setupRealtimeUpdates();
                           }
                         },
                       ),
@@ -230,7 +255,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedCategory = 'home');
-                            _loadProducts();
+                            _setupRealtimeUpdates();
                           }
                         },
                       ),
@@ -241,7 +266,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedCategory = 'beauty');
-                            _loadProducts();
+                            _setupRealtimeUpdates();
                           }
                         },
                       ),
@@ -252,7 +277,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedCategory = 'sports');
-                            _loadProducts();
+                            _setupRealtimeUpdates();
                           }
                         },
                       ),

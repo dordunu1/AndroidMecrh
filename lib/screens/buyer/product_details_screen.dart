@@ -17,6 +17,8 @@ import 'cart_screen.dart';
 import '../../services/seller_service.dart';
 import '../chat/chat_screen.dart';
 import '../../screens/buyer/checkout_screen.dart';
+import '../../services/realtime_service.dart';
+import 'dart:async';
 
 class ProductDetailsScreen extends ConsumerStatefulWidget {
   final Product product;
@@ -47,11 +49,15 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   String? _sellerCountry;
   String? _selectedColor;
   Seller? _seller;
+  StreamSubscription? _productSubscription;
+  late Product _product;
 
   @override
   void initState() {
     super.initState();
+    _product = widget.product;
     _loadInitialData();
+    _setupRealtimeUpdates();
   }
 
   Future<void> _loadInitialData() async {
@@ -85,6 +91,39 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     }
   }
 
+  void _setupRealtimeUpdates() {
+    _productSubscription?.cancel();
+    _productSubscription = ref
+        .read(realtimeServiceProvider)
+        .listenToProductStock(
+          _product.id,
+          (updatedProduct) {
+            if (mounted) {
+              setState(() {
+                // Update product data using copyWith
+                _product = _product.copyWith(
+                  stockQuantity: updatedProduct.stockQuantity,
+                  colorQuantities: updatedProduct.colorQuantities,
+                  variantQuantities: updatedProduct.variantQuantities,
+                );
+                
+                // Validate current selections
+                if (_selectedColor != null) {
+                  final availableQuantity = _product.colorQuantities[_selectedColor] ?? 0;
+                  if (_quantity > availableQuantity) {
+                    _quantity = availableQuantity > 0 ? availableQuantity : 1;
+                  }
+                } else {
+                  if (_quantity > _product.stockQuantity) {
+                    _quantity = _product.stockQuantity > 0 ? _product.stockQuantity : 1;
+                  }
+                }
+              });
+            }
+          },
+        );
+  }
+
   double _calculateDeliveryFee() {
     if (_currentUser == null) return 0.5; // Default to same city fee if user not loaded
     
@@ -116,6 +155,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _productSubscription?.cancel();
     super.dispose();
   }
 

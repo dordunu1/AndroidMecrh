@@ -118,16 +118,18 @@ class RealtimeService {
   
   /// Listen to product changes including stock and variants
   StreamSubscription listenToProducts(String sellerId, Function(List<Product>) onUpdate) {
-    final subscription = _firestore
-        .collection('products')
-        .where('sellerId', isEqualTo: sellerId)
-        .snapshots()
-        .listen((snapshot) {
-          final products = snapshot.docs
-              .map((doc) => Product.fromMap(doc.data(), doc.id))
-              .toList();
-          onUpdate(products);
-        });
+    Query query = _firestore.collection('products');
+    if (sellerId.isNotEmpty) {
+      query = query.where('sellerId', isEqualTo: sellerId);
+    } else {
+      query = query.where('isActive', isEqualTo: true);
+    }
+    final subscription = query.snapshots().listen((snapshot) {
+      final products = snapshot.docs
+          .map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .toList();
+      onUpdate(products);
+    });
 
     _listeners['products_$sellerId'] = subscription;
     return subscription;

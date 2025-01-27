@@ -8,6 +8,7 @@ import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/product_skeleton.dart';
 import 'product_details_screen.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../services/realtime_service.dart';
 
 final productsProvider = StreamProvider.autoDispose
     .family<List<Product>, Map<String, dynamic>>((ref, params) {
@@ -39,46 +40,84 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   bool _isLoading = true;
   List<Product> _products = [];
   String? _error;
+  StreamSubscription? _productsSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _setupRealtimeUpdates();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchDebounce?.cancel();
+    _productsSubscription?.cancel();
     super.dispose();
   }
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 500), () {
-      _loadProducts();
+      _setupRealtimeUpdates();
     });
   }
 
-  Future<void> _loadProducts() async {
+  Future<void> _setupRealtimeUpdates() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final products = await ref.read(buyerServiceProvider).getProducts(
-        category: _selectedCategory,
-        search: _searchController.text.isEmpty ? null : _searchController.text,
-        sortBy: _selectedSortBy,
-      );
-
-      if (mounted) {
-        setState(() {
-          _products = products;
-          _isLoading = false;
-        });
-      }
+      _productsSubscription?.cancel();
+      _productsSubscription = ref
+          .read(realtimeServiceProvider)
+          .listenToProducts(
+            '', // Empty string for no seller filter
+            (products) {
+              if (mounted) {
+                setState(() {
+                  // Filter products based on search and category
+                  _products = products.where((product) {
+                    if (!product.isActive) return false;
+                    
+                    bool matchesSearch = true;
+                    if (_searchController.text.isNotEmpty) {
+                      matchesSearch = product.name.toLowerCase().contains(_searchController.text.toLowerCase());
+                    }
+                    
+                    bool matchesCategory = true;
+                    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+                      matchesCategory = product.category == _selectedCategory;
+                    }
+                    
+                    return matchesSearch && matchesCategory;
+                  }).toList();
+                  
+                  // Sort products if needed
+                  if (_selectedSortBy != null) {
+                    switch (_selectedSortBy) {
+                      case 'price_low_high':
+                        _products.sort((a, b) => a.price.compareTo(b.price));
+                        break;
+                      case 'price_high_low':
+                        _products.sort((a, b) => b.price.compareTo(a.price));
+                        break;
+                      case 'newest':
+                        _products.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                        break;
+                      case 'rating':
+                        _products.sort((a, b) => b.rating.compareTo(a.rating));
+                        break;
+                    }
+                  }
+                  
+                  _isLoading = false;
+                });
+              }
+            },
+          );
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -125,7 +164,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     ),
                   ),
                   IconButton(
-                    onPressed: _loadProducts,
+                    onPressed: _setupRealtimeUpdates,
                     icon: const Icon(Icons.refresh),
                   ),
                 ],
@@ -145,7 +184,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       setState(() {
                         _selectedCategory = null;
                       });
-                      _loadProducts();
+                      _setupRealtimeUpdates();
                     },
                   ),
                   _CategoryChip(
@@ -155,7 +194,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       setState(() {
                         _selectedCategory = selected ? 'clothing' : null;
                       });
-                      _loadProducts();
+                      _setupRealtimeUpdates();
                     },
                   ),
                   _CategoryChip(
@@ -165,7 +204,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       setState(() {
                         _selectedCategory = selected ? 'accessories' : null;
                       });
-                      _loadProducts();
+                      _setupRealtimeUpdates();
                     },
                   ),
                   _CategoryChip(
@@ -175,7 +214,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       setState(() {
                         _selectedCategory = selected ? 'electronics' : null;
                       });
-                      _loadProducts();
+                      _setupRealtimeUpdates();
                     },
                   ),
                   _CategoryChip(
@@ -185,7 +224,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       setState(() {
                         _selectedCategory = selected ? 'home' : null;
                       });
-                      _loadProducts();
+                      _setupRealtimeUpdates();
                     },
                   ),
                   _CategoryChip(
@@ -195,7 +234,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       setState(() {
                         _selectedCategory = selected ? 'art' : null;
                       });
-                      _loadProducts();
+                      _setupRealtimeUpdates();
                     },
                   ),
                   _CategoryChip(
@@ -205,7 +244,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       setState(() {
                         _selectedCategory = selected ? 'collectibles' : null;
                       });
-                      _loadProducts();
+                      _setupRealtimeUpdates();
                     },
                   ),
                 ],
@@ -242,7 +281,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                 textAlign: TextAlign.center,
                               ),
                               TextButton(
-                                onPressed: _loadProducts,
+                                onPressed: _setupRealtimeUpdates,
                                 child: const Text('Retry'),
                               ),
                             ],
@@ -270,7 +309,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                           _selectedCategory = null;
                                           _searchController.clear();
                                         });
-                                        _loadProducts();
+                                        _setupRealtimeUpdates();
                                       },
                                       child: const Text('Clear filters'),
                                     ),
@@ -440,29 +479,45 @@ class _ProductCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  if (product.hasDiscount) ...[
-                    Text(
-                      'GHS ${discountedPrice?.toStringAsFixed(2)}',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (product.hasDiscount) ...[
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'GHS ${discountedPrice?.toStringAsFixed(2)}',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'GHS ${product.price.toStringAsFixed(2)}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else
+                        Text(
+                          'GHS ${product.price.toStringAsFixed(2)}',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      Text(
+                        '${product.soldCount} sold',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'GHS ${product.price.toStringAsFixed(2)}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        decoration: TextDecoration.lineThrough,
-                      ),
-                    ),
-                  ] else
-                    Text(
-                      'GHS ${product.price.toStringAsFixed(2)}',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
             ),
