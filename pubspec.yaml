@@ -36,6 +36,7 @@ dependencies:
   geolocator: ^10.1.0
   permission_handler: ^11.0.1
   font_awesome_flutter: ^10.6.0
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:

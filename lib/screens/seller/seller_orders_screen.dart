@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/order.dart';
 import '../../services/seller_service.dart';
+import '../../services/realtime_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 
 class SellerOrdersScreen extends ConsumerStatefulWidget {
@@ -17,37 +20,46 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
   bool _isLoading = true;
   List<Order> _orders = [];
   String? _error;
+  StreamSubscription? _ordersSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadOrders();
+    _setupRealtimeUpdates();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _ordersSubscription?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadOrders() async {
+  Future<void> _setupRealtimeUpdates() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final orders = await ref.read(sellerServiceProvider).getOrders(
-        status: _selectedStatus == 'all' ? null : _selectedStatus,
-        search: _searchController.text.isEmpty ? null : _searchController.text,
-      );
+      final user = ref.read(authServiceProvider).currentUser;
+      if (user == null) throw Exception('User not authenticated');
 
-      if (mounted) {
-        setState(() {
-          _orders = orders;
-          _isLoading = false;
-        });
-      }
+      _ordersSubscription?.cancel();
+      _ordersSubscription = ref
+          .read(realtimeServiceProvider)
+          .listenToOrders(
+            user.uid,
+            (orders) {
+              if (mounted) {
+                setState(() {
+                  _orders = orders;
+                  _isLoading = false;
+                });
+              }
+            },
+            status: _selectedStatus == 'all' ? null : _selectedStatus,
+          );
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -58,28 +70,12 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
     }
   }
 
-  Future<void> _updateOrderStatus(Order order, String status) async {
-    try {
-      await ref.read(sellerServiceProvider).updateOrderStatus(order.id, status);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order status updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadOrders();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+  void _onStatusChanged(bool selected, String status) {
+    if (selected) {
+      setState(() {
+        _selectedStatus = status;
+      });
+      _setupRealtimeUpdates();
     }
   }
 
@@ -92,7 +88,7 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
         title: const Text('Orders'),
         actions: [
           IconButton(
-            onPressed: _loadOrders,
+            onPressed: _setupRealtimeUpdates,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -108,77 +104,53 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
                   controller: _searchController,
                   label: 'Search Orders',
                   prefixIcon: const Icon(Icons.search),
-                  onSubmitted: (_) => _loadOrders(),
+                  onSubmitted: (_) => _setupRealtimeUpdates(),
                 ),
                 const SizedBox(height: 16),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _FilterChip(
+                      StatusFilterChip(
                         label: 'All',
+                        value: 'all',
                         selected: _selectedStatus == 'all',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'all');
-                            _loadOrders();
-                          }
-                        },
+                        onSelected: (selected) => _onStatusChanged(selected, 'all'),
                       ),
                       const SizedBox(width: 8),
-                      _FilterChip(
+                      StatusFilterChip(
                         label: 'Processing',
+                        value: 'processing',
                         selected: _selectedStatus == 'processing',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'processing');
-                            _loadOrders();
-                          }
-                        },
+                        onSelected: (selected) => _onStatusChanged(selected, 'processing'),
                       ),
                       const SizedBox(width: 8),
-                      _FilterChip(
+                      StatusFilterChip(
                         label: 'Shipped',
+                        value: 'shipped',
                         selected: _selectedStatus == 'shipped',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'shipped');
-                            _loadOrders();
-                          }
-                        },
+                        onSelected: (selected) => _onStatusChanged(selected, 'shipped'),
                       ),
                       const SizedBox(width: 8),
-                      _FilterChip(
+                      StatusFilterChip(
                         label: 'Delivered',
+                        value: 'delivered',
                         selected: _selectedStatus == 'delivered',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'delivered');
-                            _loadOrders();
-                          }
-                        },
+                        onSelected: (selected) => _onStatusChanged(selected, 'delivered'),
                       ),
                       const SizedBox(width: 8),
-                      _FilterChip(
+                      StatusFilterChip(
                         label: 'Cancelled',
+                        value: 'cancelled',
                         selected: _selectedStatus == 'cancelled',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'cancelled');
-                            _loadOrders();
-                          }
-                        },
+                        onSelected: (selected) => _onStatusChanged(selected, 'cancelled'),
                       ),
                       const SizedBox(width: 8),
-                      _FilterChip(
+                      StatusFilterChip(
                         label: 'Refunded',
+                        value: 'refunded',
                         selected: _selectedStatus == 'refunded',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'refunded');
-                            _loadOrders();
-                          }
-                        },
+                        onSelected: (selected) => _onStatusChanged(selected, 'refunded'),
                       ),
                     ],
                   ),
@@ -200,27 +172,46 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
                           ),
                         ),
                       )
-                    : _orders.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No orders found',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    : RefreshIndicator(
+                        onRefresh: _setupRealtimeUpdates,
+                        child: _orders.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'No orders found',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _orders.length,
+                                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                                itemBuilder: (context, index) {
+                                  final order = _orders[index];
+                                  return _OrderCard(
+                                    order: order,
+                                    onUpdateStatus: (newStatus) async {
+                                      try {
+                                        await ref.read(sellerServiceProvider).updateOrderStatus(
+                                              order.id,
+                                              newStatus,
+                                            );
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Failed to update order status: $e'),
+                                              backgroundColor: theme.colorScheme.error,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                  );
+                                },
                               ),
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _orders.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 16),
-                            itemBuilder: (context, index) {
-                              final order = _orders[index];
-                              return _OrderCard(
-                                order: order,
-                                onUpdateStatus: _updateOrderStatus,
-                              );
-                            },
-                          ),
+                      ),
           ),
         ],
       ),
@@ -230,11 +221,13 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
 
 class _FilterChip extends StatelessWidget {
   final String label;
+  final String value;
   final bool selected;
-  final ValueChanged<bool> onSelected;
+  final ValueChanged<String?> onSelected;
 
   const _FilterChip({
     required this.label,
+    required this.value,
     required this.selected,
     required this.onSelected,
   });
@@ -244,14 +237,14 @@ class _FilterChip extends StatelessWidget {
     return FilterChip(
       label: Text(label),
       selected: selected,
-      onSelected: onSelected,
+      onSelected: (bool isSelected) => onSelected(isSelected ? value : null),
     );
   }
 }
 
 class _OrderCard extends StatelessWidget {
   final Order order;
-  final void Function(Order order, String status) onUpdateStatus;
+  final void Function(String) onUpdateStatus;
 
   const _OrderCard({
     required this.order,
@@ -465,7 +458,7 @@ class _OrderCard extends StatelessWidget {
                   if (order.status == 'processing') ...[
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => onUpdateStatus(order, 'cancelled'),
+                        onPressed: () => onUpdateStatus('cancelled'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red,
                         ),
@@ -475,14 +468,14 @@ class _OrderCard extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       child: FilledButton(
-                        onPressed: () => onUpdateStatus(order, 'shipped'),
+                        onPressed: () => onUpdateStatus('shipped'),
                         child: const Text('Mark as Shipped'),
                       ),
                     ),
                   ] else if (order.status == 'shipped')
                     Expanded(
                       child: FilledButton(
-                        onPressed: () => onUpdateStatus(order, 'delivered'),
+                        onPressed: () => onUpdateStatus('delivered'),
                         child: const Text('Mark as Delivered'),
                       ),
                     ),
@@ -568,6 +561,36 @@ class _StatusChip extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+}
+
+class StatusFilterChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool selected;
+  final ValueChanged<bool> onSelected;
+
+  const StatusFilterChip({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: onSelected,
+      backgroundColor: Colors.grey[200],
+      selectedColor: Theme.of(context).primaryColor.withOpacity(0.1),
+      labelStyle: TextStyle(
+        color: selected ? Theme.of(context).primaryColor : null,
+      ),
+      checkmarkColor: Theme.of(context).primaryColor,
     );
   }
 } 

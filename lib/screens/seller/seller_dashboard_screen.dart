@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/order.dart';
 import '../../services/seller_service.dart';
+import '../../services/realtime_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/common/stats_card.dart';
 import 'package:intl/intl.dart';
 
@@ -16,28 +19,43 @@ class _SellerDashboardScreenState extends ConsumerState<SellerDashboardScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _dashboardData;
   String? _error;
+  StreamSubscription? _dashboardSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadDashboardData();
+    _setupRealtimeUpdates();
   }
 
-  Future<void> _loadDashboardData() async {
+  @override
+  void dispose() {
+    _dashboardSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _setupRealtimeUpdates() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final dashboardData = await ref.read(sellerServiceProvider).getDashboardData();
+      final user = ref.read(authServiceProvider).currentUser;
+      if (user == null) throw Exception('User not authenticated');
 
-      if (mounted) {
-        setState(() {
-          _dashboardData = dashboardData;
-          _isLoading = false;
-        });
-      }
+      _dashboardSubscription = ref
+          .read(realtimeServiceProvider)
+          .listenToSellerDashboard(
+            user.uid,
+            (data) {
+              if (mounted) {
+                setState(() {
+                  _dashboardData = data;
+                  _isLoading = false;
+                });
+              }
+            },
+          );
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -57,7 +75,7 @@ class _SellerDashboardScreenState extends ConsumerState<SellerDashboardScreen> {
         title: const Text('Dashboard'),
         actions: [
           IconButton(
-            onPressed: _loadDashboardData,
+            onPressed: _setupRealtimeUpdates,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -74,7 +92,7 @@ class _SellerDashboardScreenState extends ConsumerState<SellerDashboardScreen> {
                   ),
                 )
               : RefreshIndicator(
-                  onRefresh: _loadDashboardData,
+                  onRefresh: _setupRealtimeUpdates,
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
