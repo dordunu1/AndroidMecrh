@@ -365,6 +365,34 @@ class RealtimeService {
             .map((order) => order.buyerId)
             .toSet();
 
+        // Calculate top sellers based on total sales
+        final sellerSales = <String, double>{};
+        final sellerOrders = <String, int>{};
+        final sellerCustomers = <String, Set<String>>{};
+
+        for (final order in ordersList) {
+          if (order.status != 'cancelled' && order.status != 'refunded') {
+            sellerSales[order.sellerId] = (sellerSales[order.sellerId] ?? 0) + order.total;
+            sellerOrders[order.sellerId] = (sellerOrders[order.sellerId] ?? 0) + 1;
+            sellerCustomers.putIfAbsent(order.sellerId, () => {}).add(order.buyerId);
+          }
+        }
+
+        final sellersList = sellers.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return Seller.fromMap(data, doc.id);
+        }).toList();
+
+        final topSellers = sellersList.where((seller) => sellerSales.containsKey(seller.id))
+            .map((seller) => {
+              ...seller.toMap(),
+              'totalSales': sellerSales[seller.id] ?? 0.0,
+              'totalOrders': sellerOrders[seller.id] ?? 0,
+              'totalCustomers': sellerCustomers[seller.id]?.length ?? 0,
+            })
+            .toList()
+          ..sort((a, b) => (b['totalSales'] as double).compareTo(a['totalSales'] as double));
+
         return {
           'stats': {
             'totalSales': totalSales,
@@ -383,6 +411,7 @@ class RealtimeService {
             'status': order.status,
             'date': order.createdAt.toIso8601String(),
           }).toList(),
+          'topSellers': topSellers.take(5).toList(),
         };
       },
     ).listen(onUpdate);

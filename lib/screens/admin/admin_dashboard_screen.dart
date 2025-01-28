@@ -26,6 +26,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   StreamSubscription? _dashboardSubscription;
   String _selectedTimeRange = 'today';
   String _error = '';
+  bool _isGridView = false;
+  String _searchQuery = '';
+  String _selectedStore = 'All Stores';
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -35,6 +39,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _dashboardSubscription?.cancel();
     super.dispose();
   }
@@ -135,7 +140,27 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
+  String _formatDate(String isoString) {
+    final date = DateTime.parse(isoString);
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
   Widget _buildRecentOrdersList(List<Map<String, dynamic>> orders) {
+    // Get unique store names for dropdown
+    final stores = ['All Stores', ...orders.map((o) => o['seller'] as String).toSet().toList()..sort()];
+    
+    // Filter orders based on search and selected store
+    var filteredOrders = orders.where((order) {
+      final matchesSearch = _searchQuery.isEmpty ||
+          order['id'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          order['seller'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          order['customer'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+      
+      final matchesStore = _selectedStore == 'All Stores' || order['seller'] == _selectedStore;
+      
+      return matchesSearch && matchesStore;
+    }).toList();
+
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,69 +180,137 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Row(
                   children: [
                     DropdownButton<String>(
-                      value: 'All Stores',
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'All Stores',
-                          child: Text('All Stores'),
+                      value: _selectedStore,
+                      items: stores.map((store) => DropdownMenuItem(
+                        value: store,
+                        child: Text(store),
+                      )).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedStore = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 200,
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: const InputDecoration(
+                          hintText: 'Search orders...',
+                          isDense: true,
+                          prefixIcon: Icon(Icons.search, size: 20),
                         ),
-                      ],
-                      onChanged: (value) {},
+                        onChanged: (value) {
+                          setState(() => _searchQuery = value);
+                        },
+                      ),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: () {},
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.grid_view),
-                      onPressed: () {},
+                      icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
+                      onPressed: () {
+                        setState(() => _isGridView = !_isGridView);
+                      },
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('ORDER ID')),
-                DataColumn(label: Text('SELLER')),
-                DataColumn(label: Text('CUSTOMER')),
-                DataColumn(label: Text('AMOUNT')),
-                DataColumn(label: Text('STATUS')),
-                DataColumn(label: Text('DATE')),
-              ],
-              rows: orders.map((order) {
-                return DataRow(
-                  cells: [
-                    DataCell(Text(order['id'] as String)),
-                    DataCell(Text(order['seller'] as String)),
-                    DataCell(Text(order['customer'] as String)),
-                    DataCell(Text('\$${(order['amount'] as num).toStringAsFixed(2)}')),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(order['status'] as String),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          order['status'] as String,
-                          style: const TextStyle(fontSize: 12),
-                        ),
+          if (_isGridView)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 1.5,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                ),
+                itemCount: filteredOrders.length,
+                itemBuilder: (context, index) {
+                  final order = filteredOrders[index];
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order['id'].toString().substring(0, 8),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text('Seller: ${order['seller']}'),
+                          Text('Customer: ${order['customer']}'),
+                          Text('Amount: \$${(order['amount'] as num).toStringAsFixed(2)}'),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(order['status'] as String),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              order['status'] as String,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          Text(
+                            _formatDate(order['date'] as String),
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
                       ),
                     ),
-                    DataCell(Text(order['date'] as String)),
-                  ],
-                );
-              }).toList(),
+                  );
+                },
+              ),
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('ORDER ID')),
+                  DataColumn(label: Text('SELLER')),
+                  DataColumn(label: Text('CUSTOMER')),
+                  DataColumn(label: Text('AMOUNT')),
+                  DataColumn(label: Text('STATUS')),
+                  DataColumn(label: Text('DATE')),
+                ],
+                rows: filteredOrders.map((order) {
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(order['id'].toString().substring(0, 8))),
+                      DataCell(Text(order['seller'] as String)),
+                      DataCell(Text(order['customer'] as String)),
+                      DataCell(Text('\$${(order['amount'] as num).toStringAsFixed(2)}')),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(order['status'] as String),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            order['status'] as String,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      DataCell(Text(_formatDate(order['date'] as String))),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
         ],
       ),
     );
