@@ -313,7 +313,6 @@ class RealtimeService {
 
     final sellersStream = _firestore
         .collection('sellers')
-        .where('isActive', isEqualTo: true)  // Only count active sellers
         .snapshots();
 
     final productsStream = _firestore
@@ -365,41 +364,63 @@ class RealtimeService {
             .map((order) => order.buyerId)
             .toSet();
 
-        // Calculate top sellers based on total sales
+        // Calculate sellers with actual sales
         final sellerSales = <String, double>{};
         final sellerOrders = <String, int>{};
         final sellerCustomers = <String, Set<String>>{};
 
+        print('DEBUG: Total sellers found: ${sellers.docs.length}');
+        print('DEBUG: Total orders found: ${ordersList.length}');
+
+        // First, initialize all active sellers with 0 sales
+        for (final seller in sellers.docs) {
+          final data = seller.data() as Map<String, dynamic>;
+          print('DEBUG: Found seller: ${data['storeName']} (${seller.id})');
+          sellerSales[seller.id] = 0.0;
+          sellerOrders[seller.id] = 0;
+          sellerCustomers[seller.id] = {};
+        }
+
+        // Then calculate sales for each seller
         for (final order in ordersList) {
           if (order.status != 'cancelled' && order.status != 'refunded') {
+            print('DEBUG: Processing order ${order.id} for seller ${order.sellerId} with amount ${order.total}');
             sellerSales[order.sellerId] = (sellerSales[order.sellerId] ?? 0) + order.total;
             sellerOrders[order.sellerId] = (sellerOrders[order.sellerId] ?? 0) + 1;
             sellerCustomers.putIfAbsent(order.sellerId, () => {}).add(order.buyerId);
           }
         }
 
+        print('DEBUG: Seller sales after processing:');
+        sellerSales.forEach((sellerId, sales) {
+          print('DEBUG: Seller $sellerId: ₵$sales');
+        });
+
+        // Create top sellers list
         final topSellers = sellers.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          final sellerId = doc.id;
-          return {
-            'id': sellerId,
-            'storeName': data['storeName'] ?? 'Unknown Store',
-            'totalSales': sellerSales[sellerId] ?? 0.0,
-            'totalOrders': sellerOrders[sellerId] ?? 0,
-            'totalCustomers': sellerCustomers[sellerId]?.length ?? 0,
-            'isVerified': data['isVerified'] ?? false,
-          };
-        })
+              return {
+            'id': doc.id,
+                'storeName': data['storeName'] ?? 'Unknown Store',
+            'totalSales': sellerSales[doc.id] ?? 0.0,
+            'totalOrders': sellerOrders[doc.id] ?? 0,
+            'totalCustomers': sellerCustomers[doc.id]?.length ?? 0,
+                'isVerified': data['isVerified'] ?? false,
+              };
+            })
         .where((seller) => seller['totalSales'] > 0)  // Only include sellers with sales
-        .toList()
-        ..sort((a, b) => (b['totalSales'] as double).compareTo(a['totalSales'] as double));
+            .toList()
+          ..sort((a, b) => (b['totalSales'] as double).compareTo(a['totalSales'] as double));
+
+        print('DEBUG: Final top sellers count: ${topSellers.length}');
+        print('DEBUG: Top sellers data: $topSellers');
 
         return {
           'stats': {
             'totalSales': totalSales,
             'totalRefunds': totalRefunds,
             'totalPlatformFees': totalPlatformFees,
-            'activeSellers': sellers.docs.length,
+            'activeSellers': topSellers.length,
             'totalOrders': ordersList.where((order) => order.status != 'cancelled').length,
             'totalProducts': products.docs.length,
             'totalCustomers': uniqueCustomers.length,

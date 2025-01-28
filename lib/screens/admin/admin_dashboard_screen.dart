@@ -499,9 +499,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 ),
               ],
             ),
-            subtitle: Text(
-              'Orders: ${seller['totalOrders']} | Customers: ${seller['totalCustomers']}',
-              style: const TextStyle(fontSize: 13),
+            subtitle: Row(
+              children: [
+                Icon(Icons.shopping_bag_outlined, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${seller['totalOrders']} orders',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.people_outline, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${seller['totalCustomers']} customers',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
             ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -575,6 +588,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
     final recentOrders = List<Map<String, dynamic>>.from(
       _dashboardData!['recentOrders'] as List<dynamic>? ?? [],
+    );
+    final topSellers = List<Map<String, dynamic>>.from(
+      _dashboardData!['topSellers'] as List<dynamic>? ?? [],
     );
 
     return Scaffold(
@@ -737,37 +753,35 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ],
 
               // Top Sellers
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Top Sellers',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              // Navigate to sellers screen
-                            },
-                            child: const Text('View All'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTopSellersList(
-                        List<Map<String, dynamic>>.from(
-                          _dashboardData!['topSellers'] as List<dynamic>? ?? [],
+              if (topSellers.isNotEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Top Sellers',
+                              style: theme.textTheme.titleLarge,
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                // Navigate to stores revenue screen
+                                Navigator.pushNamed(context, Routes.adminStoresRevenue);
+                              },
+                              child: const Text('View All'),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        _buildTopSellersList(topSellers),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
