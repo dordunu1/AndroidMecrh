@@ -210,22 +210,6 @@ class _BuyerOrdersScreenState extends ConsumerState<BuyerOrdersScreen> {
                                   final order = _orders[index];
                                   return _OrderCard(
                                     order: order,
-                                    onCancel: order.status == 'processing'
-                                        ? () async {
-                                            try {
-                                              await ref.read(buyerServiceProvider).cancelOrder(order.id);
-                                            } catch (e) {
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('Failed to cancel order: $e'),
-                                                    backgroundColor: theme.colorScheme.error,
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          }
-                                        : null,
                                   );
                                 },
                               ),
@@ -265,11 +249,9 @@ class StatusFilterChip extends StatelessWidget {
 
 class _OrderCard extends ConsumerStatefulWidget {
   final Order order;
-  final VoidCallback? onCancel;
 
   const _OrderCard({
     required this.order,
-    this.onCancel,
   });
 
   @override
@@ -476,22 +458,6 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                           foregroundColor: theme.colorScheme.error,
                         ),
                         child: const Text('Request Refund'),
-                      ),
-                    ],
-                  ),
-                ],
-
-                // Show cancel button only for processing orders
-                if (widget.order.status == 'processing' && widget.onCancel != null) ...[
-                  const Divider(height: 1),
-                  ButtonBar(
-                    children: [
-                      TextButton(
-                        onPressed: widget.onCancel,
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
-                        child: const Text('Cancel Order'),
                       ),
                     ],
                   ),

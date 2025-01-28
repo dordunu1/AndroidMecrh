@@ -5,6 +5,7 @@ import 'screens/auth/forgot_password_screen.dart';
 import 'screens/buyer/buyer_navigation_screen.dart';
 import 'screens/seller/seller_navigation_screen.dart';
 import 'screens/admin/admin_navigation_screen.dart';
+import 'screens/admin/admin_stores_revenue_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/buyer/become_seller_screen.dart';
 import 'screens/seller/seller_edit_profile_screen.dart';
@@ -21,6 +22,7 @@ class Routes {
   static const String buyerHome = '/buyer-home';
   static const String sellerHome = '/seller-home';
   static const String adminHome = '/admin-home';
+  static const String adminStoresRevenue = '/admin-stores-revenue';
   static const String becomeSeller = '/become-seller';
   static const String editProfile = '/edit-profile';
   static const String editSellerProfile = '/edit-seller-profile';
@@ -37,6 +39,7 @@ class Routes {
       buyerHome: (context) => const BuyerNavigationScreen(),
       sellerHome: (context) => const SellerNavigationScreen(),
       adminHome: (context) => const AdminNavigationScreen(),
+      adminStoresRevenue: (context) => const AdminStoresRevenueScreen(),
       becomeSeller: (context) => const BecomeSellerScreen(),
       editProfile: (context) => const EditProfileScreen(),
       editSellerProfile: (context) => const SellerEditProfileScreen(),

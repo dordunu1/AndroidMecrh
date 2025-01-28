@@ -3,45 +3,45 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Order {
   final String id;
   final String buyerId;
-  final String sellerId;
   final Map<String, dynamic> buyerInfo;
+  final String sellerId;
   final Map<String, dynamic> sellerInfo;
-  final Map<String, dynamic> shippingAddress;
   final List<OrderItem> items;
   final double total;
+  final double deliveryFee;
   final String status;
+  final Map<String, dynamic> shippingAddress;
   final DateTime createdAt;
-  final DateTime? updatedAt;
   final String? trackingNumber;
   final String? shippingCarrier;
-  final double deliveryFee;
+  final String? paymentStatus;
+  final String? reference;
 
   Order({
     required this.id,
     required this.buyerId,
-    required this.sellerId,
     required this.buyerInfo,
+    required this.sellerId,
     required this.sellerInfo,
-    required this.shippingAddress,
     required this.items,
     required this.total,
-    required this.status,
-    required this.createdAt,
     required this.deliveryFee,
-    this.updatedAt,
+    required this.status,
+    required this.shippingAddress,
+    required this.createdAt,
     this.trackingNumber,
     this.shippingCarrier,
+    this.paymentStatus,
+    this.reference,
   });
 
-  // Getters for buyerInfo
-  String get buyerName => buyerInfo['name'] as String;
-  String get buyerPhone => buyerInfo['phone'] as String;
-  String get buyerEmail => buyerInfo['email'] as String;
+  String get buyerName => buyerInfo['name'] as String? ?? 'Unknown';
+  String get buyerEmail => buyerInfo['email'] as String? ?? '';
+  String get buyerPhone => buyerInfo['phone'] as String? ?? '';
 
-  // Getters for sellerInfo
-  String get sellerName => sellerInfo['name'] as String;
-  String get sellerPhone => sellerInfo['phone'] as String;
-  String get sellerEmail => sellerInfo['email'] as String;
+  String get sellerName => sellerInfo['name'] as String? ?? 'Unknown';
+  String get sellerEmail => sellerInfo['email'] as String? ?? '';
+  String get sellerPhone => sellerInfo['phone'] as String? ?? '';
 
   // Getters for shippingAddress
   String get shippingAddressName => shippingAddress['name'] as String;
@@ -56,50 +56,43 @@ class Order {
   String get flag => status;
 
   factory Order.fromMap(Map<String, dynamic> map, String id) {
-    DateTime parseDateTime(dynamic value) {
-      if (value == null) return DateTime.now();
-      if (value is Timestamp) return value.toDate();
-      if (value is String) return DateTime.parse(value);
-      return DateTime.now();
-    }
-
-    final shippingInfo = map['shippingInfo'] as Map<String, dynamic>?;
-
     return Order(
       id: id,
       buyerId: map['buyerId'] as String,
-      sellerId: map['sellerId'] as String,
       buyerInfo: Map<String, dynamic>.from(map['buyerInfo'] as Map),
+      sellerId: map['sellerId'] as String,
       sellerInfo: Map<String, dynamic>.from(map['sellerInfo'] as Map),
-      shippingAddress: Map<String, dynamic>.from(map['shippingAddress'] as Map),
-      items: List<OrderItem>.from(
-        (map['items'] as List).map((x) => OrderItem.fromMap(Map<String, dynamic>.from(x as Map))),
-      ),
+      items: (map['items'] as List<dynamic>)
+          .map((item) => OrderItem.fromMap(item as Map<String, dynamic>))
+          .toList(),
       total: (map['total'] as num).toDouble(),
+      deliveryFee: (map['deliveryFee'] as num?)?.toDouble() ?? 0.0,
       status: map['status'] as String,
-      createdAt: parseDateTime(map['createdAt']),
-      updatedAt: map['updatedAt'] != null ? parseDateTime(map['updatedAt']) : null,
-      trackingNumber: shippingInfo?['trackingNumber'] as String?,
-      shippingCarrier: shippingInfo?['shippingCarrier'] as String?,
-      deliveryFee: (map['deliveryFee'] ?? map['shippingFee'] ?? 0.0).toDouble(),
+      shippingAddress: Map<String, dynamic>.from(map['shippingAddress'] as Map),
+      createdAt: DateTime.parse(map['createdAt'] as String),
+      trackingNumber: map['trackingNumber'] as String?,
+      shippingCarrier: map['shippingCarrier'] as String?,
+      paymentStatus: map['paymentStatus'] as String?,
+      reference: map['reference'] as String?,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'buyerId': buyerId,
-      'sellerId': sellerId,
       'buyerInfo': buyerInfo,
+      'sellerId': sellerId,
       'sellerInfo': sellerInfo,
-      'shippingAddress': shippingAddress,
-      'items': items.map((x) => x.toMap()).toList(),
+      'items': items.map((item) => item.toMap()).toList(),
       'total': total,
+      'deliveryFee': deliveryFee,
       'status': status,
+      'shippingAddress': shippingAddress,
       'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
       'trackingNumber': trackingNumber,
       'shippingCarrier': shippingCarrier,
-      'deliveryFee': deliveryFee,
+      'paymentStatus': paymentStatus,
+      'reference': reference,
     };
   }
 }
@@ -109,38 +102,30 @@ class OrderItem {
   final String name;
   final double price;
   final int quantity;
-  final String? imageUrl;
-  final String? selectedColor;
-  final String? selectedColorImage;
-  final String? selectedSize;
-  final Map<String, dynamic>? options;
+  final String imageUrl;
+  final Map<String, dynamic> options;
 
   OrderItem({
     required this.productId,
     required this.name,
     required this.price,
     required this.quantity,
-    this.imageUrl,
-    this.selectedColor,
-    this.selectedColorImage,
-    this.selectedSize,
-    this.options,
+    required this.imageUrl,
+    required this.options,
   });
 
-  String get productName => name;
+  String? get selectedColor => options['selectedColor'] as String?;
+  String? get selectedSize => options['selectedSize'] as String?;
+  String? get selectedColorImage => options['selectedColorImage'] as String?;
 
   factory OrderItem.fromMap(Map<String, dynamic> map) {
-    final options = map['options'] as Map<String, dynamic>?;
     return OrderItem(
-      productId: map['productId'] ?? '',
-      name: map['name'] ?? '',
-      price: (map['price'] ?? 0.0).toDouble(),
-      quantity: map['quantity']?.toInt() ?? 0,
-      imageUrl: map['imageUrl'],
-      selectedColor: options?['selectedColor'] ?? map['selectedColor'],
-      selectedColorImage: options?['selectedColorImage'] ?? map['selectedColorImage'],
-      selectedSize: options?['selectedSize'] ?? map['selectedSize'],
-      options: options,
+      productId: map['productId'] as String,
+      name: map['name'] as String,
+      price: (map['price'] as num).toDouble(),
+      quantity: map['quantity'] as int,
+      imageUrl: map['imageUrl'] as String,
+      options: Map<String, dynamic>.from(map['options'] as Map),
     );
   }
 
@@ -151,11 +136,7 @@ class OrderItem {
       'price': price,
       'quantity': quantity,
       'imageUrl': imageUrl,
-      'options': {
-        'selectedColor': selectedColor,
-        'selectedColorImage': selectedColorImage,
-        'selectedSize': selectedSize,
-      },
+      'options': options,
     };
   }
 } 

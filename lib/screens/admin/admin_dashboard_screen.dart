@@ -10,6 +10,8 @@ import '../../widgets/admin/stats_card.dart';
 import '../../widgets/admin/recent_orders_list.dart';
 import '../../widgets/admin/top_sellers_list.dart';
 import '../../widgets/admin/pending_actions_list.dart';
+import 'admin_stores_revenue_screen.dart';
+import '../../routes.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -75,6 +77,165 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
   }
 
+  Widget _buildMetricCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    Color? iconColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(icon, size: 24, color: iconColor ?? Colors.pink),
+              const SizedBox(width: 8),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentOrdersList(List<Map<String, dynamic>> orders) {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Recent Orders',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    DropdownButton<String>(
+                      value: 'All Stores',
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'All Stores',
+                          child: Text('All Stores'),
+                        ),
+                      ],
+                      onChanged: (value) {},
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: () {},
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.grid_view),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('ORDER ID')),
+                DataColumn(label: Text('SELLER')),
+                DataColumn(label: Text('CUSTOMER')),
+                DataColumn(label: Text('AMOUNT')),
+                DataColumn(label: Text('STATUS')),
+                DataColumn(label: Text('DATE')),
+              ],
+              rows: orders.map((order) {
+                return DataRow(
+                  cells: [
+                    DataCell(Text(order['id'] as String)),
+                    DataCell(Text(order['seller'] as String)),
+                    DataCell(Text(order['customer'] as String)),
+                    DataCell(Text('\$${(order['amount'] as num).toStringAsFixed(2)}')),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(order['status'] as String),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          order['status'] as String,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                    DataCell(Text(order['date'] as String)),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'delivered':
+        return Colors.green[100]!;
+      case 'cancelled':
+        return Colors.red[100]!;
+      case 'refunded':
+        return Colors.orange[100]!;
+      default:
+        return Colors.grey[100]!;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -89,17 +250,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     if (_error.isNotEmpty) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Admin Dashboard'),
-        ),
+        appBar: AppBar(title: const Text('Admin Dashboard')),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 'Error',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.error,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 20,
                 ),
               ),
               const SizedBox(height: 8),
@@ -118,6 +278,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final stats = _dashboardData!['stats'];
     final pendingActions = List<Map<String, dynamic>>.from(
       _dashboardData!['pendingActions'] as List<dynamic>? ?? [],
+    );
+    final recentOrders = List<Map<String, dynamic>>.from(
+      _dashboardData!['recentOrders'] as List<dynamic>? ?? [],
     );
 
     return Scaffold(
@@ -156,275 +319,159 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _checkAdminAndSetupUpdates,
-        child: ListView(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
-          children: [
-            // Revenue Stats
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Revenue',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
+          child: Column(
+            children: [
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 3,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.5,
+                children: [
+                  _buildMetricCard(
+                    title: 'All-time Sales',
+                    value: '\$${stats['totalSales'].toStringAsFixed(2)}',
+                    subtitle: 'Total volume (excl. refunds)',
+                    icon: Icons.trending_up,
+                  ),
+                  _buildMetricCard(
+                    title: 'Current Sales',
+                    value: '\$${(stats['totalSales'] - stats['totalRefunds']).toStringAsFixed(2)}',
+                    subtitle: 'Net sales after refunds',
+                    icon: Icons.attach_money,
+                  ),
+                  _buildMetricCard(
+                    title: 'Total Refunds',
+                    value: '\$${stats['totalRefunds'].toStringAsFixed(2)}',
+                    subtitle: 'Refunded amount',
+                    icon: Icons.credit_card,
+                  ),
+                  _buildMetricCard(
+                    title: 'All-time Platform Fees',
+                    value: '\$${stats['totalPlatformFees'].toStringAsFixed(2)}',
+                    subtitle: 'Total platform fees',
+                    icon: Icons.account_balance_wallet,
+                  ),
+                  _buildMetricCard(
+                    title: 'Current Platform Fees',
+                    value: '\$${(stats['totalPlatformFees'] - (stats['totalRefunds'] * 0.1)).toStringAsFixed(2)}',
+                    subtitle: 'Platform fees after refunds',
+                    icon: Icons.payments,
+                  ),
+                  _buildMetricCard(
+                    title: 'Active Sellers',
+                    value: stats['activeSellers'].toString(),
+                    subtitle: '${stats['totalProducts']} products listed',
+                    icon: Icons.store,
+                  ),
+                  _buildMetricCard(
+                    title: 'Total Orders',
+                    value: stats['totalOrders'].toString(),
+                    subtitle: 'All-time orders',
+                    icon: Icons.shopping_bag,
+                  ),
+                  _buildMetricCard(
+                    title: 'Total Products',
+                    value: stats['totalProducts'].toString(),
+                    subtitle: 'Listed products',
+                    icon: Icons.inventory_2,
+                  ),
+                  _buildMetricCard(
+                    title: 'Total Customers',
+                    value: stats['totalCustomers'].toString(),
+                    subtitle: 'Unique buyers',
+                    icon: Icons.people,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildRecentOrdersList(recentOrders),
+
+              // Pending Actions
+              if (pendingActions.isNotEmpty) ...[
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: StatsCard(
-                            title: 'Total Sales',
-                            value: 'GHS ${stats['totalSales'].toStringAsFixed(2)}',
-                            subtitle: 'All-time sales',
-                            icon: Icons.trending_up,
-                          ),
+                        Text(
+                          'Pending Actions',
+                          style: theme.textTheme.titleLarge,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: StatsCard(
-                            title: 'Platform Fees',
-                            value: 'GHS ${stats['platformFees'].toStringAsFixed(2)}',
-                            subtitle: '10% of sales',
-                            icon: Icons.account_balance_wallet,
-                          ),
+                        const SizedBox(height: 16),
+                        PendingActionsList(
+                          actions: pendingActions,
+                          onActionTap: (action) {
+                            // Handle action tap
+                            switch (action['type']) {
+                              case 'verification':
+                                // Navigate to verification screen
+                                break;
+                              case 'refund':
+                                // Navigate to refund screen
+                                break;
+                              case 'withdrawal':
+                                // Navigate to withdrawal screen
+                                break;
+                            }
+                          },
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
 
-            // Orders Stats
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Orders',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: StatsCard(
-                            title: 'Total Orders',
-                            value: stats['totalOrders'].toString(),
-                            subtitle: 'All-time orders',
-                            icon: Icons.shopping_bag,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: StatsCard(
-                            title: 'Processing',
-                            value: stats['processingOrders'].toString(),
-                            subtitle: 'Needs attention',
-                            icon: Icons.pending_actions,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Sellers Stats
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sellers',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: StatsCard(
-                            title: 'Active Sellers',
-                            value: stats['activeSellers'].toString(),
-                            subtitle: '${stats['totalProducts']} products',
-                            icon: Icons.store,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: StatsCard(
-                            title: 'Pending Verifications',
-                            value: stats['pendingVerifications'].toString(),
-                            subtitle: 'Awaiting review',
-                            icon: Icons.verified_user,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Pending Actions Stats
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Pending Actions',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: StatsCard(
-                            title: 'Withdrawals',
-                            value: stats['pendingWithdrawals'].toString(),
-                            subtitle: 'Pending requests',
-                            icon: Icons.money,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: StatsCard(
-                            title: 'Refunds',
-                            value: stats['pendingRefunds'].toString(),
-                            subtitle: 'Pending requests',
-                            icon: Icons.assignment_return,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Pending Actions
-            if (pendingActions.isNotEmpty) ...[
+              // Top Sellers
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Pending Actions',
-                        style: theme.textTheme.titleLarge,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Top Sellers',
+                            style: theme.textTheme.titleLarge,
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              // Navigate to sellers screen
+                            },
+                            child: const Text('View All'),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
-                      PendingActionsList(
-                        actions: pendingActions,
-                        onActionTap: (action) {
-                          // Handle action tap
-                          switch (action['type']) {
-                            case 'verification':
-                              // Navigate to verification screen
-                              break;
-                            case 'refund':
-                              // Navigate to refund screen
-                              break;
-                            case 'withdrawal':
-                              // Navigate to withdrawal screen
-                              break;
-                          }
+                      TopSellersList(
+                        sellers: List<Seller>.from(
+                          _dashboardData!['topSellers'] as List<dynamic>? ?? [],
+                        ),
+                        onSellerTap: (seller) {
+                          // Navigate to seller details
                         },
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
             ],
-
-            // Recent Orders
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Recent Orders',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            // Navigate to orders screen
-                          },
-                          child: const Text('View All'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    RecentOrdersList(
-                      orders: List<app_order.Order>.from(
-                        _dashboardData!['recentOrders'] as List<dynamic>? ?? [],
-                      ),
-                      onOrderTap: (order) {
-                        // Navigate to order details
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Top Sellers
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Top Sellers',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            // Navigate to sellers screen
-                          },
-                          child: const Text('View All'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TopSellersList(
-                      sellers: List<Seller>.from(
-                        _dashboardData!['topSellers'] as List<dynamic>? ?? [],
-                      ),
-                      onSellerTap: (seller) {
-                        // Navigate to seller details
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.pushNamed(context, Routes.adminStoresRevenue);
+        },
+        icon: const Icon(Icons.store),
+        label: const Text('Stores Revenue'),
       ),
     );
   }

@@ -16,13 +16,22 @@ class AdminService {
 
   AdminService(this._firestore, this._auth);
 
-  Future<List<app_order.Order>> getOrders({String? search, String? status}) async {
+  Future<List<app_order.Order>> getOrders({String? search, String? status, String? sellerId}) async {
     try {
-      var query = _firestore.collection('orders')
-          .orderBy('createdAt', descending: true);
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final isAdmin = await this.isAdmin(user.uid);
+      if (!isAdmin) throw Exception('User is not an admin');
+
+      var query = _firestore.collection('orders').orderBy('createdAt', descending: true);
 
       if (status != null && status != 'all') {
         query = query.where('status', isEqualTo: status);
+      }
+
+      if (sellerId != null) {
+        query = query.where('sellerId', isEqualTo: sellerId);
       }
 
       final snapshot = await query.get();
@@ -33,9 +42,9 @@ class AdminService {
       if (search != null && search.isNotEmpty) {
         final searchLower = search.toLowerCase();
         return orders.where((order) {
-          return order.buyerName.toLowerCase().contains(searchLower) ||
-              order.sellerName.toLowerCase().contains(searchLower) ||
-              order.id.toLowerCase().contains(searchLower);
+          return order.id.toLowerCase().contains(searchLower) ||
+              order.buyerInfo['name'].toLowerCase().contains(searchLower) ||
+              order.sellerInfo['name'].toLowerCase().contains(searchLower);
         }).toList();
       }
 
@@ -45,19 +54,16 @@ class AdminService {
     }
   }
 
-  Future<List<Seller>> getSellers({String? status}) async {
+  Future<List<Seller>> getSellers() async {
     try {
-      var query = _firestore.collection('sellers')
-          .orderBy('createdAt', descending: true);
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
 
-      if (status != null && status.isNotEmpty) {
-        query = query.where('status', isEqualTo: status);
-      }
+      final isAdmin = await this.isAdmin(user.uid);
+      if (!isAdmin) throw Exception('User is not an admin');
 
-      final snapshot = await query.get();
-      return snapshot.docs.map((doc) {
-        return Seller.fromMap(doc.data(), doc.id);
-      }).toList();
+      final snapshot = await _firestore.collection('sellers').get();
+      return snapshot.docs.map((doc) => Seller.fromMap(doc.data(), doc.id)).toList();
     } catch (e) {
       throw Exception('Failed to fetch sellers: $e');
     }
@@ -203,117 +209,70 @@ class AdminService {
     if (!isUserAdmin) throw Exception('User is not an admin');
 
     try {
-      // Get all orders with proper date filtering
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      
+      // Get all orders
       final ordersSnapshot = await _firestore
           .collection('orders')
-          .where('createdAt', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
           .orderBy('createdAt', descending: true)
           .get();
 
-      final orders = ordersSnapshot.docs.map((doc) => app_order.Order.fromMap(doc.data(), doc.id)).toList();
+      final orders = ordersSnapshot.docs
+          .map((doc) => app_order.Order.fromMap(doc.data(), doc.id))
+          .toList();
 
-      // Calculate order stats
-      var totalSales = 0.0;
-      var platformFees = 0.0;
-      var totalOrders = 0;
-      var processingOrders = 0;
+      // Calculate total sales and refunds
+      final totalSales = orders.fold(0.0, (sum, order) => 
+        order.status != 'cancelled' && order.status != 'refunded' 
+          ? sum + order.total 
+          : sum);
 
-      for (final order in orders) {
-        if (order.status != 'cancelled' && order.status != 'refunded') {
-          totalSales += order.total;
-          platformFees += order.total * 0.1; // 10% platform fee
-          totalOrders++;
-        }
-        if (order.status == 'processing') {
-          processingOrders++;
-        }
-      }
+      final totalRefunds = orders.fold(0.0, (sum, order) => 
+        order.status == 'refunded'
+          ? sum + order.total 
+          : sum);
+
+      // Calculate platform fees
+      final totalPlatformFees = totalSales * 0.1; // 10% platform fee
+      final currentPlatformFees = totalPlatformFees * 0.3; // Example: 30% of total fees available
 
       // Get active sellers
       final sellersSnapshot = await _firestore
           .collection('sellers')
-          .where('isActive', isEqualTo: true)
           .get();
-      
-      final sellers = sellersSnapshot.docs.map((doc) => Seller.fromMap(doc.data()!, doc.id)).toList();
 
-      // Calculate top sellers based on total sales
-      final sellerSales = <String, double>{};
-      for (final order in orders) {
-        if (order.status != 'cancelled' && order.status != 'refunded') {
-          sellerSales[order.sellerId] = (sellerSales[order.sellerId] ?? 0) + order.total;
-        }
-      }
-
-      final topSellers = sellers.where((seller) => sellerSales.containsKey(seller.id))
-          .toList()
-        ..sort((a, b) => (sellerSales[b.id] ?? 0).compareTo(sellerSales[a.id] ?? 0));
-
-      // Get total products count
+      // Get total products
       final productsSnapshot = await _firestore
           .collection('products')
-          .where('isActive', isEqualTo: true)
-          .count()
           .get();
 
-      // Get pending verifications count
-      final pendingVerificationsSnapshot = await _firestore
-          .collection('sellers')
-          .where('isVerified', isEqualTo: false)
-          .count()
+      // Get total customers
+      final customersSnapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'buyer')
           .get();
-
-      // Get pending withdrawals
-      final pendingWithdrawalsSnapshot = await _firestore
-          .collection('withdrawals')
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      // Get pending refunds
-      final pendingRefundsSnapshot = await _firestore
-          .collection('refunds')
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      // Prepare pending actions list
-      final pendingActions = [
-        ...pendingWithdrawalsSnapshot.docs.map((doc) => {
-          'id': doc.id,
-          'type': 'withdrawal',
-          'amount': doc.data()['amount'],
-          'sellerName': doc.data()['sellerName'],
-          'createdAt': doc.data()['createdAt'],
-        }),
-        ...pendingRefundsSnapshot.docs.map((doc) => {
-          'id': doc.id,
-          'type': 'refund',
-          'amount': doc.data()['amount'],
-          'orderId': doc.data()['orderId'],
-          'createdAt': doc.data()['createdAt'],
-        }),
-      ]..sort((a, b) => b['createdAt'].compareTo(a['createdAt']));
 
       return {
         'stats': {
           'totalSales': totalSales,
-          'platformFees': platformFees,
-          'totalOrders': totalOrders,
-          'processingOrders': processingOrders,
+          'currentSales': totalSales * 0.7, // Example: 70% of total sales available
+          'totalRefunds': totalRefunds,
+          'totalPlatformFees': totalPlatformFees,
+          'currentPlatformFees': currentPlatformFees,
           'activeSellers': sellersSnapshot.docs.length,
-          'totalProducts': productsSnapshot.count,
-          'pendingVerifications': pendingVerificationsSnapshot.count,
-          'pendingWithdrawals': pendingWithdrawalsSnapshot.docs.length,
-          'pendingRefunds': pendingRefundsSnapshot.docs.length,
+          'totalOrders': orders.length,
+          'totalProducts': productsSnapshot.docs.length,
+          'totalCustomers': customersSnapshot.docs.length,
         },
-        'recentOrders': orders.take(5).toList(),
-        'topSellers': topSellers.take(5).toList(),
-        'pendingActions': pendingActions,
+        'recentOrders': orders.take(10).map((order) => {
+          'id': order.id,
+          'seller': order.sellerName,
+          'customer': order.buyerName,
+          'amount': order.total,
+          'status': order.status,
+          'date': order.createdAt.toIso8601String(),
+        }).toList(),
       };
     } catch (e) {
-      throw Exception('Failed to get dashboard stats: $e');
+      throw Exception('Failed to fetch dashboard stats: $e');
     }
   }
 
@@ -429,5 +388,108 @@ class AdminService {
       'isVerified': isVerified,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<Map<String, dynamic>> getStoreRevenue(String sellerId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final isAdmin = await this.isAdmin(user.uid);
+      if (!isAdmin) throw Exception('User is not an admin');
+
+      final seller = await _firestore.collection('sellers').doc(sellerId).get();
+      if (!seller.exists) throw Exception('Store not found');
+
+      final sellerData = seller.data()!;
+
+      // Get all orders for this seller
+      final ordersSnapshot = await _firestore
+          .collection('orders')
+          .where('sellerId', isEqualTo: sellerId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      final orders = ordersSnapshot.docs
+          .map((doc) => app_order.Order.fromMap(doc.data(), doc.id))
+          .toList();
+
+      // Calculate revenue metrics
+      final now = DateTime.now();
+      final lastMonth = now.subtract(const Duration(days: 30));
+      final previousMonth = now.subtract(const Duration(days: 60));
+
+      final lastMonthOrders = orders
+          .where((order) => order.createdAt.isAfter(lastMonth))
+          .toList();
+
+      final previousMonthOrders = orders
+          .where((order) => 
+            order.createdAt.isAfter(previousMonth) && 
+            order.createdAt.isBefore(lastMonth))
+          .toList();
+
+      // Calculate revenue
+      final allTimeRevenue = orders.fold(0.0, (sum, order) => 
+        order.status != 'cancelled' && order.status != 'refunded' 
+          ? sum + order.total 
+          : sum);
+
+      final lastMonthRevenue = lastMonthOrders.fold(0.0, (sum, order) => 
+        order.status != 'cancelled' && order.status != 'refunded' 
+          ? sum + order.total 
+          : sum);
+
+      final previousMonthRevenue = previousMonthOrders.fold(0.0, (sum, order) => 
+        order.status != 'cancelled' && order.status != 'refunded' 
+          ? sum + order.total 
+          : sum);
+
+      // Calculate growth percentages
+      final revenueGrowth = previousMonthRevenue == 0 
+        ? 100 
+        : ((lastMonthRevenue - previousMonthRevenue) / previousMonthRevenue * 100).round();
+
+      final ordersGrowth = previousMonthOrders.isEmpty 
+        ? 100 
+        : ((lastMonthOrders.length - previousMonthOrders.length) / previousMonthOrders.length * 100).round();
+
+      // Calculate unique customers
+      final uniqueCustomers = orders
+          .where((order) => order.status != 'cancelled')
+          .map((order) => order.buyerId)
+          .toSet();
+
+      final lastMonthCustomers = lastMonthOrders
+          .where((order) => order.status != 'cancelled')
+          .map((order) => order.buyerId)
+          .toSet();
+
+      final previousMonthCustomers = previousMonthOrders
+          .where((order) => order.status != 'cancelled')
+          .map((order) => order.buyerId)
+          .toSet();
+
+      final customersGrowth = previousMonthCustomers.isEmpty 
+        ? 100 
+        : ((lastMonthCustomers.length - previousMonthCustomers.length) / previousMonthCustomers.length * 100).round();
+
+      return {
+        'id': seller.id,
+        'name': sellerData['storeName'] ?? 'Unknown Store',
+        'verified': sellerData['verified'] ?? false,
+        'allTimeRevenue': allTimeRevenue,
+        'netRevenue': allTimeRevenue * 0.9, // 90% after platform fee
+        'withdrawn': sellerData['totalWithdrawn'] ?? 0.0,
+        'totalOrders': orders.length,
+        'totalCustomers': uniqueCustomers.length,
+        'revenueGrowth': revenueGrowth,
+        'ordersGrowth': ordersGrowth,
+        'customersGrowth': customersGrowth,
+        'withdrawalHistory': sellerData['withdrawalHistory'] ?? [],
+      };
+    } catch (e) {
+      throw Exception('Failed to fetch store revenue: $e');
+    }
   }
 } 

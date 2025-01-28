@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/order.dart';
+import '../../models/seller.dart';
 import '../../services/admin_service.dart';
 import '../../widgets/common/custom_text_field.dart';
+import '../../constants/colors.dart';
 
 class AdminOrdersScreen extends ConsumerStatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -14,14 +16,16 @@ class AdminOrdersScreen extends ConsumerStatefulWidget {
 class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   final _searchController = TextEditingController();
   String _selectedStatus = 'all';
+  String? _selectedSeller;
   bool _isLoading = true;
   List<Order> _orders = [];
+  List<Seller> _sellers = [];
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadOrders();
+    _loadData();
   }
 
   @override
@@ -30,20 +34,23 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     super.dispose();
   }
 
-  Future<void> _loadOrders() async {
+  Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
+      final sellers = await ref.read(adminServiceProvider).getSellers();
       final orders = await ref.read(adminServiceProvider).getOrders(
         status: _selectedStatus == 'all' ? null : _selectedStatus,
         search: _searchController.text.isEmpty ? null : _searchController.text,
+        sellerId: _selectedSeller,
       );
 
       if (mounted) {
         setState(() {
+          _sellers = sellers;
           _orders = orders;
           _isLoading = false;
         });
@@ -60,331 +67,201 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('All Orders'),
-        actions: [
-          IconButton(
-            onPressed: _loadOrders,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+        title: const Text('Orders'),
+        centerTitle: true,
       ),
       body: Column(
         children: [
-          // Search and Filter
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                // Search bar
                 CustomTextField(
                   controller: _searchController,
-                  label: 'Search Orders',
+                  hint: 'Search by order ID or buyer name...',
                   prefixIcon: const Icon(Icons.search),
-                  onSubmitted: (_) => _loadOrders(),
+                  onChanged: (value) => _loadData(),
                 ),
                 const SizedBox(height: 16),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'All',
-                        selected: _selectedStatus == 'all',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'all');
-                            _loadOrders();
-                          }
+                // Filters row
+                Row(
+                  children: [
+                    // Status filter
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedStatus,
+                        decoration: const InputDecoration(
+                          labelText: 'Status',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          'all',
+                          'processing',
+                          'shipped',
+                          'delivered',
+                          'cancelled',
+                          'refunded',
+                        ].map((status) => DropdownMenuItem(
+                          value: status,
+                          child: Text(status.toUpperCase()),
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() => _selectedStatus = value!);
+                          _loadData();
                         },
                       ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Processing',
-                        selected: _selectedStatus == 'processing',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'processing');
-                            _loadOrders();
-                          }
+                    ),
+                    const SizedBox(width: 16),
+                    // Seller filter
+                    Expanded(
+                      child: DropdownButtonFormField<String?>(
+                        value: _selectedSeller,
+                        decoration: const InputDecoration(
+                          labelText: 'Seller',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('All Sellers'),
+                          ),
+                          ..._sellers.map((seller) => DropdownMenuItem(
+                            value: seller.id,
+                            child: Text(seller.storeName),
+                          )),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _selectedSeller = value);
+                          _loadData();
                         },
                       ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Shipped',
-                        selected: _selectedStatus == 'shipped',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'shipped');
-                            _loadOrders();
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Delivered',
-                        selected: _selectedStatus == 'delivered',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'delivered');
-                            _loadOrders();
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Cancelled',
-                        selected: _selectedStatus == 'cancelled',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'cancelled');
-                            _loadOrders();
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Refunded',
-                        selected: _selectedStatus == 'refunded',
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedStatus = 'refunded');
-                            _loadOrders();
-                          }
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-
-          // Orders List
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(
-                        child: Text(
-                          _error!,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                      )
+                    ? Center(child: Text(_error!))
                     : _orders.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No orders found',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
+                        ? const Center(child: Text('No orders found'))
+                        : ListView.builder(
                             padding: const EdgeInsets.all(16),
                             itemCount: _orders.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 16),
-                            itemBuilder: (context, index) {
-                              final order = _orders[index];
-                              return _OrderCard(order: order);
-                            },
+                            itemBuilder: (context, index) => _OrderCard(
+                              order: _orders[index],
+                              onStatusUpdate: _loadData,
+                            ),
                           ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final ValueChanged<bool> onSelected;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FilterChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: onSelected,
     );
   }
 }
 
 class _OrderCard extends StatelessWidget {
   final Order order;
+  final VoidCallback onStatusUpdate;
 
-  const _OrderCard({required this.order});
+  const _OrderCard({
+    required this.order,
+    required this.onStatusUpdate,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Card(
+      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Order ID and Status
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Order #${order.id.substring(0, 8)}',
-                  style: theme.textTheme.titleMedium,
+                // Order image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    order.items.first.imageUrl,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
                 ),
-                _StatusChip(status: order.status),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Buyer and Seller Info
-            Row(
-              children: [
+                const SizedBox(width: 16),
+                // Order details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Buyer:',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        'Order #${order.id}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
-                        order.buyerName,
-                        style: theme.textTheme.bodyMedium,
+                        'Buyer: ${order.buyerInfo['name']}',
+                        style: const TextStyle(color: Colors.grey),
                       ),
+                      Text(
+                        'Seller: ${order.sellerInfo['name']}',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      _StatusChip(status: order.status),
                     ],
                   ),
                 ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Seller:',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                      Text(
-                        order.sellerName,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Order Details
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total: \$${order.total.toStringAsFixed(2)}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Created on ${_formatDate(order.createdAt)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Items
-            Text(
-              'Items:',
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 4),
-            ...order.items.map((item) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
+                // Price
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${item.quantity}x',
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      'GHS ${order.total.toStringAsFixed(2)}',
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        item.productName,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 4),
                     Text(
-                      'GHS ${(item.price * item.quantity).toStringAsFixed(2)}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      '${order.items.length} item${order.items.length == 1 ? '' : 's'}',
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
-              );
-            }),
-            const SizedBox(height: 8),
-
-            // Shipping Address
-            Text(
-              'Shipping Address:',
-              style: theme.textTheme.titleSmall,
+              ],
             ),
-            const SizedBox(height: 4),
-            if (order.shippingAddress['street'] != null || order.shippingAddress['address'] != null)
-              Text(
-                order.shippingAddress['street'] ?? order.shippingAddress['address'] ?? '',
-                style: theme.textTheme.bodyMedium,
+            if (order.status == 'processing') ...[
+              const Divider(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      // Show confirmation dialog for shipping
+                    },
+                    child: const Text('Mark as Shipped'),
+                  ),
+                ],
               ),
-            Text(
-              [
-                order.shippingAddress['city'],
-                order.shippingAddress['state'],
-                order.shippingAddress['zipCode'] ?? order.shippingAddress['zip']
-              ].where((e) => e != null).join(', '),
-              style: theme.textTheme.bodyMedium,
-            ),
-            if (order.shippingAddress['country'] != null)
-              Text(
-                order.shippingAddress['country'] as String,
-                style: theme.textTheme.bodyMedium,
-              ),
-            if (order.shippingAddress['phone'] != null)
-              Text(
-                'Phone: ${order.shippingAddress['phone']}',
-                style: theme.textTheme.bodyMedium,
-              ),
+            ],
           ],
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }
 
@@ -395,35 +272,36 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    Color getStatusColor() {
-      switch (status.toLowerCase()) {
-        case 'processing':
-          return Colors.blue;
-        case 'shipped':
-          return Colors.orange;
-        case 'delivered':
-          return Colors.green;
-        case 'cancelled':
-          return Colors.red;
-        case 'refunded':
-          return Colors.purple;
-        default:
-          return theme.colorScheme.primary;
-      }
+    Color color;
+    switch (status.toLowerCase()) {
+      case 'processing':
+        color = AppColors.warning;
+        break;
+      case 'shipped':
+        color = AppColors.info;
+        break;
+      case 'delivered':
+        color = AppColors.success;
+        break;
+      case 'cancelled':
+      case 'refunded':
+        color = AppColors.error;
+        break;
+      default:
+        color = Colors.grey;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: getStatusColor().withOpacity(0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        status[0].toUpperCase() + status.substring(1),
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: getStatusColor(),
+        status.toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
       ),

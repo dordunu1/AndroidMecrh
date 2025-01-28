@@ -300,13 +300,12 @@ class RealtimeService {
   
   /// Listen to admin dashboard statistics in real-time
   Future<StreamSubscription> listenToAdminDashboard(Function(Map<String, dynamic>) onUpdate) async {
-    final user = _auth.currentUser;
-    if (user == null) throw Exception('User not authenticated');
+    final isAdmin = await _adminService.isAdmin(_auth.currentUser?.uid ?? '');
+    if (!isAdmin) {
+      throw Exception('Unauthorized access');
+    }
 
-    final isAdmin = await _adminService.isAdmin(user.uid);
-    if (!isAdmin) throw Exception('User is not an admin');
-
-    // Create streams for all admin-related data
+    // Create a merged stream for all admin-related data
     final ordersStream = _firestore
         .collection('orders')
         .orderBy('createdAt', descending: true)
@@ -314,125 +313,187 @@ class RealtimeService {
 
     final sellersStream = _firestore
         .collection('sellers')
+        .where('isActive', isEqualTo: true)  // Only count active sellers
         .snapshots();
 
     final productsStream = _firestore
         .collection('products')
-        .where('isActive', isEqualTo: true)
+        .where('isActive', isEqualTo: true)  // Only count active products
         .snapshots();
 
-    final withdrawalsStream = _firestore
-        .collection('withdrawals')
-        .where('status', isEqualTo: 'pending')
-        .snapshots();
-
-    final refundsStream = _firestore
-        .collection('refunds')
-        .where('status', isEqualTo: 'pending')
+    final customersStream = _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'buyer')
         .snapshots();
 
     // Combine all streams
-    final subscription = Rx.combineLatest5(
+    final subscription = Rx.combineLatest4(
       ordersStream,
       sellersStream,
       productsStream,
-      withdrawalsStream,
-      refundsStream,
+      customersStream,
       (
         QuerySnapshot orders,
         QuerySnapshot sellers,
         QuerySnapshot products,
-        QuerySnapshot withdrawals,
-        QuerySnapshot refunds,
+        QuerySnapshot customers,
       ) {
-        // Convert orders to list
         final ordersList = orders.docs
             .map((doc) => app_order.Order.fromMap(doc.data() as Map<String, dynamic>, doc.id))
             .toList();
 
-        // Calculate order stats
-        var totalSales = 0.0;
-        var platformFees = 0.0;
-        var totalOrders = 0;
-        var processingOrders = 0;
+        // Calculate total sales (excluding cancelled and refunded orders)
+        final totalSales = ordersList.fold(0.0, (sum, order) => 
+          order.status != 'cancelled' && order.status != 'refunded' 
+            ? sum + order.total 
+            : sum
+        );
 
-        for (final order in ordersList) {
-          if (order.status != 'cancelled' && order.status != 'refunded') {
-            totalSales += order.total;
-            platformFees += order.total * 0.1; // 10% platform fee
-            totalOrders++;
-          }
-          if (order.status == 'processing') {
-            processingOrders++;
-          }
-        }
+        // Calculate total refunds
+        final totalRefunds = ordersList.fold(0.0, (sum, order) => 
+          order.status == 'refunded'
+            ? sum + order.total 
+            : sum
+        );
 
-        // Convert sellers to list and calculate top sellers
-        final sellersList = sellers.docs
-            .map((doc) => Seller.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-            .toList();
+        // Calculate platform fees (10% of total sales)
+        final totalPlatformFees = totalSales * 0.1;
 
-        final sellerSales = <String, double>{};
-        for (final order in ordersList) {
-          if (order.status != 'cancelled' && order.status != 'refunded') {
-            sellerSales[order.sellerId] = (sellerSales[order.sellerId] ?? 0) + order.total;
-          }
-        }
-
-        final topSellers = sellersList
-            .where((seller) => sellerSales.containsKey(seller.id))
-            .toList()
-          ..sort((a, b) => (sellerSales[b.id] ?? 0).compareTo(sellerSales[a.id] ?? 0));
-
-        // Prepare pending actions
-        final pendingActions = [
-          ...withdrawals.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return {
-              'id': doc.id,
-              'type': 'withdrawal',
-              'amount': data['amount'],
-              'sellerName': data['sellerName'],
-              'createdAt': data['createdAt'],
-            };
-          }),
-          ...refunds.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return {
-              'id': doc.id,
-              'type': 'refund',
-              'amount': data['amount'],
-              'orderId': data['orderId'],
-              'createdAt': data['createdAt'],
-            };
-          }),
-        ]..sort((a, b) => b['createdAt'].compareTo(a['createdAt']));
+        // Get unique customers who have made at least one successful purchase
+        final uniqueCustomers = ordersList
+            .where((order) => order.status != 'cancelled' && order.status != 'refunded')
+            .map((order) => order.buyerId)
+            .toSet();
 
         return {
           'stats': {
             'totalSales': totalSales,
-            'platformFees': platformFees,
-            'totalOrders': totalOrders,
-            'processingOrders': processingOrders,
-            'activeSellers': sellers.docs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data['isActive'] == true;
-            }).length,
-            'totalProducts': products.size,
-            'pendingVerifications': sellers.docs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data['isVerified'] == false;
-            }).length,
-            'pendingWithdrawals': withdrawals.size,
-            'pendingRefunds': refunds.size,
+            'totalRefunds': totalRefunds,
+            'totalPlatformFees': totalPlatformFees,
+            'activeSellers': sellers.docs.length,
+            'totalOrders': ordersList.where((order) => order.status != 'cancelled').length,
+            'totalProducts': products.docs.length,
+            'totalCustomers': uniqueCustomers.length,
           },
-          'recentOrders': ordersList.take(5).toList(),
-          'topSellers': topSellers.take(5).toList(),
-          'pendingActions': pendingActions,
+          'recentOrders': ordersList.take(10).map((order) => {
+            'id': order.id,
+            'seller': order.sellerName,
+            'customer': order.buyerName,
+            'amount': order.total,
+            'status': order.status,
+            'date': order.createdAt.toIso8601String(),
+          }).toList(),
         };
       },
     ).listen(onUpdate);
 
+    _listeners['admin_dashboard'] = subscription;
+    return subscription;
+  }
+
+  /// Listen to stores revenue statistics in real-time
+  Future<StreamSubscription> listenToStoresRevenue(Function(List<Map<String, dynamic>>) onUpdate) async {
+    final isAdmin = await _adminService.isAdmin(_auth.currentUser?.uid ?? '');
+    if (!isAdmin) {
+      throw Exception('Unauthorized access');
+    }
+
+    final sellersStream = _firestore
+        .collection('sellers')
+        .snapshots();
+
+    final ordersStream = _firestore
+        .collection('orders')
+        .snapshots();
+
+    final subscription = Rx.combineLatest2(
+      sellersStream,
+      ordersStream,
+      (
+        QuerySnapshot sellers,
+        QuerySnapshot orders,
+      ) {
+        final ordersList = orders.docs
+            .map((doc) => app_order.Order.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList();
+
+        return sellers.docs.map((seller) {
+          final sellerData = seller.data() as Map<String, dynamic>;
+          final sellerOrders = ordersList.where((order) => order.sellerId == seller.id).toList();
+          
+          final allTimeRevenue = sellerOrders.fold(0.0, (sum, order) => 
+            order.status != 'cancelled' && order.status != 'refunded' 
+              ? sum + order.total 
+              : sum
+          );
+
+          final lastMonthOrders = sellerOrders.where((order) => 
+            order.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 30)))
+          ).toList();
+
+          final lastMonthRevenue = lastMonthOrders.fold(0.0, (sum, order) => 
+            order.status != 'cancelled' && order.status != 'refunded' 
+              ? sum + order.total 
+              : sum
+          );
+
+          final previousMonthOrders = sellerOrders.where((order) => 
+            order.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 60))) &&
+            order.createdAt.isBefore(DateTime.now().subtract(const Duration(days: 30)))
+          ).toList();
+
+          final previousMonthRevenue = previousMonthOrders.fold(0.0, (sum, order) => 
+            order.status != 'cancelled' && order.status != 'refunded' 
+              ? sum + order.total 
+              : sum
+          );
+
+          final revenueGrowth = previousMonthRevenue == 0 
+            ? 100 
+            : ((lastMonthRevenue - previousMonthRevenue) / previousMonthRevenue * 100).round();
+
+          final ordersGrowth = previousMonthOrders.isEmpty 
+            ? 100 
+            : ((lastMonthOrders.length - previousMonthOrders.length) / previousMonthOrders.length * 100).round();
+
+          final uniqueCustomers = sellerOrders
+              .where((order) => order.status != 'cancelled')
+              .map((order) => order.buyerId)
+              .toSet();
+
+          final lastMonthCustomers = lastMonthOrders
+              .where((order) => order.status != 'cancelled')
+              .map((order) => order.buyerId)
+              .toSet();
+
+          final previousMonthCustomers = previousMonthOrders
+              .where((order) => order.status != 'cancelled')
+              .map((order) => order.buyerId)
+              .toSet();
+
+          final customersGrowth = previousMonthCustomers.isEmpty 
+            ? 100 
+            : ((lastMonthCustomers.length - previousMonthCustomers.length) / previousMonthCustomers.length * 100).round();
+
+          return {
+            'id': seller.id,
+            'name': sellerData['storeName'] ?? 'Unknown Store',
+            'verified': sellerData['verified'] ?? false,
+            'allTimeRevenue': allTimeRevenue,
+            'netRevenue': allTimeRevenue * 0.9, // 90% after platform fee
+            'withdrawn': sellerData['totalWithdrawn'] ?? 0.0,
+            'totalOrders': sellerOrders.length,
+            'totalCustomers': uniqueCustomers.length,
+            'revenueGrowth': revenueGrowth,
+            'ordersGrowth': ordersGrowth,
+            'customersGrowth': customersGrowth,
+            'withdrawalHistory': sellerData['withdrawalHistory'] ?? [],
+          };
+        }).toList();
+      },
+    ).listen(onUpdate);
+
+    _listeners['stores_revenue'] = subscription;
     return subscription;
   }
 
