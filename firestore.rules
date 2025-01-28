@@ -35,15 +35,22 @@ service cloud.firestore {
 
     // Carts collection
     match /carts/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && isOwner(userId);
+      allow delete: if isAuthenticated() && isOwner(userId);
     }
 
     // Products collection
     match /products/{productId} {
       allow read: if true;
       allow create: if isSeller();
-      allow update: if isSeller() && (
-        resource.data.sellerId == request.auth.uid || isAdmin()
+      allow update: if (
+        (isSeller() && resource.data.sellerId == request.auth.uid) ||
+        isAdmin() ||
+        (isAuthenticated() && 
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['stockQuantity', 'colorQuantities', 'soldCount']))
       );
       allow delete: if isSeller() && (
         resource.data.sellerId == request.auth.uid || isAdmin()
@@ -69,8 +76,12 @@ service cloud.firestore {
     match /sellers/{sellerId} {
       allow read: if true;
       allow create: if isAuthenticated() && sellerId == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        sellerId == request.auth.uid || isAdmin()
+      allow update: if (
+        (isAuthenticated() && sellerId == request.auth.uid) ||
+        isAdmin() ||
+        (isAuthenticated() && 
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['totalOrders', 'balance']))
       );
     }
 
