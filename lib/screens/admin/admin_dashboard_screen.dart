@@ -90,10 +90,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     Color? iconColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -103,39 +103,83 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = MediaQuery.of(context).size.width;
+          final isTablet = width > 800 && width <= 1200;
+          final isWide = constraints.maxWidth > 200;
+          
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 24, color: iconColor ?? Colors.pink),
-              const SizedBox(width: 8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(isTablet ? 6 : 8),
+                    decoration: BoxDecoration(
+                      color: (iconColor ?? Colors.pink).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: isTablet ? 16 : (isWide ? 20 : 18),
+                      color: iconColor ?? Colors.pink,
+                    ),
+                  ),
+                  SizedBox(width: isTablet ? 8 : 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: isTablet ? 11 : (isWide ? 13 : 12),
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: isTablet ? 6 : 8),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: isTablet ? 20 : (isWide ? 24 : 20),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 6 : 8,
+                  vertical: isTablet ? 3 : 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: isTablet ? 9 : (isWide ? 11 : 10),
+                    color: Colors.grey[600],
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -177,43 +221,52 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Row(
-                  children: [
-                    DropdownButton<String>(
-                      value: _selectedStore,
-                      items: stores.map((store) => DropdownMenuItem(
-                        value: store,
-                        child: Text(store),
-                      )).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedStore = value);
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 200,
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText: 'Search orders...',
-                          isDense: true,
-                          prefixIcon: Icon(Icons.search, size: 20),
-                        ),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      DropdownButton<String>(
+                        value: _selectedStore,
+                        items: stores.map((store) => DropdownMenuItem(
+                          value: store,
+                          child: Text(
+                            store,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        )).toList(),
                         onChanged: (value) {
-                          setState(() => _searchQuery = value);
+                          if (value != null) {
+                            setState(() => _selectedStore = value);
+                          }
                         },
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
-                      onPressed: () {
-                        setState(() => _isGridView = !_isGridView);
-                      },
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: SizedBox(
+                          width: 200,
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: const InputDecoration(
+                              hintText: 'Search orders...',
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              prefixIcon: Icon(Icons.search, size: 20),
+                            ),
+                            onChanged: (value) {
+                              setState(() => _searchQuery = value);
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
+                        onPressed: () {
+                          setState(() => _isGridView = !_isGridView);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -221,51 +274,89 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           if (_isGridView)
             Padding(
               padding: const EdgeInsets.all(16),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 1.5,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
-                itemCount: filteredOrders.length,
-                itemBuilder: (context, index) {
-                  final order = filteredOrders[index];
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            order['id'].toString().substring(0, 8),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text('Seller: ${order['seller']}'),
-                          Text('Customer: ${order['customer']}'),
-                          Text('Amount: \$${(order['amount'] as num).toStringAsFixed(2)}'),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(order['status'] as String),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              order['status'] as String,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          Text(
-                            _formatDate(order['date'] as String),
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                        ],
-                      ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final crossAxisCount = width > 1200 ? 4 : width > 800 ? 3 : 2;
+                  
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      childAspectRatio: width > 800 ? 1.4 : 1.2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
                     ),
+                    itemCount: filteredOrders.length,
+                    itemBuilder: (context, index) {
+                      final order = filteredOrders[index];
+                      return Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(width > 800 ? 8 : 12),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                order['id'].toString().substring(0, 8),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Seller: ${order['seller']}',
+                                style: const TextStyle(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Customer: ${order['customer']}',
+                                style: const TextStyle(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Amount: ₵${(order['amount'] as num).toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              const Spacer(),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(order['status'] as String),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        order['status'] as String,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: _getStatusTextColor(order['status'] as String),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatDate(order['date'] as String),
+                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -288,7 +379,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       DataCell(Text(order['id'].toString().substring(0, 8))),
                       DataCell(Text(order['seller'] as String)),
                       DataCell(Text(order['customer'] as String)),
-                      DataCell(Text('\$${(order['amount'] as num).toStringAsFixed(2)}')),
+                      DataCell(Text('₵${(order['amount'] as num).toStringAsFixed(2)}')),
                       DataCell(
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -301,7 +392,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           ),
                           child: Text(
                             order['status'] as String,
-                            style: const TextStyle(fontSize: 12),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _getStatusTextColor(order['status'] as String),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -319,14 +414,120 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'delivered':
-        return Colors.green[100]!;
+        return Colors.green[50]!;
+      case 'processing':
+        return Colors.blue[50]!;
       case 'cancelled':
-        return Colors.red[100]!;
+        return Colors.red[50]!;
       case 'refunded':
-        return Colors.orange[100]!;
+        return Colors.orange[50]!;
+      case 'pending':
+        return Colors.yellow[50]!;
+      case 'shipped':
+        return Colors.indigo[50]!;
       default:
-        return Colors.grey[100]!;
+        return Colors.grey[50]!;
     }
+  }
+
+  Color _getStatusTextColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'delivered':
+        return Colors.green[900]!;
+      case 'processing':
+        return Colors.blue[900]!;
+      case 'cancelled':
+        return Colors.red[900]!;
+      case 'refunded':
+        return Colors.orange[900]!;
+      case 'pending':
+        return Colors.yellow[900]!;
+      case 'shipped':
+        return Colors.indigo[900]!;
+      default:
+        return Colors.grey[900]!;
+    }
+  }
+
+  Widget _buildTopSellersList(List<Map<String, dynamic>> sellers) {
+    if (sellers.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child: Text('No top sellers data available'),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: sellers.length,
+      itemBuilder: (context, index) {
+        final seller = sellers[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.pink[50],
+              child: const Icon(Icons.store, color: Colors.pink),
+            ),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    seller['storeName'] ?? 'Unknown Store',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.pink[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Rank #${index + 1}',
+                    style: TextStyle(
+                      color: Colors.pink[900],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            subtitle: Text(
+              'Orders: ${seller['totalOrders']} | Customers: ${seller['totalCustomers']}',
+              style: const TextStyle(fontSize: 13),
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '₵${(seller['totalSales'] as double).toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.pink,
+                  ),
+                ),
+                Text(
+                  'Total Sales',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -413,72 +614,87 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       body: RefreshIndicator(
         onRefresh: _checkAdminAndSetupUpdates,
         child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16.0),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.5,
-                children: [
-                  _buildMetricCard(
-                    title: 'All-time Sales',
-                    value: '\$${stats['totalSales'].toStringAsFixed(2)}',
-                    subtitle: 'Total volume (excl. refunds)',
-                    icon: Icons.trending_up,
-                  ),
-                  _buildMetricCard(
-                    title: 'Current Sales',
-                    value: '\$${(stats['totalSales'] - stats['totalRefunds']).toStringAsFixed(2)}',
-                    subtitle: 'Net sales after refunds',
-                    icon: Icons.attach_money,
-                  ),
-                  _buildMetricCard(
-                    title: 'Total Refunds',
-                    value: '\$${stats['totalRefunds'].toStringAsFixed(2)}',
-                    subtitle: 'Refunded amount',
-                    icon: Icons.credit_card,
-                  ),
-                  _buildMetricCard(
-                    title: 'All-time Platform Fees',
-                    value: '\$${stats['totalPlatformFees'].toStringAsFixed(2)}',
-                    subtitle: 'Total platform fees',
-                    icon: Icons.account_balance_wallet,
-                  ),
-                  _buildMetricCard(
-                    title: 'Current Platform Fees',
-                    value: '\$${(stats['totalPlatformFees'] - (stats['totalRefunds'] * 0.1)).toStringAsFixed(2)}',
-                    subtitle: 'Platform fees after refunds',
-                    icon: Icons.payments,
-                  ),
-                  _buildMetricCard(
-                    title: 'Active Sellers',
-                    value: stats['activeSellers'].toString(),
-                    subtitle: '${stats['totalProducts']} products listed',
-                    icon: Icons.store,
-                  ),
-                  _buildMetricCard(
-                    title: 'Total Orders',
-                    value: stats['totalOrders'].toString(),
-                    subtitle: 'All-time orders',
-                    icon: Icons.shopping_bag,
-                  ),
-                  _buildMetricCard(
-                    title: 'Total Products',
-                    value: stats['totalProducts'].toString(),
-                    subtitle: 'Listed products',
-                    icon: Icons.inventory_2,
-                  ),
-                  _buildMetricCard(
-                    title: 'Total Customers',
-                    value: stats['totalCustomers'].toString(),
-                    subtitle: 'Unique buyers',
-                    icon: Icons.people,
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final crossAxisCount = width > 1200 ? 4 : width > 800 ? 4 : 2;
+                  final horizontalSpacing = width > 1200 ? 16.0 : width > 800 ? 12.0 : 16.0;
+                  final verticalSpacing = width > 1200 ? 16.0 : width > 800 ? 12.0 : 16.0;
+                  
+                  return GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: horizontalSpacing,
+                    mainAxisSpacing: verticalSpacing,
+                    childAspectRatio: width > 1200 ? 1.8 : width > 800 ? 1.9 : 1.4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: width > 800 ? 8.0 : 16.0,
+                      vertical: width > 800 ? 8.0 : 16.0,
+                    ),
+                    children: [
+                      _buildMetricCard(
+                        title: 'All-time Sales',
+                        value: '₵${stats['totalSales'].toStringAsFixed(2)}',
+                        subtitle: 'Total volume (excl. refunds)',
+                        icon: Icons.trending_up,
+                      ),
+                      _buildMetricCard(
+                        title: 'Current Sales',
+                        value: '₵${(stats['totalSales'] - stats['totalRefunds']).toStringAsFixed(2)}',
+                        subtitle: 'Net sales after refunds',
+                        icon: Icons.attach_money,
+                      ),
+                      _buildMetricCard(
+                        title: 'Total Refunds',
+                        value: '₵${stats['totalRefunds'].toStringAsFixed(2)}',
+                        subtitle: 'Refunded amount',
+                        icon: Icons.credit_card,
+                      ),
+                      _buildMetricCard(
+                        title: 'All-time Platform Fees',
+                        value: '₵${stats['totalPlatformFees'].toStringAsFixed(2)}',
+                        subtitle: 'Total platform fees',
+                        icon: Icons.account_balance_wallet,
+                      ),
+                      _buildMetricCard(
+                        title: 'Current Platform Fees',
+                        value: '₵${(stats['totalPlatformFees'] - (stats['totalRefunds'] * 0.1)).toStringAsFixed(2)}',
+                        subtitle: 'Platform fees after refunds',
+                        icon: Icons.payments,
+                      ),
+                      _buildMetricCard(
+                        title: 'Active Sellers',
+                        value: '${stats['activeSellers']}',
+                        subtitle: '${stats['totalProducts']} products listed',
+                        icon: Icons.store,
+                      ),
+                      _buildMetricCard(
+                        title: 'Total Orders',
+                        value: '${stats['totalOrders']}',
+                        subtitle: 'All-time orders',
+                        icon: Icons.shopping_bag,
+                      ),
+                      _buildMetricCard(
+                        title: 'Total Products',
+                        value: '${stats['totalProducts']}',
+                        subtitle: 'Listed products',
+                        icon: Icons.inventory_2,
+                      ),
+                      _buildMetricCard(
+                        title: 'Total Customers',
+                        value: '${stats['totalCustomers']}',
+                        subtitle: 'Unique buyers',
+                        icon: Icons.people,
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 24),
               _buildRecentOrdersList(recentOrders),
@@ -543,13 +759,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      TopSellersList(
-                        sellers: List<Seller>.from(
+                      _buildTopSellersList(
+                        List<Map<String, dynamic>>.from(
                           _dashboardData!['topSellers'] as List<dynamic>? ?? [],
                         ),
-                        onSellerTap: (seller) {
-                          // Navigate to seller details
-                        },
                       ),
                     ],
                   ),

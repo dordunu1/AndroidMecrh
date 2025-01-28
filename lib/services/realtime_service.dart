@@ -378,20 +378,21 @@ class RealtimeService {
           }
         }
 
-        final sellersList = sellers.docs.map((doc) {
+        final topSellers = sellers.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          return Seller.fromMap(data, doc.id);
-        }).toList();
-
-        final topSellers = sellersList.where((seller) => sellerSales.containsKey(seller.id))
-            .map((seller) => {
-              ...seller.toMap(),
-              'totalSales': sellerSales[seller.id] ?? 0.0,
-              'totalOrders': sellerOrders[seller.id] ?? 0,
-              'totalCustomers': sellerCustomers[seller.id]?.length ?? 0,
-            })
-            .toList()
-          ..sort((a, b) => (b['totalSales'] as double).compareTo(a['totalSales'] as double));
+          final sellerId = doc.id;
+          return {
+            'id': sellerId,
+            'storeName': data['storeName'] ?? 'Unknown Store',
+            'totalSales': sellerSales[sellerId] ?? 0.0,
+            'totalOrders': sellerOrders[sellerId] ?? 0,
+            'totalCustomers': sellerCustomers[sellerId]?.length ?? 0,
+            'isVerified': data['isVerified'] ?? false,
+          };
+        })
+        .where((seller) => seller['totalSales'] > 0)  // Only include sellers with sales
+        .toList()
+        ..sort((a, b) => (b['totalSales'] as double).compareTo(a['totalSales'] as double));
 
         return {
           'stats': {
