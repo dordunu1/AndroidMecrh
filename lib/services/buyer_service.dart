@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide User;
+import 'package:firebase_auth/firebase_auth.dart' as auth;
 import '../models/user.dart';
 import '../models/cart_item.dart';
 import '../models/order.dart' as app_order;
@@ -11,13 +11,13 @@ import '../models/shipping_address.dart';
 final buyerServiceProvider = Provider<BuyerService>((ref) {
   return BuyerService(
     FirebaseFirestore.instance,
-    FirebaseAuth.instance,
+    auth.FirebaseAuth.instance,
   );
 });
 
 class BuyerService {
   final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final auth.FirebaseAuth _auth;
 
   BuyerService(this._firestore, this._auth);
 
@@ -301,114 +301,73 @@ class BuyerService {
 
   Future<void> placeOrder({
     required List<CartItem> items,
-    required String shippingAddressId,
+    required Map<String, dynamic> shippingAddress,
+    required String paymentMethod,
+    required String buyerPaymentName,
+    required double total,
   }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      // Get user profile
+      // Get current user data for buyerInfo
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) throw Exception('User profile not found');
-
-      final buyer = MerchUser.fromMap(userDoc.data()!, userDoc.id);
-
-      // Get shipping address - Updated to handle both id and direct defaultShippingAddress
-      final address = buyer.defaultShippingAddress ?? 
-          buyer.shippingAddresses.firstWhere(
-            (addr) => addr.id == shippingAddressId,
-            orElse: () => throw Exception('Shipping address not found'),
-          );
+      if (!userDoc.exists) throw Exception('User data not found');
+      final userData = userDoc.data()!;
 
       // Group items by seller
       final itemsBySeller = <String, List<CartItem>>{};
-      for (final item in items) {
-        final sellerId = item.product.sellerId;
-        if (!itemsBySeller.containsKey(sellerId)) {
-          itemsBySeller[sellerId] = [];
+      for (var item in items) {
+        if (!itemsBySeller.containsKey(item.product.sellerId)) {
+          itemsBySeller[item.product.sellerId] = [];
         }
-        itemsBySeller[sellerId]!.add(item);
+        itemsBySeller[item.product.sellerId]!.add(item);
       }
 
-      // Start a batch write
-      final batch = _firestore.batch();
-
       // Create an order for each seller
-      for (final entry in itemsBySeller.entries) {
+      for (var entry in itemsBySeller.entries) {
         final sellerId = entry.key;
         final sellerItems = entry.value;
-
-        // Get seller profile
+        
+        // Get seller data for sellerInfo
         final sellerDoc = await _firestore.collection('sellers').doc(sellerId).get();
-        if (!sellerDoc.exists) throw Exception('Seller not found');
+        if (!sellerDoc.exists) throw Exception('Seller data not found');
+        final sellerData = sellerDoc.data()!;
 
-        // Calculate total and shipping fee
-        double total = sellerItems.fold(
+        // Get delivery fee from first product in order
+        final firstProduct = sellerItems.first.product;
+        final deliveryFee = firstProduct.deliveryFee ?? 0.5;
+        
+        // Calculate total for this seller's items including delivery fee
+        final itemsTotal = sellerItems.fold(
           0.0,
-          (sum, item) => sum + (item.product.hasDiscount
-              ? item.product.price * (1 - item.product.discountPercent / 100) * item.quantity
-              : item.product.price * item.quantity),
+          (sum, item) => sum + (item.product.price * item.quantity),
         );
+        final sellerTotal = itemsTotal + deliveryFee;
 
-        // Calculate shipping fee based on location
-        double shippingFee = 0.0;
-        print('Calculating shipping fee:');
-        print('  - Buyer country: ${address.country.toLowerCase()}');
-        print('  - Seller country: ${sellerDoc.data()!['country']?.toLowerCase()}');
-        print('  - Buyer city: ${address.city.toLowerCase()}');
-        print('  - Seller city: ${sellerDoc.data()!['city']?.toLowerCase()}');
-        
-        final buyerCountry = address.country.toLowerCase().trim();
-        final sellerCountry = sellerDoc.data()!['country']?.toLowerCase().trim() ?? '';
-        final buyerCity = address.city.toLowerCase().trim();
-        final sellerCity = sellerDoc.data()!['city']?.toLowerCase().trim() ?? '';
-        
-        print('After trimming:');
-        print('  - Buyer country: "$buyerCountry"');
-        print('  - Seller country: "$sellerCountry"');
-        print('  - Buyer city: "$buyerCity"');
-        print('  - Seller city: "$sellerCity"');
-        
-        if (buyerCountry != 'ghana' || sellerCountry != 'ghana') {
-          shippingFee = 1.0; // International shipping
-          print('  - International shipping fee: $shippingFee (countries do not match ghana)');
-        } else {
-          // Local shipping
-          shippingFee = (buyerCity == sellerCity) ? 0.5 : 0.7;
-          print('  - Local shipping fee: $shippingFee (same city: ${buyerCity == sellerCity})');
-        }
-
-        // Add extra fee if more than 5 items
-        int totalQuantity = sellerItems.fold(0, (sum, item) => sum + item.quantity);
-        if (totalQuantity > 5) {
-          shippingFee += 0.3;
-          print('  - Added extra fee for more than 5 items: +0.3');
-        }
-        print('  - Final shipping fee: $shippingFee');
-
-        total += shippingFee; // Add shipping fee to total
-
-        // Create order
+        // Create a new document with auto-generated ID
         final orderRef = _firestore.collection('orders').doc();
-        batch.set(orderRef, {
+        
+        final now = DateTime.now().toUtc();
+        final createdAtStr = now.toIso8601String();
+
+        await orderRef.set({
           'buyerId': user.uid,
           'buyerInfo': {
-            'name': buyer.name,
-            'email': buyer.email,
-            'phone': buyer.phone ?? '',
+            'email': userData['email'] ?? '',
+            'name': userData['name'] ?? '',
+            'phone': userData['phone'] ?? '',
           },
           'sellerId': sellerId,
           'sellerInfo': {
-            'name': sellerDoc.data()!['storeName'],
-            'email': sellerDoc.data()!['email'],
-            'phone': sellerDoc.data()!['phone'] ?? '',
+            'email': sellerData['email'] ?? '',
+            'name': sellerData['storeName'] ?? '',
+            'phone': sellerData['phone'] ?? '',
           },
           'items': sellerItems.map((item) => {
             'productId': item.product.id,
             'name': item.product.name,
-            'price': item.product.hasDiscount 
-                ? item.product.price * (1 - item.product.discountPercent / 100)
-                : item.product.price,
+            'price': item.product.price,
             'quantity': item.quantity,
             'imageUrl': item.selectedColorImage ?? item.product.images.first,
             'options': {
@@ -417,55 +376,38 @@ class BuyerService {
               'selectedColorImage': item.selectedColorImage,
             },
           }).toList(),
-          'total': total,
-          'deliveryFee': shippingFee,
+          'shippingAddress': shippingAddress,
           'status': 'processing',
-          'shippingAddress': address.toMap(),
-          'createdAt': DateTime.now().toIso8601String(),
+          'total': sellerTotal,
+          'deliveryFee': deliveryFee,
           'paymentStatus': 'paid',
-          'reference': DateTime.now().millisecondsSinceEpoch.toString(),
+          'paymentMethod': paymentMethod,
+          'buyerPaymentName': buyerPaymentName,
+          'paymentPhoneNumber': sellerData['paymentPhoneNumbers'][paymentMethod] ?? '',
+          'createdAt': createdAtStr,
+          'updatedAt': createdAtStr,
         });
 
-        // Update product stock
-        for (final item in sellerItems) {
+        // Update product quantities
+        for (var item in sellerItems) {
           final productRef = _firestore.collection('products').doc(item.product.id);
-          print('Updating stock for product ${item.product.name}:');
-          print('  - Current stock: ${item.selectedColor != null ? item.product.colorQuantities[item.selectedColor] : item.product.stockQuantity}');
-          print('  - Quantity to deduct: ${item.quantity}');
+          
           if (item.selectedColor != null) {
-            // Update color-specific stock
-            batch.update(productRef, {
+            // Update color-specific quantity
+            await productRef.update({
               'colorQuantities.${item.selectedColor}': FieldValue.increment(-item.quantity),
               'stockQuantity': FieldValue.increment(-item.quantity),
               'soldCount': FieldValue.increment(item.quantity),
             });
-            print('  - Updating color-specific stock for ${item.selectedColor}');
           } else {
-            // Update general stock
-            batch.update(productRef, {
+            // Update general quantity
+            await productRef.update({
               'stockQuantity': FieldValue.increment(-item.quantity),
               'soldCount': FieldValue.increment(item.quantity),
             });
-            print('  - Updating general stock');
           }
         }
-
-        // Update seller stats
-        batch.update(sellerDoc.reference, {
-          'totalOrders': FieldValue.increment(1),
-          'balance': FieldValue.increment(total * 0.9), // 90% of total (10% platform fee)
-        });
       }
-
-      // Clear cart - Check if cart exists first
-      final cartDoc = await _firestore.collection('carts').doc(user.uid).get();
-      if (cartDoc.exists) {
-        batch.delete(_firestore.collection('carts').doc(user.uid));
-      }
-
-      // Commit the batch
-      await batch.commit();
-      print('Batch operation committed successfully - stock updates should be applied');
     } catch (e) {
       throw Exception('Failed to place order: $e');
     }
@@ -515,6 +457,7 @@ class BuyerService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
+      // Get the order details
       final orderDoc = await _firestore.collection('orders').doc(orderId).get();
       if (!orderDoc.exists) throw Exception('Order not found');
 
@@ -524,20 +467,54 @@ class BuyerService {
         throw Exception('Not authorized to request refund for this order');
       }
 
+      // Get seller data to ensure we have the correct name
+      final sellerDoc = await _firestore.collection('sellers').doc(order.sellerId).get();
+      if (!sellerDoc.exists) throw Exception('Seller not found');
+      final sellerData = sellerDoc.data()!;
+      print('DEBUG: Seller data: $sellerData'); // Debug print
+      final sellerName = sellerData['storeName'] as String? ?? 'Unknown Seller';
+      print('DEBUG: Seller name resolved to: $sellerName'); // Debug print
+
+      // Get the first item's image and details from the order
+      String? orderImage;
+      if (order.items.isNotEmpty) {
+        final firstItem = order.items.first;
+        print('DEBUG: First order item: ${firstItem.toMap()}'); // Debug print
+        // First try to get the selected color image, then the main image URL
+        orderImage = firstItem.selectedColorImage ?? firstItem.imageUrl;
+        print('DEBUG: Order image resolved to: $orderImage'); // Debug print
+      }
+
+      // Get user's phone number from their profile if not provided
+      String buyerPhone = phoneNumber;
+      if (buyerPhone.isEmpty) {
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          buyerPhone = userDoc.data()?['phone'] as String? ?? phoneNumber;
+        }
+      }
+
       // Create refund document
-      await _firestore.collection('refunds').add({
+      final refundData = {
         'orderId': orderId,
+        'shortOrderId': orderId.substring(0, 8),
         'buyerId': user.uid,
         'buyerName': order.buyerName,
+        'phoneNumber': buyerPhone,
         'sellerId': order.sellerId,
-        'sellerName': order.sellerName,
+        'sellerName': sellerName,
         'amount': order.total,
         'reason': reason,
-        'phoneNumber': phoneNumber,
         'images': images,
+        'orderImage': orderImage ?? '',
         'status': 'pending',
         'createdAt': DateTime.now().toIso8601String(),
-      });
+      };
+
+      print('DEBUG: Creating refund with data: $refundData'); // Debug print
+
+      // Create the refund document
+      await _firestore.collection('refunds').add(refundData);
 
       // Update order status to 'refund_requested'
       await _firestore.collection('orders').doc(orderId).update({

@@ -540,6 +540,43 @@ class _OrderCard extends ConsumerWidget {
             ),
           ),
 
+          // Payment Information
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Payment Information',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Method: ${order.paymentMethod == 'mtn_momo' ? 'MTN MoMo' : 'Telecel Cash'}',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                Text(
+                  'Payment Name: ${order.buyerPaymentName ?? 'Not provided'}',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                Text(
+                  'Payment Phone: ${order.paymentPhoneNumber}',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                Text(
+                  'Status: ${order.paymentStatus ?? 'Pending'}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: (order.paymentStatus == 'paid') 
+                      ? Colors.green 
+                      : theme.colorScheme.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Action Buttons
           if (order.status == 'processing' || order.status == 'shipped') ...[
             const Divider(height: 1),

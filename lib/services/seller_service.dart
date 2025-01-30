@@ -7,6 +7,7 @@ import '../models/withdrawal.dart';
 import '../models/product.dart';
 import '../models/refund.dart';
 import '../models/user.dart';
+import 'package:flutter/foundation.dart';
 
 final sellerServiceProvider = Provider<SellerService>((ref) {
   return SellerService();
@@ -594,49 +595,86 @@ class SellerService {
   }
 
   Future<void> verifyPayment(String reference, Map<String, dynamic> metadata) async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) throw 'User not authenticated';
+    try {
+      final user = await _auth.currentUser;
+      if (user == null) throw 'User not found';
 
-    final sellerId = currentUser.uid;
-    final sellerRef = _firestore.collection('sellers').doc(sellerId);
-    final userRef = _firestore.collection('users').doc(sellerId);
+      await _firestore.collection('sellers').doc(user.uid).set({
+        'userId': user.uid,
+        'storeName': metadata['storeName'],
+        'description': metadata['storeDescription'],
+        'address': metadata['address'],
+        'city': metadata['city'] ?? '',
+        'state': metadata['state'] ?? '',
+        'country': metadata['country'] ?? '',
+        'zip': metadata['zip'] ?? '',
+        'phone': user.phoneNumber ?? '',
+        'email': user.email ?? '',
+        'isVerified': false,
+        'createdAt': DateTime.now().toIso8601String(),
+        'balance': 0.0,
+        'averageRating': 0.0,
+        'reviewCount': 0,
+        'deliveryFee': 0.0,
+        'shippingInfo': metadata['shippingInfo'],
+        'latitude': metadata['latitude'],
+        'longitude': metadata['longitude'],
+        'followersCount': 0,
+        'followers': [],
+        'acceptedPaymentMethods': metadata['acceptedPaymentMethods'],
+        'paymentPhoneNumbers': metadata['paymentPhoneNumbers'],
+        'paymentNames': metadata['paymentNames'],
+      });
+    } catch (e) {
+      debugPrint('Error verifying payment: $e');
+      rethrow;
+    }
+  }
 
-    final batch = _firestore.batch();
+  Future<void> submitSellerRegistration(Map<String, dynamic> metadata) async {
+    try {
+      final user = await _auth.currentUser;
+      if (user == null) throw 'User not found';
 
-    final seller = Seller(
-      id: sellerId,
-      userId: currentUser.uid,
-      storeName: metadata['storeName'] ?? '',
-      description: metadata['storeDescription'] ?? '',
-      address: metadata['address'] ?? '',
-      city: '',
-      state: '',
-      country: metadata['country'] ?? '',
-      zip: '',
-      phone: '',
-      email: currentUser.email ?? '',
-      createdAt: DateTime.now().toIso8601String(),
-      shippingInfo: metadata['shippingInfo'] ?? '',
-      paymentInfo: metadata['paymentInfo'] ?? '',
-      latitude: metadata['latitude']?.toDouble(),
-      longitude: metadata['longitude']?.toDouble(),
-      followers: [],
-      followersCount: 0,
-    );
+      // Create a seller document with isSeller set to false
+      await _firestore.collection('sellers').doc(user.uid).set({
+        'userId': user.uid,
+        'storeName': metadata['storeName'],
+        'description': metadata['storeDescription'],
+        'address': metadata['address'],
+        'country': metadata['country'] ?? '',
+        'shippingInfo': metadata['shippingInfo'],
+        'latitude': metadata['latitude'],
+        'longitude': metadata['longitude'],
+        'acceptedPaymentMethods': metadata['acceptedPaymentMethods'],
+        'paymentPhoneNumbers': metadata['paymentPhoneNumbers'],
+        'paymentNames': metadata['paymentNames'],
+        'paymentReference': metadata['paymentReference'],
+        'registrationStatus': 'pending',
+        'email': user.email ?? '',
+        'phone': user.phoneNumber ?? '',
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+        'isActive': false,
+        'isSeller': false,
+        'balance': 0.0,
+        'totalSales': 0.0,
+        'totalOrders': 0,
+        'averageRating': 0.0,
+        'reviewCount': 0,
+        'logo': null,
+        'banner': null,
+      });
 
-    // Update seller document
-    batch.set(sellerRef, seller.toMap());
-
-    // Update user document to mark as seller
-    batch.update(userRef, {
-      'isSeller': true,
-      'isBuyer': false,
-      'sellerId': sellerId,
-      'updatedAt': DateTime.now().toIso8601String(),
-      'becameSellerAt': DateTime.now().toIso8601String(),
-    });
-
-    await batch.commit();
+      // Update user document to mark registration as pending
+      await _firestore.collection('users').doc(user.uid).update({
+        'hasSubmittedSellerRegistration': true,
+        'sellerRegistrationStatus': 'pending',
+      });
+    } catch (e) {
+      debugPrint('Error submitting seller registration: $e');
+      rethrow;
+    }
   }
 
   Future<List<MerchUser>> getSellersByIds(List<String> sellerIds) async {

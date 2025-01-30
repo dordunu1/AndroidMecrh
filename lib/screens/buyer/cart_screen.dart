@@ -8,7 +8,7 @@ import '../../providers/cart_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/seller_service.dart';
 import '../../widgets/common/custom_button.dart';
-import 'checkout_screen.dart';
+import '../checkout/checkout_screen.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -497,10 +497,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => CheckoutScreen(
-                                            cartItems: selectedCartItems,
-                                            total: _calculateSubtotal() + _calculateTotalShippingFee(),
-                                          ),
+                                          builder: (context) => const CheckoutScreen(),
                                         ),
                                       );
                                     },

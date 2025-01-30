@@ -7,7 +7,6 @@ class Seller {
   final String description;
   final String? logo;
   final String? banner;
-  final String address;
   final String city;
   final String state;
   final String country;
@@ -28,6 +27,13 @@ class Seller {
   final double? longitude;
   final int followersCount;
   final List<String> followers;
+  final List<String> acceptedPaymentMethods;
+  final Map<String, String> paymentPhoneNumbers;
+  final Map<String, String> paymentNames;
+  final String? paymentReference;
+  final String registrationStatus;
+  final String address;
+  final bool isActive;
 
   Seller({
     required this.id,
@@ -36,7 +42,6 @@ class Seller {
     required this.description,
     this.logo,
     this.banner,
-    required this.address,
     required this.city,
     required this.state,
     required this.country,
@@ -57,6 +62,13 @@ class Seller {
     this.longitude,
     this.followersCount = 0,
     this.followers = const [],
+    this.acceptedPaymentMethods = const [],
+    this.paymentPhoneNumbers = const {},
+    this.paymentNames = const {},
+    this.paymentReference,
+    this.registrationStatus = 'pending',
+    required this.address,
+    this.isActive = false,
   });
 
   factory Seller.fromMap(Map<String, dynamic> map, String id) {
@@ -67,7 +79,6 @@ class Seller {
       description: map['description'] ?? '',
       logo: map['logo'],
       banner: map['banner'],
-      address: map['address'] ?? '',
       city: map['city'] ?? '',
       state: map['state'] ?? '',
       country: map['country'] ?? '',
@@ -88,6 +99,13 @@ class Seller {
       longitude: map['longitude']?.toDouble(),
       followersCount: map['followersCount'] ?? 0,
       followers: List<String>.from(map['followers'] ?? []),
+      acceptedPaymentMethods: List<String>.from(map['acceptedPaymentMethods'] ?? []),
+      paymentPhoneNumbers: Map<String, String>.from(map['paymentPhoneNumbers'] ?? {}),
+      paymentNames: Map<String, String>.from(map['paymentNames'] ?? {}),
+      paymentReference: map['paymentReference'],
+      registrationStatus: map['registrationStatus'] ?? 'pending',
+      address: map['address'] ?? '',
+      isActive: map['isActive'] ?? false,
     );
   }
 
@@ -98,7 +116,6 @@ class Seller {
       'description': description,
       'logo': logo,
       'banner': banner,
-      'address': address,
       'city': city,
       'state': state,
       'country': country,
@@ -119,6 +136,13 @@ class Seller {
       'longitude': longitude,
       'followersCount': followersCount,
       'followers': followers,
+      'acceptedPaymentMethods': acceptedPaymentMethods,
+      'paymentPhoneNumbers': paymentPhoneNumbers,
+      'paymentNames': paymentNames,
+      'paymentReference': paymentReference,
+      'registrationStatus': registrationStatus,
+      'address': address,
+      'isActive': isActive,
     };
   }
 
@@ -129,7 +153,6 @@ class Seller {
     String? description,
     String? logo,
     String? banner,
-    String? address,
     String? city,
     String? state,
     String? country,
@@ -150,6 +173,13 @@ class Seller {
     double? longitude,
     int? followersCount,
     List<String>? followers,
+    List<String>? acceptedPaymentMethods,
+    Map<String, String>? paymentPhoneNumbers,
+    Map<String, String>? paymentNames,
+    String? paymentReference,
+    String? registrationStatus,
+    String? address,
+    bool? isActive,
   }) {
     return Seller(
       id: id ?? this.id,
@@ -158,7 +188,6 @@ class Seller {
       description: description ?? this.description,
       logo: logo ?? this.logo,
       banner: banner ?? this.banner,
-      address: address ?? this.address,
       city: city ?? this.city,
       state: state ?? this.state,
       country: country ?? this.country,
@@ -179,6 +208,13 @@ class Seller {
       longitude: longitude ?? this.longitude,
       followersCount: followersCount ?? this.followersCount,
       followers: followers ?? this.followers,
+      acceptedPaymentMethods: acceptedPaymentMethods ?? this.acceptedPaymentMethods,
+      paymentPhoneNumbers: paymentPhoneNumbers ?? this.paymentPhoneNumbers,
+      paymentNames: paymentNames ?? this.paymentNames,
+      paymentReference: paymentReference ?? this.paymentReference,
+      registrationStatus: registrationStatus ?? this.registrationStatus,
+      address: address ?? this.address,
+      isActive: isActive ?? this.isActive,
     );
   }
 } 

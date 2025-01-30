@@ -9,6 +9,7 @@ import '../../services/storage_service.dart';
 import '../../services/buyer_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class BuyerRefundsScreen extends ConsumerStatefulWidget {
   const BuyerRefundsScreen({super.key});
@@ -183,32 +184,138 @@ class _BuyerRefundsScreenState extends ConsumerState<BuyerRefundsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Order ID: ${refund.orderId}',
-                                  style: theme.textTheme.titleMedium,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Order Image
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: refund.orderImage != null && refund.orderImage!.isNotEmpty
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: CachedNetworkImage(
+                                                imageUrl: refund.orderImage!,
+                                                width: 80,
+                                                height: 80,
+                                                fit: BoxFit.cover,
+                                                placeholder: (context, url) => Container(
+                                                  color: Colors.grey[300],
+                                                  child: const Center(
+                                                    child: CircularProgressIndicator(),
+                                                  ),
+                                                ),
+                                                errorWidget: (context, url, error) => Container(
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(Icons.image_not_supported),
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              color: Colors.grey[300],
+                                              child: const Icon(Icons.image_not_supported),
+                                            ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    // Order Details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Order #${refund.shortOrderId}',
+                                            style: theme.textTheme.titleMedium,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Created on: ${_formatDate(refund.createdAt)}',
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Amount: ₵${refund.amount.toStringAsFixed(2)}',
+                                            style: theme.textTheme.bodyLarge?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Status Badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(theme, refund.status).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Text(
+                                        refund.status.toUpperCase(),
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: _getStatusColor(theme, refund.status),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 16),
                                 Text(
-                                  'Created on: ${_formatDate(refund.createdAt)}',
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Amount: \$${refund.amount.toStringAsFixed(2)}',
-                                  style: theme.textTheme.bodyLarge,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Reason: ${refund.reason}',
-                                  style: theme.textTheme.bodyMedium,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Status: ${refund.status}',
+                                  'Reason:',
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: _getStatusColor(theme, refund.status),
+                                    color: theme.textTheme.bodySmall?.color,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  refund.reason,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                if (refund.images.isNotEmpty) ...[
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Images:',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.textTheme.bodySmall?.color,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: 80,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: refund.images.length,
+                                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                                      itemBuilder: (context, index) {
+                                        return ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: CachedNetworkImage(
+                                            imageUrl: refund.images[index],
+                                            width: 80,
+                                            height: 80,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) => Container(
+                                              color: Colors.grey[300],
+                                              child: const Center(
+                                                child: CircularProgressIndicator(),
+                                              ),
+                                            ),
+                                            errorWidget: (context, url, error) => Container(
+                                              color: Colors.grey[300],
+                                              child: const Icon(Icons.image_not_supported),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -351,7 +458,7 @@ class _RefundCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '\$${refund.amount.toStringAsFixed(2)}',
+              '₵${refund.amount.toStringAsFixed(2)}',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,

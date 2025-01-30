@@ -16,7 +16,7 @@ import '../../models/cart_item.dart';
 import 'cart_screen.dart';
 import '../../services/seller_service.dart';
 import '../chat/chat_screen.dart';
-import '../../screens/buyer/checkout_screen.dart';
+import '../checkout/checkout_screen.dart';
 import '../../services/realtime_service.dart';
 import 'dart:async';
 
@@ -776,6 +776,109 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                           ),
                           const SizedBox(height: 24),
 
+                          // Shipping Information Section
+                          if (_seller?.shippingInfo != null && _seller!.shippingInfo!.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.local_shipping,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Shipping Information',
+                                          style: theme.textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          _seller!.shippingInfo!,
+                                          style: theme.textTheme.bodyMedium,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Note: Delivery times and fees may vary based on your location.',
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            fontStyle: FontStyle.italic,
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 24),
+
+                          // Payment Methods Section
+                          if (_seller?.acceptedPaymentMethods != null && _seller!.acceptedPaymentMethods.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.payment,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Accepted Payment Methods',
+                                          style: theme.textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: _seller!.acceptedPaymentMethods.map((method) {
+                                            String logoPath = '';
+                                            switch (method) {
+                                              case 'mtn_momo':
+                                                logoPath = 'public/mtn.png';
+                                                break;
+                                              case 'telecel_cash':
+                                                logoPath = 'public/telecel.png';
+                                                break;
+                                              default:
+                                                return const SizedBox.shrink();
+                                            }
+                                            return Padding(
+                                              padding: const EdgeInsets.only(right: 12),
+                                              child: Image.asset(
+                                                logoPath,
+                                                width: 40,
+                                                height: 40,
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 24),
+
                           // Reviews Section
                           Text(
                             'Reviews',
@@ -1156,25 +1259,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => CheckoutScreen(
-                                        cartItems: [CartItem(
-                                          product: widget.product, 
-                                          quantity: _quantity,
-                                          selectedColor: _selectedColor,
-                                          selectedSize: _selectedSize,
-                                          selectedColorImage: _selectedColorImage ?? 
-                                              (_selectedColor != null 
-                                                ? widget.product.imageColors.entries
-                                                    .firstWhere(
-                                                      (entry) => entry.value == _selectedColor,
-                                                      orElse: () => MapEntry(widget.product.images.first, '')
-                                                    ).key
-                                                : widget.product.images.first),
-                                        )],
-                                        total: (widget.product.hasDiscount
-                                            ? widget.product.price * (1 - widget.product.discountPercent / 100) * _quantity
-                                            : widget.product.price * _quantity) + widget.product.deliveryFee,
-                                      ),
+                                      builder: (context) => const CheckoutScreen(),
                                     ),
                                   );
                                 },

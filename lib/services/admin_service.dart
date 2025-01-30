@@ -105,7 +105,9 @@ class AdminService {
 
       final snapshot = await query.get();
       final refunds = snapshot.docs.map((doc) {
-        return Refund.fromMap(doc.data(), doc.id);
+        final data = doc.data();
+        print('DEBUG: Refund document data: $data');
+        return Refund.fromMap(data, doc.id);
       }).toList();
 
       if (search != null && search.isNotEmpty) {
@@ -118,6 +120,7 @@ class AdminService {
 
       return refunds;
     } catch (e) {
+      print('Error fetching refunds: $e');
       throw Exception('Failed to fetch refunds: $e');
     }
   }
@@ -490,6 +493,74 @@ class AdminService {
       };
     } catch (e) {
       throw Exception('Failed to fetch store revenue: $e');
+    }
+  }
+
+  Future<List<Seller>> getPendingSellerRegistrations({
+    String? status,
+    String? search,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    final isUserAdmin = await isAdmin(user.uid);
+    if (!isUserAdmin) throw Exception('User is not an admin');
+
+    try {
+      var query = _firestore.collection('sellers').where('registrationStatus', isEqualTo: status ?? 'pending');
+
+      if (search != null && search.isNotEmpty) {
+        query = query.where('storeName', isGreaterThanOrEqualTo: search)
+            .where('storeName', isLessThan: '${search}z');
+      }
+
+      final snapshot = await query.get();
+      return snapshot.docs.map((doc) => Seller.fromMap(doc.data(), doc.id)).toList();
+    } catch (e) {
+      throw Exception('Failed to load seller registrations: $e');
+    }
+  }
+
+  Future<void> processSellerRegistration({
+    required String sellerId,
+    required bool approved,
+    String? message,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    final isUserAdmin = await isAdmin(user.uid);
+    if (!isUserAdmin) throw Exception('User is not an admin');
+
+    try {
+      final batch = _firestore.batch();
+      final sellerRef = _firestore.collection('sellers').doc(sellerId);
+      final userRef = _firestore.collection('users').doc(sellerId);
+
+      if (approved) {
+        batch.update(sellerRef, {
+          'registrationStatus': 'approved',
+          'isActive': true,
+          'adminMessage': message,
+          'approvedAt': FieldValue.serverTimestamp(),
+          'approvedBy': user.uid,
+        });
+
+        batch.update(userRef, {
+          'isSeller': true,
+        });
+      } else {
+        batch.update(sellerRef, {
+          'registrationStatus': 'rejected',
+          'adminMessage': message,
+          'rejectedAt': FieldValue.serverTimestamp(),
+          'rejectedBy': user.uid,
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to process seller registration: $e');
     }
   }
 } 

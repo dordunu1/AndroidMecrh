@@ -4,7 +4,7 @@ import 'admin_dashboard_screen.dart';
 import 'seller_verifications_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_refunds_screen.dart';
-import 'admin_withdrawals_screen.dart';
+import 'admin_store_activations_screen.dart';
 import '../profile_screen.dart';
 
 class AdminNavigationScreen extends ConsumerStatefulWidget {
@@ -22,7 +22,7 @@ class _AdminNavigationScreenState extends ConsumerState<AdminNavigationScreen> {
     SellerVerificationsScreen(),
     AdminOrdersScreen(),
     AdminRefundsScreen(),
-    AdminWithdrawalsScreen(),
+    AdminStoreActivationsScreen(),
     ProfileScreen(),
   ];
 
@@ -54,8 +54,8 @@ class _AdminNavigationScreenState extends ConsumerState<AdminNavigationScreen> {
             label: 'Refunds',
           ),
           NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet),
-            label: 'Withdrawals',
+            icon: Icon(Icons.store),
+            label: 'Store Activations',
           ),
           NavigationDestination(
             icon: Icon(Icons.person),

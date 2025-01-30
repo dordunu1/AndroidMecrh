@@ -22,6 +22,8 @@ class MerchUser {
   final DateTime createdAt;
   final DateTime? lastLoginAt;
   final Map<String, dynamic>? preferences;
+  final bool hasSubmittedSellerRegistration;
+  final String? sellerRegistrationStatus;
 
   MerchUser({
     required this.id,
@@ -44,6 +46,8 @@ class MerchUser {
     required this.createdAt,
     this.lastLoginAt,
     this.preferences,
+    this.hasSubmittedSellerRegistration = false,
+    this.sellerRegistrationStatus,
   });
 
   factory MerchUser.fromMap(Map<String, dynamic> map, String id) {
@@ -94,6 +98,8 @@ class MerchUser {
       preferences: map['preferences'] != null
           ? Map<String, dynamic>.from(map['preferences'])
           : null,
+      hasSubmittedSellerRegistration: map['hasSubmittedSellerRegistration'] ?? false,
+      sellerRegistrationStatus: map['sellerRegistrationStatus'],
     );
   }
 
@@ -117,6 +123,8 @@ class MerchUser {
     'createdAt': createdAt.toIso8601String(),
     'lastLoginAt': lastLoginAt?.toIso8601String(),
     'preferences': preferences,
+    'hasSubmittedSellerRegistration': hasSubmittedSellerRegistration,
+    'sellerRegistrationStatus': sellerRegistrationStatus,
   };
 
   MerchUser copyWith({
@@ -138,6 +146,8 @@ class MerchUser {
     ShippingAddress? defaultShippingAddress,
     DateTime? lastLoginAt,
     Map<String, dynamic>? preferences,
+    bool? hasSubmittedSellerRegistration,
+    String? sellerRegistrationStatus,
   }) {
     return MerchUser(
       id: id,
@@ -160,6 +170,8 @@ class MerchUser {
       createdAt: createdAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       preferences: preferences ?? this.preferences,
+      hasSubmittedSellerRegistration: hasSubmittedSellerRegistration ?? this.hasSubmittedSellerRegistration,
+      sellerRegistrationStatus: sellerRegistrationStatus ?? this.sellerRegistrationStatus,
     );
   }
 } 

@@ -352,27 +352,61 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                       ),
                       decoration: BoxDecoration(
                         color: _getStatusColor(context).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         widget.order.status.toUpperCase(),
                         style: TextStyle(
-                          fontSize: 12,
                           color: _getStatusColor(context),
                           fontWeight: FontWeight.bold,
+                          fontSize: 12,
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'GHS ${widget.order.total.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: theme.primaryColor,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total: GHS ${widget.order.total.toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Delivery Fee: GHS ${widget.order.deliveryFee.toStringAsFixed(2)}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Payment: ${widget.order.paymentMethod == 'mtn_momo' ? 'MTN MoMo' : 'Telecel Cash'}',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        Text(
+                          'Pay to: ${widget.order.paymentPhoneNumber}',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        Text(
+                          widget.order.paymentStatus == 'paid' ? 'Paid' : 'Payment Pending',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: widget.order.paymentStatus == 'paid' 
+                              ? Colors.green 
+                              : theme.colorScheme.error,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(

@@ -33,7 +33,10 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
   final _zipController = TextEditingController();
   final _phoneController = TextEditingController();
   final _shippingInfoController = TextEditingController();
-  final _paymentInfoController = TextEditingController();
+  final _paymentReferenceController = TextEditingController();
+  final _paymentNamesController = TextEditingController();
+  final _paymentPhoneNumbersController = TextEditingController();
+  List<String> _selectedPaymentMethods = [];
 
   @override
   void initState() {
@@ -50,7 +53,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _zipController.addListener(_onFieldChanged);
     _phoneController.addListener(_onFieldChanged);
     _shippingInfoController.addListener(_onFieldChanged);
-    _paymentInfoController.addListener(_onFieldChanged);
+    _paymentReferenceController.addListener(_onFieldChanged);
+    _paymentNamesController.addListener(_onFieldChanged);
+    _paymentPhoneNumbersController.addListener(_onFieldChanged);
   }
 
   @override
@@ -65,8 +70,11 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _zipController.removeListener(_onFieldChanged);
     _phoneController.removeListener(_onFieldChanged);
     _shippingInfoController.removeListener(_onFieldChanged);
-    _paymentInfoController.removeListener(_onFieldChanged);
+    _paymentReferenceController.removeListener(_onFieldChanged);
+    _paymentNamesController.removeListener(_onFieldChanged);
+    _paymentPhoneNumbersController.removeListener(_onFieldChanged);
 
+    // Dispose controllers
     _storeNameController.dispose();
     _descriptionController.dispose();
     _addressController.dispose();
@@ -76,7 +84,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _zipController.dispose();
     _phoneController.dispose();
     _shippingInfoController.dispose();
-    _paymentInfoController.dispose();
+    _paymentReferenceController.dispose();
+    _paymentNamesController.dispose();
+    _paymentPhoneNumbersController.dispose();
     super.dispose();
   }
 
@@ -91,7 +101,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
       _zipController.text != _seller?.zip ||
       _phoneController.text != _seller?.phone ||
       _shippingInfoController.text != _seller?.shippingInfo ||
-      _paymentInfoController.text != _seller?.paymentInfo;
+      _paymentReferenceController.text != _seller?.paymentReference ||
+      _paymentNamesController.text != _seller?.paymentNames?['mtn_momo'] ||
+      _paymentPhoneNumbersController.text != _seller?.paymentPhoneNumbers?['mtn_momo'];
 
     final hasFileChanges = _logoFile != null;
 
@@ -108,13 +120,16 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         _storeNameController.text = seller.storeName;
         _descriptionController.text = seller.description;
         _addressController.text = seller.address;
-        _cityController.text = seller.city;
-        _stateController.text = seller.state;
+        _cityController.text = seller.city ?? '';
+        _stateController.text = seller.state ?? '';
         _countryController.text = seller.country;
-        _zipController.text = seller.zip;
+        _zipController.text = seller.zip ?? '';
         _phoneController.text = seller.phone;
         _shippingInfoController.text = seller.shippingInfo ?? '';
-        _paymentInfoController.text = seller.paymentInfo ?? '';
+        _paymentReferenceController.text = seller.paymentReference ?? '';
+        _paymentNamesController.text = seller.paymentNames?['mtn_momo'] ?? '';
+        _paymentPhoneNumbersController.text = seller.paymentPhoneNumbers?['mtn_momo'] ?? '';
+        _selectedPaymentMethods = List<String>.from(seller.acceptedPaymentMethods ?? []);
         _isLoading = false;
       });
     } catch (e) {
@@ -143,56 +158,74 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     }
   }
 
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      String? logoUrl = _seller?.logo;
-      
-      // Upload new logo if selected
-      if (_logoFile != null) {
-        logoUrl = await ref.read(storageServiceProvider).uploadSellerFile(
-          _logoFile!,
-          'logo',
-        );
-      }
-
-      // Create updated seller object
-      final updatedSeller = _seller!.copyWith(
-        storeName: _storeNameController.text,
-        description: _descriptionController.text,
-        logo: logoUrl,
-        address: _addressController.text,
-        city: _cityController.text,
-        state: _stateController.text,
-        country: _countryController.text,
-        zip: _zipController.text,
-        phone: _phoneController.text,
-        shippingInfo: _shippingInfoController.text,
-        paymentInfo: _paymentInfoController.text,
-        updatedAt: DateTime.now().toIso8601String(),
-      );
-
-      await ref.read(sellerServiceProvider).updateSellerProfile(updatedSeller);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      setState(() => _error = e.toString());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating profile: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+  Widget _buildPaymentSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Payment Information',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        CustomTextField(
+          controller: _paymentReferenceController,
+          label: 'Payment Reference',
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter payment reference';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        CustomTextField(
+          controller: _paymentNamesController,
+          label: 'Payment Name (MTN MoMo)',
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter payment name';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        CustomTextField(
+          controller: _paymentPhoneNumbersController,
+          label: 'Payment Phone Number (MTN MoMo)',
+          keyboardType: TextInputType.phone,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter payment phone number';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        const Text('Accepted Payment Methods'),
+        Wrap(
+          spacing: 8,
+          children: [
+            FilterChip(
+              label: const Text('MTN MoMo'),
+              selected: _selectedPaymentMethods.contains('mtn_momo'),
+              onSelected: (bool selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedPaymentMethods.add('mtn_momo');
+                  } else {
+                    _selectedPaymentMethods.remove('mtn_momo');
+                  }
+                  _hasChanges = true;
+                });
+              },
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
@@ -450,18 +483,7 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
                   },
                 ),
                 const SizedBox(height: 16),
-                CustomTextField(
-                  controller: _paymentInfoController,
-                  label: 'Payment Information',
-                  helperText: 'Enter your accepted payment methods and terms',
-                  maxLines: 3,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter payment information';
-                    }
-                    return null;
-                  },
-                ),
+                _buildPaymentSection(),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
@@ -484,5 +506,60 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         ),
       ),
     );
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      String? logoUrl = _seller?.logo;
+      
+      // Upload new logo if selected
+      if (_logoFile != null) {
+        logoUrl = await ref.read(storageServiceProvider).uploadSellerFile(
+          _logoFile!,
+          'logo',
+        );
+      }
+
+      // Create updated seller object
+      final updatedSeller = _seller!.copyWith(
+        storeName: _storeNameController.text,
+        description: _descriptionController.text,
+        logo: logoUrl,
+        address: _addressController.text,
+        city: _cityController.text,
+        state: _stateController.text,
+        country: _countryController.text,
+        zip: _zipController.text,
+        phone: _phoneController.text,
+        shippingInfo: _shippingInfoController.text,
+        paymentReference: _paymentReferenceController.text,
+        paymentNames: {'mtn_momo': _paymentNamesController.text},
+        paymentPhoneNumbers: {'mtn_momo': _paymentPhoneNumbersController.text},
+        acceptedPaymentMethods: _selectedPaymentMethods,
+        updatedAt: DateTime.now().toIso8601String(),
+      );
+
+      await ref.read(sellerServiceProvider).updateSellerProfile(updatedSeller);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating profile: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 } 

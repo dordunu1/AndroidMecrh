@@ -67,6 +67,8 @@ class Product {
     this.deliveryFee = 0.0,
   });
 
+  String? get imageUrl => images.isNotEmpty ? images.first : null;
+
   factory Product.fromMap(Map<String, dynamic> map, String id) {
     String? getTimestampString(dynamic value) {
       if (value == null) return null;

@@ -11,6 +11,8 @@ import '../buyer/become_seller_screen.dart';
 import '../../services/buyer_service.dart';
 import '../../widgets/common/custom_list_tile.dart';
 import '../../routes.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';  // Add this import for StreamSubscription
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -26,10 +28,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _phoneController = TextEditingController();
   File? _photoFile;
   String? _existingPhotoUrl;
-  bool _isLoading = false;
+  bool _isLoading = true;
   bool _isSaving = false;
   String? _error;
   MerchUser? _user;
+  StreamSubscription? _userSubscription;
 
   @override
   void initState() {
@@ -42,33 +45,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _userSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> _loadUser() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-    
     try {
-      final user = await ref.read(buyerServiceProvider).getCurrentUser();
-      if (mounted) {
-        setState(() {
-          _user = user;
-          _nameController.text = user.name ?? '';
-          _emailController.text = user.email;
-          _phoneController.text = user.phone ?? '';
-          _existingPhotoUrl = user.photoUrl;
-          _isLoading = false;
-        });
-      }
+      final user = await ref.read(authServiceProvider).currentUser;
+      if (user == null) return;
+
+      // Set up real-time listener for user document
+      _userSubscription?.cancel();
+      _userSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted && snapshot.exists) {
+          setState(() {
+            _user = MerchUser.fromMap(snapshot.data()!, snapshot.id);
+            _isLoading = false;
+          });
+        }
+      });
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _error = 'Failed to load profile. Please try again.';
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -215,18 +217,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            CustomListTile(
-              leading: const Icon(Icons.store_outlined),
-              title: 'Become a Seller',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const BecomeSellerScreen(),
-                  ),
-                );
-              },
-            ),
+            _buildSellerSection(context, _user!),
 
             // App Settings Section
             Padding(
@@ -328,6 +319,67 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSellerSection(BuildContext context, MerchUser user) {
+    final theme = Theme.of(context);
+    
+    if (user.isSeller) {
+      return ListTile(
+        leading: const Icon(Icons.store),
+        title: Row(
+          children: [
+            const Text('Store Activated'),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 20,
+            ),
+          ],
+        ),
+        onTap: () => Navigator.pushNamed(context, Routes.sellerHome),
+      );
+    }
+
+    if (user.hasSubmittedSellerRegistration == true) {
+      return ListTile(
+        leading: const Icon(Icons.store_outlined),
+        title: Row(
+          children: [
+            const Text('Pending Store Activation'),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: theme.colorScheme.primary,
+      child: ListTile(
+        leading: Icon(Icons.store_outlined, color: theme.colorScheme.onPrimary),
+        title: Text(
+          'Become a Seller',
+          style: TextStyle(
+            color: theme.colorScheme.onPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        trailing: Icon(Icons.arrow_forward, color: theme.colorScheme.onPrimary),
+        onTap: () => Navigator.pushNamed(context, Routes.becomeSeller),
       ),
     );
   }

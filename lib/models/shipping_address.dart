@@ -19,6 +19,11 @@ class ShippingAddress {
     this.phone,
   });
 
+  // Getters for compatibility
+  String get streetAddress => street;
+  String get postalCode => zipCode;
+  String get phoneNumber => phone ?? '';
+
   factory ShippingAddress.fromMap(Map<String, dynamic> map, String id) {
     return ShippingAddress(
       id: id,

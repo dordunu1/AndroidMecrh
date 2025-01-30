@@ -200,6 +200,106 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     );
   }
 
+  Widget _buildPaymentMethodItem(String method) {
+    final theme = Theme.of(context);
+    final name = _seller?.paymentNames?[method] ?? '';
+    final phone = _seller?.paymentPhoneNumbers?[method] ?? '';
+    
+    String logoPath = '';
+    String displayName = '';
+    
+    switch (method) {
+      case 'mtn_momo':
+        logoPath = 'public/mtn.png';
+        displayName = 'MTN MoMo';
+        break;
+      case 'telecel_cash':
+        logoPath = 'public/telecel.png';
+        displayName = 'Telecel Cash';
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Image.asset(
+            logoPath,
+            width: 40,
+            height: 40,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (name.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    name,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+                if (phone.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    phone,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentSection() {
+    if (_seller?.acceptedPaymentMethods == null || _seller!.acceptedPaymentMethods.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.payment,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Payment Methods',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ..._seller!.acceptedPaymentMethods.map(_buildPaymentMethodItem),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFollowSection() {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -418,6 +518,9 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
             // Location Section
             _buildLocationSection(),
 
+            // Payment Methods Section
+            _buildPaymentSection(),
+
             // Store Settings Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -442,18 +545,6 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
               title: 'Shipping Information',
               subtitle: Text(
                 _seller?.shippingInfo ?? 'Not set',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-            ),
-            CustomListTile(
-              leading: const Icon(Icons.payment_outlined),
-              title: 'Payment Information',
-              subtitle: Text(
-                _seller?.paymentInfo ?? 'Not set',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(

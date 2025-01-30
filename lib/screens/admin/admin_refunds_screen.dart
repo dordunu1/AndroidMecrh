@@ -95,14 +95,20 @@ class _AdminRefundsScreenState extends ConsumerState<AdminRefundsScreen> {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Process Refund #${refund.id.substring(0, 8)}'),
+        title: Text('Process Refund #${refund.shortOrderId}'),
         content: Form(
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Amount: \$${refund.amount.toStringAsFixed(2)}'),
+              Text(
+                'Amount: ₵${refund.amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
               const SizedBox(height: 8),
               Text('Reason: ${refund.reason}'),
               const SizedBox(height: 16),
@@ -221,19 +227,85 @@ class _AdminRefundsScreenState extends ConsumerState<AdminRefundsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Order ID: ${refund.orderId}',
-                                  style: theme.textTheme.titleMedium,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.grey[300]!),
+                                      ),
+                                      child: refund.orderImage != null
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: CachedNetworkImage(
+                                                imageUrl: refund.orderImage!,
+                                                width: 80,
+                                                height: 80,
+                                                fit: BoxFit.cover,
+                                                placeholder: (context, url) => Container(
+                                                  color: Colors.grey[300],
+                                                  child: const Center(
+                                                    child: CircularProgressIndicator(),
+                                                  ),
+                                                ),
+                                                errorWidget: (context, url, error) => Container(
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(Icons.image_not_supported),
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              color: Colors.grey[300],
+                                              child: const Icon(Icons.image_not_supported),
+                                            ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Order ID: ${refund.shortOrderId}',
+                                            style: theme.textTheme.titleMedium,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Buyer: ${refund.buyerName}',
+                                            style: theme.textTheme.bodyMedium,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Phone: ${refund.buyerPhone.isEmpty ? 'Not provided' : refund.buyerPhone}',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              color: refund.buyerPhone.isEmpty 
+                                                  ? Colors.grey 
+                                                  : theme.textTheme.bodyMedium?.color,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Seller: ${refund.sellerName.isEmpty ? 'Unknown Seller' : refund.sellerName}',
+                                            style: theme.textTheme.bodyMedium,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Created on: ${_formatDate(refund.createdAt)}',
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 16),
                                 Text(
-                                  'Created on: ${_formatDate(refund.createdAt)}',
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Amount: \$${refund.amount.toStringAsFixed(2)}',
-                                  style: theme.textTheme.bodyLarge,
+                                  'Amount: ₵${refund.amount.toStringAsFixed(2)}',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
@@ -255,11 +327,18 @@ class _AdminRefundsScreenState extends ConsumerState<AdminRefundsScreen> {
                                       children: [
                                         TextButton(
                                           onPressed: () => _showRefundDialog(refund, false),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                          ),
                                           child: const Text('Reject'),
                                         ),
                                         const SizedBox(width: 8),
                                         ElevatedButton(
                                           onPressed: () => _showRefundDialog(refund, true),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.green,
+                                            foregroundColor: Colors.white,
+                                          ),
                                           child: const Text('Approve'),
                                         ),
                                       ],
