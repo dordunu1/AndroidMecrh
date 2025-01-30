@@ -519,63 +519,60 @@ class _OrderCard extends ConsumerWidget {
           ),
 
           // Shipping Address
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Shipping Address',
-                  style: theme.textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                Text(order.shippingAddress['address'] ?? ''),
-                Text(
-                  '${order.shippingAddress['city'] ?? ''}, ${order.shippingAddress['state'] ?? ''} ${order.shippingAddress['zip'] ?? ''}',
-                ),
-                Text(order.shippingAddress['country'] ?? ''),
-                Text('Phone: ${order.shippingAddress['phone'] ?? ''}'),
-              ],
-            ),
-          ),
-
-          // Payment Information
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Payment Information',
-                  style: theme.textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Method: ${order.paymentMethod == 'mtn_momo' ? 'MTN MoMo' : 'Telecel Cash'}',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                Text(
-                  'Payment Name: ${order.buyerPaymentName ?? 'Not provided'}',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                Text(
-                  'Payment Phone: ${order.paymentPhoneNumber}',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                Text(
-                  'Status: ${order.paymentStatus ?? 'Pending'}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: (order.paymentStatus == 'paid') 
-                      ? Colors.green 
-                      : theme.colorScheme.error,
-                    fontWeight: FontWeight.bold,
+          const Divider(),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Shipping Address Section
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Shipping Address',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(order.shippingAddressName),
+                        Text(order.shippingAddressAddress),
+                        Text('${order.shippingAddressCity}, ${order.shippingAddressState}'),
+                        Text('${order.shippingAddressCountry} ${order.shippingAddressZip}'),
+                        Text('Phone: ${order.shippingAddressPhone}'),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  const VerticalDivider(thickness: 1),
+                  // Payment Information Section
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Payment Information',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Method: ${order.paymentMethod == 'mtn_momo' ? 'MTN MoMo' : 'Telecel Cash'}'),
+                        Text('Name: ${order.buyerPaymentName ?? 'N/A'}'),
+                        Text('Status: ${order.paymentStatus ?? 'pending'}', style: TextStyle(
+                          color: (order.paymentStatus ?? 'pending') == 'paid' ? Colors.green : Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        )),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          const Divider(),
 
           // Action Buttons
           if (order.status == 'processing' || order.status == 'shipped') ...[

@@ -212,7 +212,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         // Calculate total for this seller's items
         final itemsTotal = sellerItems.fold(
           0.0,
-          (sum, item) => sum + (item.product.price * item.quantity),
+          (sum, item) => sum + (item.product.hasDiscount 
+            ? item.product.price * (1 - item.product.discountPercent / 100) * item.quantity
+            : item.product.price * item.quantity),
         );
         final deliveryFee = _deliveryFees[sellerId] ?? 0.5;
         final total = itemsTotal + deliveryFee;
@@ -347,7 +349,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       final seller = snapshot.data!;
                       final itemsTotal = sellerItems.fold(
                         0.0,
-                        (sum, item) => sum + (item.product.price * item.quantity),
+                        (sum, item) => sum + (item.product.hasDiscount 
+                          ? item.product.price * (1 - item.product.discountPercent / 100) * item.quantity
+                          : item.product.price * item.quantity),
                       );
                       final deliveryFee = _deliveryFees[sellerId] ?? 0.5;
                       final total = itemsTotal + deliveryFee;

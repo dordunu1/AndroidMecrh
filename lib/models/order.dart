@@ -47,18 +47,18 @@ class Order {
   String get buyerEmail => buyerInfo['email'] as String? ?? '';
   String get buyerPhone => buyerInfo['phone'] as String? ?? '';
 
-  String get sellerName => sellerInfo['name'] as String? ?? 'Unknown';
+  String get sellerName => sellerInfo['storeName'] as String? ?? sellerInfo['name'] as String? ?? 'Unknown';
   String get sellerEmail => sellerInfo['email'] as String? ?? '';
   String get sellerPhone => sellerInfo['phone'] as String? ?? '';
 
   // Getters for shippingAddress
-  String get shippingAddressName => shippingAddress['name'] as String;
-  String get shippingAddressAddress => shippingAddress['address'] as String;
-  String get shippingAddressCity => shippingAddress['city'] as String;
-  String get shippingAddressState => shippingAddress['state'] as String;
-  String get shippingAddressZip => shippingAddress['zip'] as String;
-  String get shippingAddressCountry => shippingAddress['country'] as String;
-  String get shippingAddressPhone => shippingAddress['phone'] as String;
+  String get shippingAddressName => shippingAddress['name'] as String? ?? '';
+  String get shippingAddressAddress => shippingAddress['address'] as String? ?? '';
+  String get shippingAddressCity => shippingAddress['city'] as String? ?? '';
+  String get shippingAddressState => shippingAddress['state'] as String? ?? '';
+  String get shippingAddressZip => shippingAddress['zip'] as String? ?? '';
+  String get shippingAddressCountry => shippingAddress['country'] as String? ?? '';
+  String get shippingAddressPhone => shippingAddress['phone'] as String? ?? '';
 
   // Additional getters for compatibility
   String get flag => status;
@@ -84,7 +84,7 @@ class Order {
       paymentStatus: map['paymentStatus'] as String?,
       reference: map['reference'] as String?,
       paymentMethod: map['paymentMethod'] as String,
-      paymentPhoneNumber: map['paymentPhoneNumber'] as String,
+      paymentPhoneNumber: map['paymentPhoneNumber'] as String? ?? '',
       buyerPaymentName: map['buyerPaymentName'] as String?,
     );
   }
@@ -160,6 +160,9 @@ class OrderItem {
   final String productId;
   final String name;
   final double price;
+  final double actualPrice;
+  final bool hasDiscount;
+  final double discountPercent;
   final int quantity;
   final String imageUrl;
   final Map<String, dynamic> options;
@@ -168,6 +171,9 @@ class OrderItem {
     required this.productId,
     required this.name,
     required this.price,
+    required this.actualPrice,
+    required this.hasDiscount,
+    required this.discountPercent,
     required this.quantity,
     required this.imageUrl,
     required this.options,
@@ -182,6 +188,9 @@ class OrderItem {
       productId: map['productId'] as String,
       name: map['name'] as String,
       price: (map['price'] as num).toDouble(),
+      actualPrice: (map['actualPrice'] as num?)?.toDouble() ?? (map['price'] as num).toDouble(),
+      hasDiscount: map['hasDiscount'] as bool? ?? false,
+      discountPercent: (map['discountPercent'] as num?)?.toDouble() ?? 0.0,
       quantity: map['quantity'] as int,
       imageUrl: map['imageUrl'] as String,
       options: Map<String, dynamic>.from(map['options'] as Map),
@@ -193,6 +202,9 @@ class OrderItem {
       'productId': productId,
       'name': name,
       'price': price,
+      'actualPrice': actualPrice,
+      'hasDiscount': hasDiscount,
+      'discountPercent': discountPercent,
       'quantity': quantity,
       'imageUrl': imageUrl,
       'options': options,

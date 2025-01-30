@@ -80,7 +80,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
               children: [
                 // Search bar
                 CustomTextField(
-                  controller: _searchController,
+                    controller: _searchController,
                   hint: 'Search by order ID or buyer name...',
                   prefixIcon: const Icon(Icons.search),
                   onChanged: (value) => _loadData(),
@@ -93,10 +93,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         value: _selectedStatus,
-                        decoration: const InputDecoration(
+                    decoration: const InputDecoration(
                           labelText: 'Status',
-                          border: OutlineInputBorder(),
-                        ),
+                      border: OutlineInputBorder(),
+                    ),
                         items: [
                           'all',
                           'processing',
@@ -112,9 +112,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                           setState(() => _selectedStatus = value!);
                           _loadData();
                         },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
+                  ),
+                ),
+                const SizedBox(width: 16),
                     // Seller filter
                     Expanded(
                       child: DropdownButtonFormField<String?>(
@@ -132,12 +132,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                             value: seller.id,
                             child: Text(seller.storeName),
                           )),
-                        ],
-                        onChanged: (value) {
+                  ],
+                  onChanged: (value) {
                           setState(() => _selectedSeller = value);
                           _loadData();
-                        },
-                      ),
+                  },
+                ),
                     ),
                   ],
                 ),
@@ -177,16 +177,16 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                                        children: [
                 // Order image
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -195,55 +195,55 @@ class _OrderCard extends StatelessWidget {
                     width: 80,
                     height: 80,
                     fit: BoxFit.cover,
-                  ),
-                ),
+                                      ),
+                                      ),
                 const SizedBox(width: 16),
                 // Order details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
                         'Order #${order.id}',
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                                                        fontWeight: FontWeight.bold,
                           fontSize: 16,
-                        ),
-                      ),
+                                                      ),
+                                                    ),
                       const SizedBox(height: 4),
-                      Text(
+                                                    Text(
                         'Buyer: ${order.buyerInfo['name']}',
                         style: const TextStyle(color: Colors.grey),
-                      ),
+                                                      ),
                       Text(
                         'Seller: ${order.sellerInfo['name']}',
                         style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
+                                                    ),
+                                                    const SizedBox(height: 8),
                       _StatusChip(status: order.status),
-                    ],
-                  ),
-                ),
+                                                  ],
+                                                ),
+                                              ),
                 // Price
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'GHS ${order.total.toStringAsFixed(2)}',
+                                        children: [
+                                          Text(
+                                            'GHS ${order.total.toStringAsFixed(2)}',
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+                                              fontWeight: FontWeight.bold,
                         fontSize: 16,
-                      ),
+                                            ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${order.items.length} item${order.items.length == 1 ? '' : 's'}',
                       style: const TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
             if (order.status == 'processing') ...[
               const Divider(height: 24),
               Row(
@@ -252,12 +252,12 @@ class _OrderCard extends StatelessWidget {
                   TextButton(
                     onPressed: () {
                       // Show confirmation dialog for shipping
-                    },
+                            },
                     child: const Text('Mark as Shipped'),
-                  ),
+                          ),
                 ],
-              ),
-            ],
+          ),
+        ],
           ],
         ),
       ),

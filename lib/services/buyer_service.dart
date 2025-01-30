@@ -314,7 +314,7 @@ class BuyerService {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
       if (!userDoc.exists) throw Exception('User data not found');
       final userData = userDoc.data()!;
-
+          
       // Group items by seller
       final itemsBySeller = <String, List<CartItem>>{};
       for (var item in items) {
@@ -341,7 +341,9 @@ class BuyerService {
         // Calculate total for this seller's items including delivery fee
         final itemsTotal = sellerItems.fold(
           0.0,
-          (sum, item) => sum + (item.product.price * item.quantity),
+          (sum, item) => sum + (item.product.hasDiscount 
+            ? (item.product.price * (1 - item.product.discountPercent / 100) * item.quantity)
+            : (item.product.price * item.quantity)),
         );
         final sellerTotal = itemsTotal + deliveryFee;
 
@@ -367,18 +369,24 @@ class BuyerService {
           'items': sellerItems.map((item) => {
             'productId': item.product.id,
             'name': item.product.name,
-            'price': item.product.price,
+            'price': item.product.hasDiscount 
+              ? (item.product.price * (1 - item.product.discountPercent / 100))
+              : item.product.price,
+            'actualPrice': item.product.price,
+            'hasDiscount': item.product.hasDiscount,
+            'discountPercent': item.product.discountPercent,
             'quantity': item.quantity,
             'imageUrl': item.selectedColorImage ?? item.product.images.first,
             'options': {
-              'selectedColor': item.selectedColor,
-              'selectedSize': item.selectedSize,
-              'selectedColorImage': item.selectedColorImage,
+              'selectedColor': item.selectedColor ?? '',
+              'selectedSize': item.selectedSize ?? '',
+              'selectedColorImage': item.selectedColorImage ?? '',
             },
           }).toList(),
           'shippingAddress': shippingAddress,
           'status': 'processing',
           'total': sellerTotal,
+          'itemsTotal': itemsTotal,
           'deliveryFee': deliveryFee,
           'paymentStatus': 'paid',
           'paymentMethod': paymentMethod,
@@ -391,7 +399,7 @@ class BuyerService {
         // Update product quantities
         for (var item in sellerItems) {
           final productRef = _firestore.collection('products').doc(item.product.id);
-          
+
           if (item.selectedColor != null) {
             // Update color-specific quantity
             await productRef.update({
