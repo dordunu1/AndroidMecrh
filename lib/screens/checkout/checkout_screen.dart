@@ -11,6 +11,7 @@ import '../../widgets/common/custom_text_field.dart';
 import '../../services/seller_service.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
+import '../../routes.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -170,9 +171,36 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
-    if (_selectedAddress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a shipping address in your profile')),
+    // Check for complete shipping details
+    if (_addressController.text.isEmpty ||
+        _cityController.text.isEmpty ||
+        _stateController.text.isEmpty ||
+        _countryController.text.isEmpty ||
+        _phoneController.text.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange[900]),
+              const SizedBox(width: 8),
+              const Text('Incomplete Profile'),
+            ],
+          ),
+          content: const Text(
+            'Please complete your profile with shipping details before placing an order.\n\n'
+            'You will be redirected to your profile settings.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, Routes.editProfile);
+              },
+              child: const Text('Complete Profile'),
+            ),
+          ],
+        ),
       );
       return;
     }
@@ -360,10 +388,73 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text(_addressController.text),
-                        Text('${_cityController.text}, ${_stateController.text}'),
-                        Text('${_countryController.text} ${_zipController.text}'),
-                        Text('Phone: ${_phoneController.text}'),
+                        if (_addressController.text.isEmpty ||
+                            _cityController.text.isEmpty ||
+                            _stateController.text.isEmpty ||
+                            _countryController.text.isEmpty ||
+                            _phoneController.text.isEmpty)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, 
+                                      color: Colors.orange[900],
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Please complete your profile with shipping details before proceeding with checkout.',
+                                        style: TextStyle(
+                                          color: Colors.orange[900],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.pushNamed(context, Routes.editProfile);
+                                  },
+                                  icon: const Icon(Icons.edit),
+                                  label: const Text('Complete Profile'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_addressController.text),
+                              Text('${_cityController.text}, ${_stateController.text}'),
+                              Text('${_countryController.text} ${_zipController.text}'),
+                              Text('Phone: ${_phoneController.text}'),
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, Routes.editProfile);
+                                },
+                                icon: const Icon(Icons.edit, size: 16),
+                                label: const Text('Edit'),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),
