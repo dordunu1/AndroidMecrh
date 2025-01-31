@@ -13,6 +13,7 @@ import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/custom_list_tile.dart';
 import '../../routes.dart';
 import '../../providers/theme_provider.dart';
+import '../../widgets/common/cached_image.dart';
 
 class SellerProfileScreen extends ConsumerStatefulWidget {
   const SellerProfileScreen({super.key});
@@ -118,10 +119,6 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
       final status = await ref.read(sellerServiceProvider).getSellerStatus();
       final currentUser = await ref.read(authServiceProvider).getCurrentUser();
       
-      print('Loaded seller data:');
-      print('Average Rating: ${seller.averageRating}');
-      print('Review Count: ${seller.reviewCount}');
-      
       if (mounted) {
         setState(() {
           _seller = seller;
@@ -131,7 +128,6 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
         });
       }
     } catch (e) {
-      print('Error loading seller profile: $e');
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -214,16 +210,41 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
                 CircleAvatar(
                   radius: 45,
                   backgroundColor: colorScheme.onPrimary,
-                  backgroundImage: _seller?.logo != null
-                      ? NetworkImage(_seller!.logo!)
-                      : null,
-                  child: _seller?.logo == null
-                      ? Icon(
+                  child: _seller?.logo != null
+                      ? ClipOval(
+                          child: CachedImage(
+                            imageUrl: _seller!.logo!,
+                            width: 90,
+                            height: 90,
+                            fit: BoxFit.cover,
+                            placeholder: Container(
+                              width: 90,
+                              height: 90,
+                              color: colorScheme.onPrimary,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                            errorWidget: Container(
+                              width: 90,
+                              height: 90,
+                              color: colorScheme.onPrimary,
+                              child: Icon(
+                                Icons.error_outline,
+                                color: colorScheme.primary,
+                                size: 30,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Icon(
                           Icons.store,
                           size: 40,
                           color: colorScheme.primary,
-                        )
-                      : null,
+                        ),
                 ),
                 const SizedBox(height: 12),
 

@@ -13,6 +13,7 @@ import '../../widgets/common/custom_list_tile.dart';
 import '../../routes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';  // Add this import for StreamSubscription
+import '../../widgets/common/cached_image.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -148,44 +149,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: ListView(
           children: [
             // Profile Header
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  GestureDetector(
-                    onTap: _pickPhoto,
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.pink,
-                      backgroundImage: _user?.photoUrl != null
-                          ? NetworkImage(_user!.photoUrl!)
-                          : null,
-                      child: _user?.photoUrl == null
-                          ? const Icon(
-                              Icons.person,
-                              size: 40,
-                              color: Colors.white,
-                            )
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _user!.name ?? 'No name set',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _user!.email,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildProfileHeader(),
 
             // Account Settings Section
             Padding(
@@ -316,6 +280,56 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.grey[200],
+              child: _user?.photoUrl != null
+                  ? ClipOval(
+                      child: CachedImage(
+                        imageUrl: _user!.photoUrl!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        placeholder: Container(
+                          width: 100,
+                          height: 100,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : const Icon(Icons.person, size: 50),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _user?.name ?? 'Guest User',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _user?.email ?? '',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[600],
+                  ),
             ),
           ],
         ),

@@ -8,6 +8,7 @@ import '../../services/storage_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../../widgets/common/cached_image.dart';
 
 class SellerEditProfileScreen extends ConsumerStatefulWidget {
   const SellerEditProfileScreen({super.key});
@@ -22,6 +23,7 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
   String? _error;
   Seller? _seller;
   File? _logoFile;
+  File? _bannerFile;
   bool _hasChanges = false;
   
   // Controllers
@@ -136,7 +138,7 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
       _instagramHandleController.text != _seller?.instagramHandle ||
       _tiktokHandleController.text != _seller?.tiktokHandle;
 
-    final hasFileChanges = _logoFile != null;
+    final hasFileChanges = _logoFile != null || _bannerFile != null;
 
     setState(() {
       _hasChanges = hasTextChanges || hasFileChanges;
@@ -197,6 +199,141 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         SnackBar(content: Text('Error picking image: $e')),
       );
     }
+  }
+
+  Future<void> _pickBanner() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 400,
+        imageQuality: 85,
+      );
+      
+      if (pickedFile != null) {
+        setState(() {
+          _bannerFile = File(pickedFile.path);
+          _hasChanges = true;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking banner image: $e')),
+      );
+    }
+  }
+
+  Widget _buildStoreLogo() {
+    return Stack(
+      children: [
+        CircleAvatar(
+          radius: 50,
+          backgroundColor: Colors.grey[200],
+          child: _logoFile != null
+              ? ClipOval(
+                  child: Image.file(
+                    _logoFile!,
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : _seller?.logo != null
+                  ? ClipOval(
+                      child: CachedImage(
+                        imageUrl: _seller!.logo!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        placeholder: Container(
+                          width: 100,
+                          height: 100,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : const Icon(Icons.store, size: 50),
+        ),
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: IconButton(
+              icon: const Icon(Icons.camera_alt, size: 18),
+              color: Colors.white,
+              onPressed: _pickLogo,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoreBanner() {
+    return Stack(
+      children: [
+        Container(
+          height: 150,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: _bannerFile != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    _bannerFile!,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : _seller?.banner != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedImage(
+                        imageUrl: _seller!.banner!,
+                        width: double.infinity,
+                        height: 150,
+                        fit: BoxFit.cover,
+                        placeholder: Container(
+                          width: double.infinity,
+                          height: 150,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.image, size: 50),
+                    ),
+        ),
+        Positioned(
+          bottom: 8,
+          right: 8,
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: IconButton(
+              icon: const Icon(Icons.camera_alt, size: 18),
+              color: Colors.white,
+              onPressed: _pickBanner,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildPaymentSection() {
@@ -638,12 +775,21 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
 
     try {
       String? logoUrl = _seller?.logo;
+      String? bannerUrl = _seller?.banner;
       
       // Upload new logo if selected
       if (_logoFile != null) {
         logoUrl = await ref.read(storageServiceProvider).uploadSellerFile(
           _logoFile!,
           'logo',
+        );
+      }
+
+      // Upload new banner if selected
+      if (_bannerFile != null) {
+        bannerUrl = await ref.read(storageServiceProvider).uploadSellerFile(
+          _bannerFile!,
+          'banner',
         );
       }
 
@@ -668,6 +814,7 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         storeName: _storeNameController.text,
         description: _descriptionController.text,
         logo: logoUrl,
+        banner: bannerUrl,
         address: _addressController.text,
         city: _cityController.text,
         state: _stateController.text,

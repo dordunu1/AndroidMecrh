@@ -7,6 +7,7 @@ import '../../services/buyer_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../models/shipping_address.dart';
+import '../../widgets/common/cached_image.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -235,6 +236,59 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  Widget _buildProfileImage() {
+    return Stack(
+      children: [
+        CircleAvatar(
+          radius: 50,
+          backgroundColor: Colors.grey[200],
+          child: _photoFile != null
+              ? ClipOval(
+                  child: Image.file(
+                    _photoFile!,
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : _user?.photoUrl != null
+                  ? ClipOval(
+                      child: CachedImage(
+                        imageUrl: _user!.photoUrl!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        placeholder: Container(
+                          width: 100,
+                          height: 100,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : const Icon(Icons.person, size: 50),
+        ),
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: IconButton(
+              icon: const Icon(Icons.camera_alt, size: 18),
+              color: Colors.white,
+              onPressed: _pickPhoto,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -336,43 +390,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
                 // Profile Photo
                 Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: colorScheme.primary,
-                        backgroundImage: _photoFile != null
-                            ? FileImage(_photoFile!) as ImageProvider
-                            : _user?.photoUrl != null
-                                ? NetworkImage(_user!.photoUrl!) as ImageProvider
-                                : null,
-                        child: _user?.photoUrl == null && _photoFile == null
-                            ? Icon(
-                                Icons.person,
-                                size: 50,
-                                color: colorScheme.onPrimary,
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: colorScheme.primary,
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.camera_alt,
-                              size: 18,
-                              color: colorScheme.onPrimary,
-                            ),
-                            onPressed: _pickPhoto,
-                            tooltip: 'Change profile photo',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: _buildProfileImage(),
                 ),
                 const SizedBox(height: 24),
 
