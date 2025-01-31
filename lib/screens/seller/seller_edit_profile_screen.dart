@@ -34,8 +34,13 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
   final _phoneController = TextEditingController();
   final _shippingInfoController = TextEditingController();
   final _paymentReferenceController = TextEditingController();
-  final _paymentNamesController = TextEditingController();
-  final _paymentPhoneNumbersController = TextEditingController();
+  
+  // Payment method controllers
+  final _mtnMomoNameController = TextEditingController();
+  final _mtnMomoPhoneController = TextEditingController();
+  final _telecelCashNameController = TextEditingController();
+  final _telecelCashPhoneController = TextEditingController();
+  
   List<String> _selectedPaymentMethods = [];
 
   @override
@@ -54,8 +59,10 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _phoneController.addListener(_onFieldChanged);
     _shippingInfoController.addListener(_onFieldChanged);
     _paymentReferenceController.addListener(_onFieldChanged);
-    _paymentNamesController.addListener(_onFieldChanged);
-    _paymentPhoneNumbersController.addListener(_onFieldChanged);
+    _mtnMomoNameController.addListener(_onFieldChanged);
+    _mtnMomoPhoneController.addListener(_onFieldChanged);
+    _telecelCashNameController.addListener(_onFieldChanged);
+    _telecelCashPhoneController.addListener(_onFieldChanged);
   }
 
   @override
@@ -71,8 +78,10 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _phoneController.removeListener(_onFieldChanged);
     _shippingInfoController.removeListener(_onFieldChanged);
     _paymentReferenceController.removeListener(_onFieldChanged);
-    _paymentNamesController.removeListener(_onFieldChanged);
-    _paymentPhoneNumbersController.removeListener(_onFieldChanged);
+    _mtnMomoNameController.removeListener(_onFieldChanged);
+    _mtnMomoPhoneController.removeListener(_onFieldChanged);
+    _telecelCashNameController.removeListener(_onFieldChanged);
+    _telecelCashPhoneController.removeListener(_onFieldChanged);
 
     // Dispose controllers
     _storeNameController.dispose();
@@ -85,8 +94,10 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _phoneController.dispose();
     _shippingInfoController.dispose();
     _paymentReferenceController.dispose();
-    _paymentNamesController.dispose();
-    _paymentPhoneNumbersController.dispose();
+    _mtnMomoNameController.dispose();
+    _mtnMomoPhoneController.dispose();
+    _telecelCashNameController.dispose();
+    _telecelCashPhoneController.dispose();
     super.dispose();
   }
 
@@ -102,8 +113,10 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
       _phoneController.text != _seller?.phone ||
       _shippingInfoController.text != _seller?.shippingInfo ||
       _paymentReferenceController.text != _seller?.paymentReference ||
-      _paymentNamesController.text != _seller?.paymentNames?['mtn_momo'] ||
-      _paymentPhoneNumbersController.text != _seller?.paymentPhoneNumbers?['mtn_momo'];
+      _mtnMomoNameController.text != _seller?.paymentNames?['mtn_momo'] ||
+      _mtnMomoPhoneController.text != _seller?.paymentPhoneNumbers?['mtn_momo'] ||
+      _telecelCashNameController.text != _seller?.paymentNames?['telecel_cash'] ||
+      _telecelCashPhoneController.text != _seller?.paymentPhoneNumbers?['telecel_cash'];
 
     final hasFileChanges = _logoFile != null;
 
@@ -127,9 +140,14 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         _phoneController.text = seller.phone;
         _shippingInfoController.text = seller.shippingInfo ?? '';
         _paymentReferenceController.text = seller.paymentReference ?? '';
-        _paymentNamesController.text = seller.paymentNames?['mtn_momo'] ?? '';
-        _paymentPhoneNumbersController.text = seller.paymentPhoneNumbers?['mtn_momo'] ?? '';
         _selectedPaymentMethods = List<String>.from(seller.acceptedPaymentMethods ?? []);
+        
+        // Initialize payment method controllers
+        _mtnMomoNameController.text = seller.paymentNames?['mtn_momo'] ?? '';
+        _mtnMomoPhoneController.text = seller.paymentPhoneNumbers?['mtn_momo'] ?? '';
+        _telecelCashNameController.text = seller.paymentNames?['telecel_cash'] ?? '';
+        _telecelCashPhoneController.text = seller.paymentPhoneNumbers?['telecel_cash'] ?? '';
+        
         _isLoading = false;
       });
     } catch (e) {
@@ -180,33 +198,12 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
             return null;
           },
         ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          controller: _paymentNamesController,
-          label: 'Payment Name (MTN MoMo)',
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter payment name';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          controller: _paymentPhoneNumbersController,
-          label: 'Payment Phone Number (MTN MoMo)',
-          keyboardType: TextInputType.phone,
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter payment phone number';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        const Text('Accepted Payment Methods'),
+        const SizedBox(height: 24),
+        const Text('Payment Methods', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: [
             FilterChip(
               label: const Text('MTN MoMo'),
@@ -222,8 +219,72 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
                 });
               },
             ),
+            FilterChip(
+              label: const Text('Telecel Cash'),
+              selected: _selectedPaymentMethods.contains('telecel_cash'),
+              onSelected: (bool selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedPaymentMethods.add('telecel_cash');
+                  } else {
+                    _selectedPaymentMethods.remove('telecel_cash');
+                  }
+                  _hasChanges = true;
+                });
+              },
+            ),
           ],
         ),
+        const SizedBox(height: 16),
+        if (_selectedPaymentMethods.contains('mtn_momo')) ...[
+          CustomTextField(
+            controller: _mtnMomoNameController,
+            label: 'Payment Name (MTN MoMo)',
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter MTN MoMo payment name';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            controller: _mtnMomoPhoneController,
+            label: 'Payment Phone Number (MTN MoMo)',
+            keyboardType: TextInputType.phone,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter MTN MoMo phone number';
+              }
+              return null;
+            },
+          ),
+        ],
+        if (_selectedPaymentMethods.contains('telecel_cash')) ...[
+          const SizedBox(height: 16),
+          CustomTextField(
+            controller: _telecelCashNameController,
+            label: 'Payment Name (Telecel Cash)',
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter Telecel Cash payment name';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            controller: _telecelCashPhoneController,
+            label: 'Payment Phone Number (Telecel Cash)',
+            keyboardType: TextInputType.phone,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter Telecel Cash phone number';
+              }
+              return null;
+            },
+          ),
+        ],
       ],
     );
   }
@@ -524,7 +585,23 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         );
       }
 
-      // Create updated seller object
+      // Create maps for payment information
+      Map<String, String> paymentPhoneNumbers = {};
+      Map<String, String> paymentNames = {};
+      
+      // Update MTN MoMo information
+      if (_selectedPaymentMethods.contains('mtn_momo')) {
+        paymentPhoneNumbers['mtn_momo'] = _mtnMomoPhoneController.text.trim();
+        paymentNames['mtn_momo'] = _mtnMomoNameController.text.trim();
+      }
+      
+      // Update Telecel Cash information
+      if (_selectedPaymentMethods.contains('telecel_cash')) {
+        paymentPhoneNumbers['telecel_cash'] = _telecelCashPhoneController.text.trim();
+        paymentNames['telecel_cash'] = _telecelCashNameController.text.trim();
+      }
+
+      // Create updated seller object using the Seller model
       final updatedSeller = _seller!.copyWith(
         storeName: _storeNameController.text,
         description: _descriptionController.text,
@@ -537,9 +614,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         phone: _phoneController.text,
         shippingInfo: _shippingInfoController.text,
         paymentReference: _paymentReferenceController.text,
-        paymentNames: {'mtn_momo': _paymentNamesController.text},
-        paymentPhoneNumbers: {'mtn_momo': _paymentPhoneNumbersController.text},
         acceptedPaymentMethods: _selectedPaymentMethods,
+        paymentPhoneNumbers: paymentPhoneNumbers,
+        paymentNames: paymentNames,
         updatedAt: DateTime.now().toIso8601String(),
       );
 

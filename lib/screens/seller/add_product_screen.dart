@@ -13,6 +13,7 @@ import '../../widgets/feature_tour.dart';
 import '../../constants/size_standards.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../../routes.dart';
 
 Future<DateTime?> showDateTimePicker({
   required BuildContext context,
@@ -277,6 +278,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   void initState() {
     super.initState();
     _checkFirstTime();
+    _checkProfileCompleteness();
     // Show guide when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAddProductGuide();
@@ -489,6 +491,64 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         setState(() => _showFeatureTour = true);
       }
       await prefs.setBool('seller_add_product_tour_shown', false);
+    }
+  }
+
+  Future<void> _checkProfileCompleteness() async {
+    try {
+      final seller = await ref.read(sellerServiceProvider).getSellerProfile();
+      
+      // Check for required fields
+      if (seller.storeName.isEmpty ||
+          seller.description.isEmpty ||
+          seller.address.isEmpty ||
+          seller.city.isEmpty ||
+          seller.state.isEmpty ||
+          seller.country.isEmpty ||
+          seller.phone.isEmpty ||
+          seller.acceptedPaymentMethods.isEmpty ||
+          seller.paymentPhoneNumbers.isEmpty) {
+            
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange[900]),
+                  const SizedBox(width: 8),
+                  const Text('Complete Your Profile'),
+                ],
+              ),
+              content: const Text(
+                'Please complete your seller profile before adding products.\n\n'
+                'Required information includes:\n'
+                '• Store name and description\n'
+                '• Complete address\n'
+                '• Contact phone number\n'
+                '• Payment methods and details\n\n'
+                'You will be redirected to edit your profile.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacementNamed(context, Routes.editSellerProfile);
+                  },
+                  child: const Text('Complete Profile'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error checking profile: $e')),
+        );
+      }
     }
   }
 

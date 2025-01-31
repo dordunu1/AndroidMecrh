@@ -171,6 +171,10 @@ class SellerService {
       'phone': seller.phone,
       'shippingInfo': seller.shippingInfo,
       'paymentInfo': seller.paymentInfo,
+      'acceptedPaymentMethods': seller.acceptedPaymentMethods,
+      'paymentPhoneNumbers': seller.paymentPhoneNumbers,
+      'paymentNames': seller.paymentNames,
+      'paymentReference': seller.paymentReference,
       'updatedAt': DateTime.now().toIso8601String(),
     });
   }
