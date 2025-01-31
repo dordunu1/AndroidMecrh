@@ -295,52 +295,54 @@ class ChatService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      final messageRef = _firestore
-          .collection('conversations')
-          .doc(conversationId)
-          .collection('messages')
-          .doc(messageId);
+      final conversationRef = _firestore.collection('conversations').doc(conversationId);
+      final messageRef = conversationRef.collection('messages').doc(messageId);
 
+      // Get the message first to verify ownership
       final message = await messageRef.get();
       if (!message.exists) throw Exception('Message not found');
 
-      // Verify the message belongs to the current user
+      // Verify ownership
       if (message.data()?['senderId'] != user.uid) {
         throw Exception('Not authorized to delete this message');
       }
 
-      // Start a batch write
+      // Get the conversation to check if this was the last message
+      final conversation = await conversationRef.get();
+      if (!conversation.exists) throw Exception('Conversation not found');
+
       final batch = _firestore.batch();
+
+      // Delete the message
       batch.delete(messageRef);
 
-      // If this was the last message, update the conversation
-      final conversationRef = _firestore.collection('conversations').doc(conversationId);
-      final conversation = await conversationRef.get();
-      
+      // Check if this was the last message
       if (conversation.data()?['lastMessage'] == message.data()?['content']) {
         // Get the previous message
         final previousMessages = await conversationRef
             .collection('messages')
             .orderBy('timestamp', descending: true)
-            .limit(2)
+            .where(FieldPath.documentId, isNotEqualTo: messageId)
+            .limit(1)
             .get();
 
-        String? newLastMessage;
-        DateTime? newLastMessageTime;
-
-        if (previousMessages.docs.length > 1) {
-          // If there was more than one message, get the second-to-last one
-          final previousMessage = previousMessages.docs[1].data();
-          newLastMessage = previousMessage['content'];
-          newLastMessageTime = DateTime.parse(previousMessage['timestamp']);
+        if (previousMessages.docs.isEmpty) {
+          // No other messages exist
+          batch.update(conversationRef, {
+            'lastMessage': null,
+            'lastMessageTime': null,
+          });
+        } else {
+          // Update with the previous message
+          final previousMessage = previousMessages.docs.first;
+          batch.update(conversationRef, {
+            'lastMessage': previousMessage.data()['content'],
+            'lastMessageTime': previousMessage.data()['timestamp'],
+          });
         }
-
-        batch.update(conversationRef, {
-          'lastMessage': newLastMessage,
-          'lastMessageTime': newLastMessageTime?.toIso8601String(),
-        });
       }
 
+      // Commit all changes
       await batch.commit();
     } catch (e) {
       throw Exception('Failed to delete message: $e');

@@ -21,6 +21,18 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    function isConversationParticipant(conversationId) {
+      let conversation = get(/databases/$(database)/documents/conversations/$(conversationId));
+      return isAuthenticated() && 
+        request.auth.uid in conversation.data.participants;
+    }
+
+    function isMessageSender(conversationId, messageId) {
+      let message = get(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(messageId));
+      return isAuthenticated() && 
+        message.data.senderId == request.auth.uid;
+    }
+
     // Admins collection
     match /admins/{adminId} {
       allow read: if isAuthenticated();
@@ -121,32 +133,23 @@ service cloud.firestore {
 
     // Conversations collection
     match /conversations/{conversationId} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid in resource.data.participants ||
-        isAdmin()
-      );
+      allow read: if isAuthenticated() && 
+        request.auth.uid in resource.data.participants;
       allow create: if isAuthenticated() && 
         request.auth.uid in request.resource.data.participants;
-      allow update: if isAuthenticated() && (
-        request.auth.uid in resource.data.participants ||
-        isAdmin()
-      );
-      allow delete: if isAdmin();
-    }
+      allow update: if isAuthenticated() && 
+        request.auth.uid in resource.data.participants;
+      allow delete: if isAuthenticated() && 
+        request.auth.uid in resource.data.participants;
 
-    // Messages subcollection
-    match /conversations/{conversationId}/messages/{messageId} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants ||
-        isAdmin()
-      );
-      allow create: if isAuthenticated() && 
-        request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
-      allow update: if isAuthenticated() && (
-        request.auth.uid == resource.data.senderId ||
-        isAdmin()
-      );
-      allow delete: if isAdmin();
+      // Messages in conversations
+      match /messages/{messageId} {
+        allow read: if isConversationParticipant(conversationId);
+        allow create: if isConversationParticipant(conversationId) && 
+          request.resource.data.senderId == request.auth.uid;
+        allow update: if isMessageSender(conversationId, messageId);
+        allow delete: if isMessageSender(conversationId, messageId);
+      }
     }
 
     // Analytics collection

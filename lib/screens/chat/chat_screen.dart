@@ -460,7 +460,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                                     leading: const Icon(Icons.delete),
                                                     title: const Text('Delete Message'),
                                                     onTap: () async {
+                                                      // Close the bottom sheet first
                                                       Navigator.pop(context);
+                                                      
+                                                      // Store theme and scaffold messenger before async operation
+                                                      final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                                      final errorColor = Theme.of(context).colorScheme.error;
+                                                      
+                                                      // Show confirmation dialog
                                                       final confirm = await showDialog<bool>(
                                                         context: context,
                                                         builder: (context) => AlertDialog(
@@ -478,7 +485,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                                           ],
                                                         ),
                                                       );
-                                                      if (confirm == true) {
+
+                                                      if (confirm == true && mounted) {
                                                         try {
                                                           await ref.read(chatServiceProvider).deleteMessage(
                                                             conversationId: widget.conversationId,
@@ -486,8 +494,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                                           );
                                                         } catch (e) {
                                                           if (mounted) {
-                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                              SnackBar(content: Text(e.toString())),
+                                                            scaffoldMessenger.showSnackBar(
+                                                              SnackBar(
+                                                                content: Text('Failed to delete message: ${e.toString()}'),
+                                                                backgroundColor: errorColor,
+                                                              ),
                                                             );
                                                           }
                                                         }
