@@ -305,6 +305,7 @@ class BuyerService {
     required String paymentMethod,
     required String buyerPaymentName,
     required double total,
+    required double deliveryFee,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -334,18 +335,13 @@ class BuyerService {
         if (!sellerDoc.exists) throw Exception('Seller data not found');
         final sellerData = sellerDoc.data()!;
 
-        // Get delivery fee from first product in order
-        final firstProduct = sellerItems.first.product;
-        final deliveryFee = firstProduct.deliveryFee ?? 0.5;
-        
-        // Calculate total for this seller's items including delivery fee
+        // Calculate total for this seller's items
         final itemsTotal = sellerItems.fold(
           0.0,
           (sum, item) => sum + (item.product.hasDiscount 
             ? (item.product.price * (1 - item.product.discountPercent / 100) * item.quantity)
             : (item.product.price * item.quantity)),
         );
-        final sellerTotal = itemsTotal + deliveryFee;
 
         // Create a new document with auto-generated ID
         final orderRef = _firestore.collection('orders').doc();
@@ -385,7 +381,7 @@ class BuyerService {
           }).toList(),
           'shippingAddress': shippingAddress,
           'status': 'processing',
-          'total': sellerTotal,
+          'total': total,
           'itemsTotal': itemsTotal,
           'deliveryFee': deliveryFee,
           'paymentStatus': 'paid',

@@ -10,6 +10,7 @@ import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../services/seller_service.dart';
 import 'package:flutter/services.dart';
+import '../../services/auth_service.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -117,8 +118,41 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<double> _calculateDeliveryFee(String sellerId, List<CartItem> items) async {
-    // For now, return a fixed fee
-    return 0.5;
+    try {
+      final currentUser = await ref.read(authServiceProvider).getCurrentUser();
+      final seller = await ref.read(sellerServiceProvider).getSellerProfileById(sellerId);
+      
+      if (currentUser == null || seller == null) return 0.5;
+      
+      final buyerCity = currentUser.city?.trim().toLowerCase() ?? '';
+      final buyerCountry = currentUser.country?.trim().toLowerCase() ?? '';
+      final sellerCity = seller.city?.trim().toLowerCase() ?? '';
+      final sellerCountry = seller.country?.trim().toLowerCase() ?? '';
+      
+      // Calculate base fee based on location
+      double baseFee;
+      
+      // International shipping
+      if (buyerCountry != 'ghana' || sellerCountry != 'ghana') {
+        baseFee = 1.0;
+      } else {
+        // Local shipping
+        baseFee = (buyerCity == sellerCity) ? 0.5 : 0.7;
+      }
+      
+      // Calculate total quantity from this seller
+      int totalQuantity = items.fold(0, (sum, item) => sum + item.quantity);
+      
+      // Add extra fee if more than 5 items
+      if (totalQuantity > 5) {
+        baseFee += 0.3;
+      }
+      
+      return baseFee;
+    } catch (e) {
+      print('Error calculating delivery fee: $e');
+      return 0.5; // Default fee on error
+    }
   }
 
   Future<void> _placeOrder() async {
@@ -232,6 +266,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           paymentMethod: _selectedPaymentMethod!,
           buyerPaymentName: _buyerPaymentNameController.text.trim(),
           total: total,
+          deliveryFee: deliveryFee,
         );
       }
 
