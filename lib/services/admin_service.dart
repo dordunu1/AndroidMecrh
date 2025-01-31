@@ -542,6 +542,7 @@ class AdminService {
         batch.update(sellerRef, {
           'registrationStatus': 'approved',
           'isActive': true,
+          'isSeller': true,
           'adminMessage': message,
           'approvedAt': FieldValue.serverTimestamp(),
           'approvedBy': user.uid,
@@ -549,13 +550,22 @@ class AdminService {
 
         batch.update(userRef, {
           'isSeller': true,
+          'sellerRegistrationStatus': 'approved',
+          'sellerSince': FieldValue.serverTimestamp(),
         });
       } else {
         batch.update(sellerRef, {
           'registrationStatus': 'rejected',
+          'isActive': false,
+          'isSeller': false,
           'adminMessage': message,
           'rejectedAt': FieldValue.serverTimestamp(),
           'rejectedBy': user.uid,
+        });
+
+        batch.update(userRef, {
+          'isSeller': false,
+          'sellerRegistrationStatus': 'rejected',
         });
       }
 
