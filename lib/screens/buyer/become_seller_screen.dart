@@ -63,6 +63,7 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
   final _telecelCashNameController = TextEditingController();
   final _paymentReferenceController = TextEditingController();
   final _emailController = TextEditingController();
+  final _amountController = TextEditingController();
   File? _logoFile;
   File? _bannerFile;
   bool _isLoading = false;
@@ -76,6 +77,7 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
     super.initState();
     _checkLocationPermission();
     _loadUserEmail();
+    _amountController.text = '800.00'; // Set default registration fee
   }
 
   Future<void> _checkLocationPermission() async {
@@ -270,6 +272,7 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
     _telecelCashNameController.dispose();
     _paymentReferenceController.dispose();
     _emailController.dispose();
+    _amountController.dispose();
     super.dispose();
   }
 
@@ -322,6 +325,14 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
       return;
     }
 
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount < 800.0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid payment amount (minimum GHS 800.00)')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final user = await ref.read(buyerServiceProvider).getCurrentUser();
@@ -355,6 +366,7 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
         'paymentPhoneNumbers': paymentPhoneNumbers,
         'paymentNames': paymentNames,
         'paymentReference': _paymentReferenceController.text,
+        'registrationFee': amount,
       };
 
       await ref.read(sellerServiceProvider).submitSellerRegistration(
@@ -441,12 +453,49 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.pink[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.pink[900]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    color: Colors.pink[900],
+                                    fontSize: 14,
+                                  ),
+                                  children: const [
+                                    TextSpan(
+                                      text: 'One-time Registration Fee: ',
+                                      style: TextStyle(fontWeight: FontWeight.normal),
+                                    ),
+                                    TextSpan(
+                                      text: 'GHS 800.00',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       const Text(
                         'To register your store, please follow these steps:',
                         style: TextStyle(fontWeight: FontWeight.w500),
                       ),
                       const SizedBox(height: 8),
-                      const Text('1. Send GHS 1.00 to MTN MoMo number:'),
+                      const Text('1. Send GHS 800.00 to MTN MoMo number:'),
                       Row(
                         children: [
                           Image.asset(
@@ -461,30 +510,40 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
                               ),
                             ),
                           ),
                           IconButton(
+                            icon: const Icon(Icons.copy),
                             onPressed: () {
                               Clipboard.setData(const ClipboardData(text: '0550325188'));
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Phone number copied to clipboard'),
-                                  duration: Duration(seconds: 2),
-                                ),
+                                const SnackBar(content: Text('Phone number copied to clipboard')),
                               );
                             },
-                            icon: const Icon(Icons.copy),
-                            tooltip: 'Copy phone number',
-                            color: Theme.of(context).primaryColor,
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       const Text('2. Copy the transaction ID'),
                       const SizedBox(height: 8),
-                      const Text('3. Enter the payment reference below:'),
+                      const Text('3. Enter the payment amount and reference below:'),
+                      const SizedBox(height: 8),
+                      CustomTextField(
+                        controller: _amountController,
+                        label: 'Payment Amount (GHS)',
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter the payment amount';
+                          }
+                          final amount = double.tryParse(value);
+                          if (amount == null || amount < 800.0) {
+                            return 'Amount must be at least GHS 800.00';
+                          }
+                          return null;
+                        },
+                      ),
                       const SizedBox(height: 8),
                       CustomTextField(
                         controller: _paymentReferenceController,

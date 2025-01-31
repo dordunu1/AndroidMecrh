@@ -650,6 +650,7 @@ class SellerService {
         'paymentPhoneNumbers': metadata['paymentPhoneNumbers'],
         'paymentNames': metadata['paymentNames'],
         'paymentReference': metadata['paymentReference'],
+        'registrationFee': metadata['registrationFee'] ?? 800.00,
         'registrationStatus': 'pending',
         'email': user.email ?? '',
         'phone': user.phoneNumber ?? '',

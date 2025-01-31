@@ -233,14 +233,16 @@ class AdminService {
           ? sum + order.total 
           : sum);
 
-      // Calculate platform fees
-      final totalPlatformFees = totalSales * 0.1; // 10% platform fee
-      final currentPlatformFees = totalPlatformFees * 0.3; // Example: 30% of total fees available
-
-      // Get active sellers
+      // Get all sellers to calculate total registration fees
       final sellersSnapshot = await _firestore
           .collection('sellers')
           .get();
+
+      // Calculate total registration fees
+      final totalRegistrationFees = sellersSnapshot.docs.fold(0.0, (sum, doc) {
+        final registrationFee = doc.data()['registrationFee'] ?? 1.0;
+        return sum + registrationFee;
+      });
 
       // Get total products
       final productsSnapshot = await _firestore
@@ -256,10 +258,9 @@ class AdminService {
       return {
         'stats': {
           'totalSales': totalSales,
-          'currentSales': totalSales * 0.7, // Example: 70% of total sales available
+          'currentSales': totalSales - totalRefunds,
           'totalRefunds': totalRefunds,
-          'totalPlatformFees': totalPlatformFees,
-          'currentPlatformFees': currentPlatformFees,
+          'totalRegistrationFees': totalRegistrationFees,
           'activeSellers': sellersSnapshot.docs.length,
           'totalOrders': orders.length,
           'totalProducts': productsSnapshot.docs.length,

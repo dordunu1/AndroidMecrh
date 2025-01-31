@@ -419,7 +419,10 @@ class RealtimeService {
           'stats': {
             'totalSales': totalSales,
             'totalRefunds': totalRefunds,
-            'totalPlatformFees': totalPlatformFees,
+            'totalRegistrationFees': sellers.docs.fold(0.0, (sum, doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return sum + (data['registrationFee'] ?? 800.0);
+            }),
             'activeSellers': topSellers.length,
             'totalOrders': ordersList.where((order) => order.status != 'cancelled').length,
             'totalProducts': products.docs.length,

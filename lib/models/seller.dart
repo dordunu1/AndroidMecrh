@@ -34,6 +34,7 @@ class Seller {
   final String registrationStatus;
   final String address;
   final bool isActive;
+  final double registrationFee;
 
   Seller({
     required this.id,
@@ -69,6 +70,7 @@ class Seller {
     this.registrationStatus = 'pending',
     required this.address,
     this.isActive = false,
+    required this.registrationFee,
   });
 
   factory Seller.fromMap(Map<String, dynamic> map, String id) {
@@ -106,6 +108,7 @@ class Seller {
       registrationStatus: map['registrationStatus'] ?? 'pending',
       address: map['address'] ?? '',
       isActive: map['isActive'] ?? false,
+      registrationFee: (map['registrationFee'] ?? 800.0).toDouble(),
     );
   }
 
@@ -143,6 +146,7 @@ class Seller {
       'registrationStatus': registrationStatus,
       'address': address,
       'isActive': isActive,
+      'registrationFee': registrationFee,
     };
   }
 
@@ -180,6 +184,7 @@ class Seller {
     String? registrationStatus,
     String? address,
     bool? isActive,
+    double? registrationFee,
   }) {
     return Seller(
       id: id ?? this.id,
@@ -215,6 +220,7 @@ class Seller {
       registrationStatus: registrationStatus ?? this.registrationStatus,
       address: address ?? this.address,
       isActive: isActive ?? this.isActive,
+      registrationFee: registrationFee ?? this.registrationFee,
     );
   }
 } 

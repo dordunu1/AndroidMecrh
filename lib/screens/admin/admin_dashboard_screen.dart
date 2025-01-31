@@ -673,16 +673,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         icon: Icons.credit_card,
                       ),
                       _buildMetricCard(
-                        title: 'All-time Platform Fees',
-                        value: '₵${stats['totalPlatformFees'].toStringAsFixed(2)}',
-                        subtitle: 'Total platform fees',
+                        title: 'Registration Fees',
+                        value: '₵${stats['totalRegistrationFees'].toStringAsFixed(2)}',
+                        subtitle: 'Total seller registration fees',
                         icon: Icons.account_balance_wallet,
-                      ),
-                      _buildMetricCard(
-                        title: 'Current Platform Fees',
-                        value: '₵${(stats['totalPlatformFees'] - (stats['totalRefunds'] * 0.1)).toStringAsFixed(2)}',
-                        subtitle: 'Platform fees after refunds',
-                        icon: Icons.payments,
                       ),
                       _buildMetricCard(
                         title: 'Active Sellers',
