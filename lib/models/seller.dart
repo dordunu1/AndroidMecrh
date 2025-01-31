@@ -35,6 +35,9 @@ class Seller {
   final String address;
   final bool isActive;
   final double registrationFee;
+  final String? whatsappNumber;
+  final String? instagramHandle;
+  final String? tiktokHandle;
 
   Seller({
     required this.id,
@@ -71,6 +74,9 @@ class Seller {
     required this.address,
     this.isActive = false,
     required this.registrationFee,
+    this.whatsappNumber,
+    this.instagramHandle,
+    this.tiktokHandle,
   });
 
   factory Seller.fromMap(Map<String, dynamic> map, String id) {
@@ -109,6 +115,9 @@ class Seller {
       address: map['address'] ?? '',
       isActive: map['isActive'] ?? false,
       registrationFee: (map['registrationFee'] ?? 800.0).toDouble(),
+      whatsappNumber: map['whatsappNumber'],
+      instagramHandle: map['instagramHandle'],
+      tiktokHandle: map['tiktokHandle'],
     );
   }
 
@@ -147,6 +156,9 @@ class Seller {
       'address': address,
       'isActive': isActive,
       'registrationFee': registrationFee,
+      'whatsappNumber': whatsappNumber,
+      'instagramHandle': instagramHandle,
+      'tiktokHandle': tiktokHandle,
     };
   }
 
@@ -185,6 +197,9 @@ class Seller {
     String? address,
     bool? isActive,
     double? registrationFee,
+    String? whatsappNumber,
+    String? instagramHandle,
+    String? tiktokHandle,
   }) {
     return Seller(
       id: id ?? this.id,
@@ -221,6 +236,9 @@ class Seller {
       address: address ?? this.address,
       isActive: isActive ?? this.isActive,
       registrationFee: registrationFee ?? this.registrationFee,
+      whatsappNumber: whatsappNumber ?? this.whatsappNumber,
+      instagramHandle: instagramHandle ?? this.instagramHandle,
+      tiktokHandle: tiktokHandle ?? this.tiktokHandle,
     );
   }
 } 

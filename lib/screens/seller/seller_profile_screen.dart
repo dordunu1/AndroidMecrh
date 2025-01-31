@@ -300,18 +300,77 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     );
   }
 
-  Widget _buildFollowSection() {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: ListTile(
-        leading: const FaIcon(FontAwesomeIcons.users),
-        title: Text('${_seller?.followersCount ?? 0} Followers'),
-        trailing: CustomButton(
-          onPressed: _isLoading ? null : _toggleFollow,
-          text: _isFollowing ? 'Unfollow' : 'Follow',
-        ),
+  Widget _buildSocialMediaSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          if (_seller?.whatsappNumber != null)
+            IconButton(
+              icon: const Icon(FontAwesomeIcons.whatsapp, color: Color(0xFF25D366)),
+              onPressed: () => _launchWhatsApp(_seller!.whatsappNumber!),
+            )
+          else
+            const Icon(FontAwesomeIcons.whatsapp, color: Colors.grey),
+            
+          if (_seller?.instagramHandle != null)
+            IconButton(
+              icon: const Icon(FontAwesomeIcons.instagram, color: Color(0xFFE1306C)),
+              onPressed: () => _launchInstagram(_seller!.instagramHandle!),
+            )
+          else
+            const Icon(FontAwesomeIcons.instagram, color: Colors.grey),
+            
+          if (_seller?.tiktokHandle != null)
+            IconButton(
+              icon: const Icon(FontAwesomeIcons.tiktok, color: Colors.black),
+              onPressed: () => _launchTiktok(_seller!.tiktokHandle!),
+            )
+          else
+            const Icon(FontAwesomeIcons.tiktok, color: Colors.grey),
+        ],
       ),
     );
+  }
+
+  Future<void> _launchWhatsApp(String number) async {
+    final url = 'https://wa.me/$number';
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchInstagram(String handle) async {
+    final url = 'https://instagram.com/$handle';
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open Instagram')),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchTiktok(String handle) async {
+    final url = 'https://tiktok.com/@$handle';
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open TikTok')),
+        );
+      }
+    }
   }
 
   @override
@@ -378,304 +437,337 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          children: [
-            // Profile Header
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Profile Header with Avatar and Follow Button
-                  Row(
+      appBar: AppBar(
+        title: const Text('Store Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => Navigator.pushNamed(
+              context,
+              Routes.editSellerProfile,
+            ).then((_) => _loadSellerProfile()),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadSellerProfile,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Profile Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: colorScheme.primary,
-                        backgroundImage: _seller?.logo != null
-                            ? NetworkImage(_seller!.logo!)
-                            : null,
-                        child: _seller?.logo == null
-                            ? Icon(
-                                Icons.store,
-                                size: 40,
-                                color: colorScheme.onPrimary,
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _seller?.storeName ?? '',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                      // Profile Header with Avatar and Follow Button
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: colorScheme.primary,
+                            backgroundImage: _seller?.logo != null
+                                ? NetworkImage(_seller!.logo!)
+                                : null,
+                            child: _seller?.logo == null
+                                ? Icon(
+                                    Icons.store,
+                                    size: 40,
+                                    color: colorScheme.onPrimary,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _seller?.storeName ?? '',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _seller?.email ?? '',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _seller?.email ?? '',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurface.withOpacity(0.6),
-                              ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Store Description
+                      Text(
+                        _seller?.description ?? '',
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Store Stats
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.star,
+                            size: 16,
+                            color: colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_seller?.averageRating ?? 0.0} Rating',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.6),
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 16),
+                          Icon(
+                            Icons.reviews,
+                            size: 16,
+                            color: colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_seller?.reviewCount ?? 0} Reviews',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          FaIcon(
+                            FontAwesomeIcons.users,
+                            size: 14,
+                            color: colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_seller?.followersCount ?? 0} Followers',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                          ),
+                        ],
                       ),
-                      CustomButton(
-                        onPressed: _isLoading ? null : _toggleFollow,
-                        text: _isFollowing ? 'Unfollow' : 'Follow',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Store Description
-                  if (_seller?.description != null && _seller!.description.isNotEmpty)
-                    Text(
-                      _seller!.description,
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                  const SizedBox(height: 16),
-
-                  // Store Stats
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.star,
-                        size: 16,
-                        color: colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_seller?.averageRating ?? 0.0} Rating',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(
-                        Icons.reviews,
-                        size: 16,
-                        color: colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_seller?.reviewCount ?? 0} Reviews',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      FaIcon(
-                        FontAwesomeIcons.users,
-                        size: 14,
-                        color: colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${_seller?.followersCount ?? 0} Followers',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_sellerStatus != null && _sellerStatus != 'approved') ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _sellerStatus == 'pending'
-                            ? Colors.orange.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        _sellerStatus == 'pending'
-                            ? 'Pending Verification'
-                            : 'Not Verified',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _sellerStatus == 'pending'
-                              ? Colors.orange
-                              : Colors.red,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // Location Section
-            _buildLocationSection(),
-
-            // Payment Methods Section
-            _buildPaymentSection(),
-
-            // Store Settings Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Store Settings',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            CustomListTile(
-              leading: const Icon(Icons.store),
-              title: 'Edit Store Profile',
-              onTap: () async {
-                await Navigator.pushNamed(context, Routes.editSellerProfile);
-                _loadSellerProfile(); // Refresh profile when returning
-              },
-            ),
-            CustomListTile(
-              leading: const Icon(Icons.location_on_outlined),
-              title: 'Shipping Information',
-              subtitle: Text(
-                _seller?.shippingInfo ?? 'Not set',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-            ),
-            CustomListTile(
-              leading: const Icon(Icons.local_shipping),
-              title: 'Delivery Information',
-              trailing: IconButton(
-                icon: const Icon(Icons.info_outline, size: 20),
-                onPressed: _showShippingFeesDialog,
-                tooltip: 'View delivery fee information',
-              ),
-              subtitle: const Text('Click the info icon to view delivery details'),
-            ),
-
-            // App Settings Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'App Settings',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            CustomListTile(
-              leading: Icon(
-                isDark ? Icons.dark_mode : Icons.light_mode,
-              ),
-              title: 'Dark Mode',
-              trailing: Switch(
-                value: isDark,
-                onChanged: (value) {
-                  ref
-                      .read(themeProvider.notifier)
-                      .setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
-                },
-              ),
-            ),
-            CustomListTile(
-              leading: const Icon(Icons.notifications_outlined),
-              title: 'Notifications',
-              onTap: () {
-                Navigator.pushNamed(context, Routes.notificationsSettings);
-              },
-            ),
-
-            // Legal Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Legal',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            CustomListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: 'Privacy Policy',
-              onTap: () {
-                Navigator.pushNamed(context, Routes.privacyPolicy);
-              },
-            ),
-            CustomListTile(
-              leading: const Icon(Icons.description_outlined),
-              title: 'Terms & Conditions',
-              onTap: () {
-                Navigator.pushNamed(context, Routes.termsConditions);
-              },
-            ),
-
-            // Logout Button
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton(
-                onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Logout'),
-                      content: const Text('Are you sure you want to logout?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
+                      if (_sellerStatus != null && _sellerStatus != 'approved') ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _sellerStatus == 'pending'
+                                ? Colors.orange.withOpacity(0.1)
+                                : Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                           child: Text(
-                            'Logout',
-                            style: TextStyle(
-                              color: colorScheme.error,
+                            _sellerStatus == 'pending'
+                                ? 'Pending Verification'
+                                : 'Not Verified',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: _sellerStatus == 'pending'
+                                  ? Colors.orange
+                                  : Colors.red,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                       ],
-                    ),
-                  );
-
-                  if (confirmed == true) {
-                    await ref.read(authServiceProvider).signOut();
-                    if (mounted) {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        Routes.login,
-                        (route) => false,
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.error,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  'Logout',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    ],
                   ),
                 ),
-              ),
+
+                // Location Section
+                _buildLocationSection(),
+
+                // Payment Methods Section
+                _buildPaymentSection(),
+
+                // Social Media Section
+                _buildSocialMediaSection(),
+
+                // Store Settings Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Store Settings',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                CustomListTile(
+                  leading: const Icon(Icons.store),
+                  title: 'Edit Store Profile',
+                  onTap: () async {
+                    await Navigator.pushNamed(context, Routes.editSellerProfile);
+                    _loadSellerProfile(); // Refresh profile when returning
+                  },
+                ),
+                CustomListTile(
+                  leading: const Icon(Icons.location_on_outlined),
+                  title: 'Shipping Information',
+                  subtitle: Text(
+                    _seller?.shippingInfo ?? 'Not set',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ),
+                CustomListTile(
+                  leading: const Icon(Icons.local_shipping),
+                  title: 'Delivery Information',
+                  trailing: IconButton(
+                    icon: const Icon(Icons.info_outline, size: 20),
+                    onPressed: _showShippingFeesDialog,
+                    tooltip: 'View delivery fee information',
+                  ),
+                  subtitle: const Text('Click the info icon to view delivery details'),
+                ),
+
+                // App Settings Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'App Settings',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                CustomListTile(
+                  leading: Icon(
+                    isDark ? Icons.dark_mode : Icons.light_mode,
+                  ),
+                  title: 'Dark Mode',
+                  trailing: Switch(
+                    value: isDark,
+                    onChanged: (value) {
+                      ref
+                          .read(themeProvider.notifier)
+                          .setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
+                    },
+                  ),
+                ),
+                CustomListTile(
+                  leading: const Icon(Icons.notifications_outlined),
+                  title: 'Notifications',
+                  onTap: () {
+                    Navigator.pushNamed(context, Routes.notificationsSettings);
+                  },
+                ),
+
+                // Legal Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Legal',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                CustomListTile(
+                  leading: const Icon(Icons.privacy_tip_outlined),
+                  title: 'Privacy Policy',
+                  onTap: () {
+                    Navigator.pushNamed(context, Routes.privacyPolicy);
+                  },
+                ),
+                CustomListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: 'Terms & Conditions',
+                  onTap: () {
+                    Navigator.pushNamed(context, Routes.termsConditions);
+                  },
+                ),
+
+                // Logout Button
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Logout'),
+                          content: const Text('Are you sure you want to logout?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text(
+                                'Logout',
+                                style: TextStyle(
+                                  color: colorScheme.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed == true) {
+                        await ref.read(authServiceProvider).signOut();
+                        if (mounted) {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            Routes.login,
+                            (route) => false,
+                          );
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.error,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text(
+                      'Logout',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Only show follow button if not the seller's own profile
+                if (_seller?.userId != ref.read(authServiceProvider).currentUser?.uid)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _toggleFollow,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(_isFollowing ? 'Unfollow' : 'Follow'),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -175,6 +175,9 @@ class SellerService {
       'paymentPhoneNumbers': seller.paymentPhoneNumbers,
       'paymentNames': seller.paymentNames,
       'paymentReference': seller.paymentReference,
+      'whatsappNumber': seller.whatsappNumber,
+      'instagramHandle': seller.instagramHandle,
+      'tiktokHandle': seller.tiktokHandle,
       'updatedAt': DateTime.now().toIso8601String(),
     });
   }

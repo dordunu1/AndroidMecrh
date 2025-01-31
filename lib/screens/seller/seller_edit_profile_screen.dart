@@ -7,6 +7,7 @@ import '../../services/seller_service.dart';
 import '../../services/storage_service.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class SellerEditProfileScreen extends ConsumerStatefulWidget {
   const SellerEditProfileScreen({super.key});
@@ -43,6 +44,11 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
   
   List<String> _selectedPaymentMethods = [];
 
+  // Add new controllers for social media
+  final _whatsappNumberController = TextEditingController();
+  final _instagramHandleController = TextEditingController();
+  final _tiktokHandleController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +69,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _mtnMomoPhoneController.addListener(_onFieldChanged);
     _telecelCashNameController.addListener(_onFieldChanged);
     _telecelCashPhoneController.addListener(_onFieldChanged);
+    _whatsappNumberController.addListener(_onFieldChanged);
+    _instagramHandleController.addListener(_onFieldChanged);
+    _tiktokHandleController.addListener(_onFieldChanged);
   }
 
   @override
@@ -82,6 +91,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _mtnMomoPhoneController.removeListener(_onFieldChanged);
     _telecelCashNameController.removeListener(_onFieldChanged);
     _telecelCashPhoneController.removeListener(_onFieldChanged);
+    _whatsappNumberController.removeListener(_onFieldChanged);
+    _instagramHandleController.removeListener(_onFieldChanged);
+    _tiktokHandleController.removeListener(_onFieldChanged);
 
     // Dispose controllers
     _storeNameController.dispose();
@@ -98,6 +110,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
     _mtnMomoPhoneController.dispose();
     _telecelCashNameController.dispose();
     _telecelCashPhoneController.dispose();
+    _whatsappNumberController.dispose();
+    _instagramHandleController.dispose();
+    _tiktokHandleController.dispose();
     super.dispose();
   }
 
@@ -116,7 +131,10 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
       _mtnMomoNameController.text != _seller?.paymentNames?['mtn_momo'] ||
       _mtnMomoPhoneController.text != _seller?.paymentPhoneNumbers?['mtn_momo'] ||
       _telecelCashNameController.text != _seller?.paymentNames?['telecel_cash'] ||
-      _telecelCashPhoneController.text != _seller?.paymentPhoneNumbers?['telecel_cash'];
+      _telecelCashPhoneController.text != _seller?.paymentPhoneNumbers?['telecel_cash'] ||
+      _whatsappNumberController.text != _seller?.whatsappNumber ||
+      _instagramHandleController.text != _seller?.instagramHandle ||
+      _tiktokHandleController.text != _seller?.tiktokHandle;
 
     final hasFileChanges = _logoFile != null;
 
@@ -147,6 +165,11 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         _mtnMomoPhoneController.text = seller.paymentPhoneNumbers?['mtn_momo'] ?? '';
         _telecelCashNameController.text = seller.paymentNames?['telecel_cash'] ?? '';
         _telecelCashPhoneController.text = seller.paymentPhoneNumbers?['telecel_cash'] ?? '';
+        
+        // Initialize social media controllers
+        _whatsappNumberController.text = seller.whatsappNumber ?? '';
+        _instagramHandleController.text = seller.instagramHandle ?? '';
+        _tiktokHandleController.text = seller.tiktokHandle ?? '';
         
         _isLoading = false;
       });
@@ -285,6 +308,43 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
             },
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildSocialMediaSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Social Media',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        CustomTextField(
+          controller: _whatsappNumberController,
+          label: 'WhatsApp Number',
+          prefixIcon: const Icon(FontAwesomeIcons.whatsapp, color: Color(0xFF25D366)),
+          helperText: 'Enter your WhatsApp number with country code (e.g., 263773123456)',
+          keyboardType: TextInputType.phone,
+        ),
+        const SizedBox(height: 16),
+        CustomTextField(
+          controller: _instagramHandleController,
+          label: 'Instagram Handle',
+          prefixIcon: const Icon(FontAwesomeIcons.instagram, color: Color(0xFFE1306C)),
+          helperText: 'Enter your Instagram handle without @ (e.g., yourstorename)',
+        ),
+        const SizedBox(height: 16),
+        CustomTextField(
+          controller: _tiktokHandleController,
+          label: 'TikTok Handle',
+          prefixIcon: const Icon(FontAwesomeIcons.tiktok),
+          helperText: 'Enter your TikTok handle without @ (e.g., yourstorename)',
+        ),
       ],
     );
   }
@@ -545,6 +605,8 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
                 ),
                 const SizedBox(height: 16),
                 _buildPaymentSection(),
+                const SizedBox(height: 24),
+                _buildSocialMediaSection(),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
@@ -617,6 +679,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
         acceptedPaymentMethods: _selectedPaymentMethods,
         paymentPhoneNumbers: paymentPhoneNumbers,
         paymentNames: paymentNames,
+        whatsappNumber: _whatsappNumberController.text.trim(),
+        instagramHandle: _instagramHandleController.text.trim(),
+        tiktokHandle: _tiktokHandleController.text.trim(),
         updatedAt: DateTime.now().toIso8601String(),
       );
 
