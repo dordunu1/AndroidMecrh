@@ -6,6 +6,7 @@ import 'buyer_orders_screen.dart';
 import 'buyer_refunds_screen.dart';
 import '../profile/profile_screen.dart';
 import 'cart_screen.dart';
+import '../chat/chat_inbox_screen.dart';
 import '../../widgets/seller_promotion_bubble.dart';
 import '../../widgets/feature_tour.dart';
 
@@ -19,13 +20,14 @@ class BuyerNavigationScreen extends ConsumerStatefulWidget {
 class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
   int _currentIndex = 0;
   bool _showFeatureTour = false;
-  final List<GlobalKey> _navigationKeys = List.generate(5, (_) => GlobalKey());
+  final List<GlobalKey> _navigationKeys = List.generate(6, (_) => GlobalKey());
 
   final _screens = const [
     ProductListScreen(),
     CartScreen(),
     BuyerOrdersScreen(),
     BuyerRefundsScreen(),
+    ChatInboxScreen(),
     ProfileScreen(),
   ];
 
@@ -70,9 +72,14 @@ class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
         targetKey: _navigationKeys[3],
       ),
       FeatureTourStep(
+        title: 'Messages',
+        description: 'Chat with sellers about products and orders.',
+        targetKey: _navigationKeys[4],
+      ),
+      FeatureTourStep(
         title: 'Profile',
         description: 'Manage your account settings and preferences.',
-        targetKey: _navigationKeys[4],
+        targetKey: _navigationKeys[5],
       ),
     ];
   }
@@ -120,6 +127,12 @@ class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
               ),
               NavigationDestination(
                 key: _navigationKeys[4],
+                icon: const Icon(Icons.chat_bubble_outline),
+                selectedIcon: const Icon(Icons.chat_bubble),
+                label: 'Messages',
+              ),
+              NavigationDestination(
+                key: _navigationKeys[5],
                 icon: const Icon(Icons.person_outline),
                 selectedIcon: const Icon(Icons.person),
                 label: 'Profile',

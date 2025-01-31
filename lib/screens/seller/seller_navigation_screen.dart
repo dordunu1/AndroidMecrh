@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'seller_dashboard_screen.dart';
 import 'seller_orders_screen.dart';
 import 'seller_products_screen.dart';
-import 'seller_withdrawals_screen.dart';
 import 'seller_profile_screen.dart';
+import '../chat/chat_inbox_screen.dart';
 
 class SellerNavigationScreen extends ConsumerStatefulWidget {
   const SellerNavigationScreen({super.key});
@@ -20,7 +20,7 @@ class _SellerNavigationScreenState extends ConsumerState<SellerNavigationScreen>
     SellerDashboardScreen(),
     SellerOrdersScreen(),
     SellerProductsScreen(),
-    SellerWithdrawalsScreen(),
+    ChatInboxScreen(),
     SellerProfileScreen(),
   ];
 
@@ -52,8 +52,9 @@ class _SellerNavigationScreenState extends ConsumerState<SellerNavigationScreen>
             label: 'Products',
           ),
           NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet),
-            label: 'Withdrawals',
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Messages',
           ),
           NavigationDestination(
             icon: Icon(Icons.person),

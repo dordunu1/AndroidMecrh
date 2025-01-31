@@ -126,7 +126,9 @@ class _ChatInboxScreenState extends ConsumerState<ChatInboxScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => ChatScreen(
-                                      conversation: conversation,
+                                      conversationId: conversation.id,
+                                      otherUserName: conversation.otherParticipantName,
+                                      productId: conversation.productId ?? '',
                                     ),
                                   ),
                                 );
@@ -155,7 +157,18 @@ class _ConversationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                conversationId: conversation.id,
+                otherUserName: conversation.otherParticipantName,
+                productId: conversation.productId ?? '',
+              ),
+            ),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -187,9 +200,7 @@ class _ConversationCard extends StatelessWidget {
                         ),
                         if (conversation.lastMessageTime != null)
                           Text(
-                            timeago.format(
-                              DateTime.parse(conversation.lastMessageTime!),
-                            ),
+                            timeago.format(conversation.lastMessageTime!),
                             style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(context).textTheme.bodySmall?.color,
@@ -211,12 +222,7 @@ class _ConversationCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        if (conversation.unreadCounts[
-                                conversation.otherParticipantId] !=
-                            null &&
-                            conversation.unreadCounts[
-                                    conversation.otherParticipantId]! >
-                                0)
+                        if (conversation.unreadCount > 0)
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -227,7 +233,7 @@ class _ConversationCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              '${conversation.unreadCounts[conversation.otherParticipantId]}',
+                              '${conversation.unreadCount}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,

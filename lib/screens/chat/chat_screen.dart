@@ -10,6 +10,9 @@ import '../../services/chat_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/product_service.dart';
 import '../../services/seller_service.dart';
+import '../../services/auth_service.dart';
+import '../../models/seller.dart';
+import '../../models/user.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -36,12 +39,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _error;
   Product? _product;
   String? _sellerPhoto;
+  String? _buyerPhoto;
+  bool _isSellerView = false;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
     _loadProduct();
+    _loadUserPhotos();
   }
 
   @override
@@ -94,6 +100,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     } catch (e) {
       print('Error loading product: $e');
+    }
+  }
+
+  Future<void> _loadUserPhotos() async {
+    try {
+      final currentUser = ref.read(authServiceProvider).currentUser;
+      if (currentUser == null) return;
+
+      // Load seller profile
+      final seller = await ref.read(sellerServiceProvider).getSellerProfileById(_product?.sellerId ?? '');
+      if (seller != null) {
+        setState(() => _sellerPhoto = seller.logo);
+      }
+
+      // Check if current user is the seller
+      _isSellerView = currentUser.uid == _product?.sellerId;
+
+      if (!_isSellerView) {
+        // Load buyer profile
+        final buyer = await ref.read(authServiceProvider).getCurrentUser();
+        if (buyer != null) {
+          setState(() => _buyerPhoto = buyer.photoUrl);
+        }
+      }
+    } catch (e) {
+      print('Error loading user photos: $e');
     }
   }
 
@@ -174,10 +206,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: _sellerPhoto != null ? NetworkImage(_sellerPhoto!) : null,
-              child: _sellerPhoto == null ? const Icon(Icons.store) : null,
+              radius: 20,
+              backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+              backgroundImage: _isSellerView 
+                ? (_buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null)
+                : (_sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null),
+              child: (_isSellerView ? _buyerPhoto : _sellerPhoto) == null
+                ? Icon(
+                    _isSellerView ? Icons.person : Icons.store,
+                    color: theme.colorScheme.primary,
+                  )
+                : null,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Text(widget.otherUserName),
           ],
         ),
@@ -298,11 +339,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     if (!isMe)
                                       CircleAvatar(
                                         radius: 16,
-                                        child: Icon(
-                                          Icons.store,
-                                          size: 16,
-                                          color: theme.colorScheme.onPrimary,
-                                        ),
+                                        backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                                        backgroundImage: _isSellerView 
+                                          ? (_buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null)
+                                          : (_sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null),
+                                        child: (_isSellerView ? _buyerPhoto : _sellerPhoto) == null
+                                          ? Icon(
+                                              _isSellerView ? Icons.person : Icons.store,
+                                              size: 16,
+                                              color: theme.colorScheme.onPrimary,
+                                            )
+                                          : null,
                                       ),
                                     const SizedBox(width: 8),
                                     Flexible(
@@ -329,10 +376,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                             if (message.imageUrl != null)
                                               ClipRRect(
                                                 borderRadius: BorderRadius.circular(8),
-                                                child: Image.network(
-                                                  message.imageUrl!,
+                                                child: CachedNetworkImage(
+                                                  imageUrl: message.imageUrl!,
                                                   width: 200,
                                                   fit: BoxFit.cover,
+                                                  placeholder: (context, url) => const Center(
+                                                    child: CircularProgressIndicator(),
+                                                  ),
+                                                  errorWidget: (context, url, error) => const Icon(Icons.error),
                                                 ),
                                               ),
                                             if (message.content.isNotEmpty)
@@ -344,20 +395,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                                       : theme.colorScheme.onSurface,
                                                 ),
                                               ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              _formatTimestamp(message.timestamp),
-                                              style: theme.textTheme.bodySmall?.copyWith(
-                                                color: isMe
-                                                    ? theme.colorScheme.onPrimary.withOpacity(0.7)
-                                                    : theme.colorScheme.onSurface.withOpacity(0.7),
-                                                fontSize: 10,
-                                              ),
-                                            ),
                                           ],
                                         ),
                                       ),
                                     ),
+                                    if (isMe)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: CircleAvatar(
+                                          radius: 16,
+                                          backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                                          backgroundImage: _isSellerView 
+                                            ? (_sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null)
+                                            : (_buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null),
+                                          child: (_isSellerView ? _sellerPhoto : _buyerPhoto) == null
+                                            ? Icon(
+                                                _isSellerView ? Icons.store : Icons.person,
+                                                size: 16,
+                                                color: theme.colorScheme.onPrimary,
+                                              )
+                                            : null,
+                                        ),
+                                      ),
                                   ],
                                 ),
                               );
