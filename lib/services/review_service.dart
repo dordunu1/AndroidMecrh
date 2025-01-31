@@ -79,15 +79,148 @@ class ReviewService {
 
   Future<void> addReview(Review review) async {
     try {
-      await _firestore.collection('reviews').add(review.toMap());
+      print('Adding review for order: ${review.orderId}');
+      print('User ID: ${review.userId}');
+      print('Product ID: ${review.productId}');
+
+      // Create the review ID using the same format as in security rules
+      final reviewId = '${review.orderId}_${review.userId}_${review.productId}';
+      print('Generated review ID: $reviewId');
+      
+      if (review.id != reviewId) {
+        print('Review ID mismatch: ${review.id} vs $reviewId');
+        throw Exception('Invalid review ID format');
+      }
+
+      final reviewRef = _firestore.collection('reviews').doc(reviewId);
+      
+      // Check if review already exists
+      final existingReview = await reviewRef.get();
+      if (existingReview.exists) {
+        throw Exception('You have already reviewed this product from this order');
+      }
+
+      // Check if order exists and is delivered
+      final orderRef = _firestore.collection('orders').doc(review.orderId);
+      final orderDoc = await orderRef.get();
+      print('Order exists: ${orderDoc.exists}');
+      
+      if (!orderDoc.exists) {
+        throw Exception('Order not found');
+      }
+
+      final orderData = orderDoc.data();
+      print('Order data: $orderData');
+      
+      if (orderData == null) {
+        throw Exception('Order data is invalid');
+      }
+
+      print('Order status: ${orderData['status']}');
+      print('Order buyerId: ${orderData['buyerId']}');
+      print('Review userId: ${review.userId}');
+
+      if (orderData['status'] != 'delivered') {
+        throw Exception('Can only review delivered orders');
+      }
+
+      if (orderData['buyerId'] != review.userId) {
+        throw Exception('Not authorized to review this order');
+      }
+
+      // Verify that the product exists in the order
+      final orderItems = List<Map<String, dynamic>>.from(orderData['items'] as List);
+      print('Order items: $orderItems');
+      
+      final productExists = orderItems.any((item) => item['productId'] == review.productId);
+      print('Product exists in order: $productExists');
+      
+      if (!productExists) {
+        throw Exception('Product not found in this order');
+      }
+
+      // Start a batch write
+      final batch = _firestore.batch();
+
+      print('Adding review to Firestore...');
+      // Add the review
+      batch.set(reviewRef, review.toMap());
+
+      // Update product rating
+      final productRef = _firestore.collection('products').doc(review.productId);
+      final productDoc = await productRef.get();
+      if (productDoc.exists) {
+        final currentRating = productDoc.data()?['rating'] ?? 0.0;
+        final currentCount = productDoc.data()?['reviewCount'] ?? 0;
+        final newRating = ((currentRating * currentCount) + review.rating) / (currentCount + 1);
+        batch.update(productRef, {
+          'rating': newRating,
+          'reviewCount': currentCount + 1,
+        });
+      }
+
+      // Update seller rating
+      final sellerRef = _firestore.collection('sellers').doc(review.sellerId);
+      final sellerDoc = await sellerRef.get();
+      if (sellerDoc.exists) {
+        final currentRating = sellerDoc.data()?['rating'] ?? 0.0;
+        final currentCount = sellerDoc.data()?['reviewCount'] ?? 0;
+        final newRating = ((currentRating * currentCount) + review.rating) / (currentCount + 1);
+        batch.update(sellerRef, {
+          'rating': newRating,
+          'reviewCount': currentCount + 1,
+        });
+      }
+
+      // Commit the batch
+      await batch.commit();
     } catch (e) {
-      throw Exception('Failed to add review: $e');
+      if (e is FirebaseException) {
+        if (e.code == 'permission-denied') {
+          throw Exception('Not authorized to add review. Please ensure you have purchased and received this product.');
+        }
+      }
+      rethrow;
     }
   }
 
   Future<void> updateReview(String reviewId, Review review) async {
     try {
-      await _firestore.collection('reviews').doc(reviewId).update(review.toMap());
+      final oldReview = await _firestore.collection('reviews').doc(reviewId).get();
+      if (!oldReview.exists) {
+        throw Exception('Review not found');
+      }
+
+      final batch = _firestore.batch();
+
+      // Update the review
+      batch.update(_firestore.collection('reviews').doc(reviewId), review.toMap());
+
+      // Update product rating
+      if (oldReview.data()?['rating'] != review.rating) {
+        final productRef = _firestore.collection('products').doc(review.productId);
+        final productDoc = await productRef.get();
+        if (productDoc.exists) {
+          final currentRating = productDoc.data()?['rating'] ?? 0.0;
+          final currentCount = productDoc.data()?['reviewCount'] ?? 0;
+          final oldRating = oldReview.data()?['rating'] ?? 0.0;
+          final newRating = ((currentRating * currentCount) - oldRating + review.rating) / currentCount;
+          batch.update(productRef, {'rating': newRating});
+        }
+
+        // Update seller rating
+        final sellerRef = _firestore.collection('sellers').doc(review.sellerId);
+        final sellerDoc = await sellerRef.get();
+        if (sellerDoc.exists) {
+          final currentRating = sellerDoc.data()?['rating'] ?? 0.0;
+          final currentCount = sellerDoc.data()?['reviewCount'] ?? 0;
+          final oldRating = oldReview.data()?['rating'] ?? 0.0;
+          final newRating = ((currentRating * currentCount) - oldRating + review.rating) / currentCount;
+          batch.update(sellerRef, {'rating': newRating});
+        }
+      }
+
+      await batch.commit();
     } catch (e) {
       throw Exception('Failed to update review: $e');
     }
@@ -95,13 +228,64 @@ class ReviewService {
 
   Future<void> deleteReview(String reviewId) async {
     try {
-      final review = await _firestore.collection('reviews').doc(reviewId).get();
-      final productId = review.data()!['productId'];
+      final reviewDoc = await _firestore.collection('reviews').doc(reviewId).get();
+      if (!reviewDoc.exists) {
+        throw Exception('Review not found');
+      }
 
-      await _firestore.collection('reviews').doc(reviewId).delete();
+      final batch = _firestore.batch();
+
+      // Delete the review
+      batch.delete(_firestore.collection('reviews').doc(reviewId));
 
       // Update product rating
-      await _updateProductRating(productId);
+      final productId = reviewDoc.data()?['productId'];
+      final rating = reviewDoc.data()?['rating'] ?? 0.0;
+      if (productId != null) {
+        final productRef = _firestore.collection('products').doc(productId);
+        final productDoc = await productRef.get();
+        if (productDoc.exists) {
+          final currentRating = productDoc.data()?['rating'] ?? 0.0;
+          final currentCount = productDoc.data()?['reviewCount'] ?? 0;
+          if (currentCount > 1) {
+            final newRating = ((currentRating * currentCount) - rating) / (currentCount - 1);
+            batch.update(productRef, {
+              'rating': newRating,
+              'reviewCount': currentCount - 1,
+            });
+          } else {
+            batch.update(productRef, {
+              'rating': 0.0,
+              'reviewCount': 0,
+            });
+          }
+        }
+      }
+
+      // Update seller rating
+      final sellerId = reviewDoc.data()?['sellerId'];
+      if (sellerId != null) {
+        final sellerRef = _firestore.collection('sellers').doc(sellerId);
+        final sellerDoc = await sellerRef.get();
+        if (sellerDoc.exists) {
+          final currentRating = sellerDoc.data()?['rating'] ?? 0.0;
+          final currentCount = sellerDoc.data()?['reviewCount'] ?? 0;
+          if (currentCount > 1) {
+            final newRating = ((currentRating * currentCount) - rating) / (currentCount - 1);
+            batch.update(sellerRef, {
+              'rating': newRating,
+              'reviewCount': currentCount - 1,
+            });
+          } else {
+            batch.update(sellerRef, {
+              'rating': 0.0,
+              'reviewCount': 0,
+            });
+          }
+        }
+      }
+
+      await batch.commit();
     } catch (e) {
       throw Exception('Failed to delete review: $e');
     }
@@ -117,35 +301,6 @@ class ReviewService {
       });
     } catch (e) {
       throw Exception('Failed to add seller response: $e');
-    }
-  }
-
-  Future<void> _updateProductRating(String productId) async {
-    try {
-      final reviews = await _firestore.collection('reviews')
-          .where('productId', isEqualTo: productId)
-          .get();
-
-      if (reviews.docs.isEmpty) {
-        await _firestore.collection('products').doc(productId).update({
-          'rating': 0.0,
-          'reviewCount': 0,
-        });
-        return;
-      }
-
-      double totalRating = 0;
-      for (var doc in reviews.docs) {
-        totalRating += doc.data()['rating'] as double;
-      }
-
-      final averageRating = totalRating / reviews.docs.length;
-      await _firestore.collection('products').doc(productId).update({
-        'rating': averageRating,
-        'reviewCount': reviews.docs.length,
-      });
-    } catch (e) {
-      throw Exception('Failed to update product rating: $e');
     }
   }
 

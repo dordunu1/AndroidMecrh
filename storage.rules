@@ -54,6 +54,16 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // Reviews
+    match /reviews/{orderId}/{fileName} {
+      allow read: if true;  // Anyone can view review images
+      allow create: if isAuthenticated() 
+        && request.resource.size < 5 * 1024 * 1024  // 5MB max
+        && request.resource.contentType.matches('image/.*')  // Must be an image
+        && fileName.matches('[0-9]+_[0-9]+\\.jpg');  // Must match our naming pattern
+      allow delete: if false;  // Don't allow deletion for now
+    }
+
     // Default deny
     match /{allPaths=**} {
       allow read, write: if false;

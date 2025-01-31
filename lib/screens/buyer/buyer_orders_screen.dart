@@ -1,11 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/order.dart';
+import '../../models/review.dart';
 import '../../services/buyer_service.dart';
 import '../../services/realtime_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/review_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import 'refund_request_screen.dart';
 
@@ -186,8 +192,8 @@ class _BuyerOrdersScreenState extends ConsumerState<BuyerOrdersScreen> {
                     ? Center(
                         child: Text(
                           _error!,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: theme.colorScheme.error,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.error,
                           ),
                         ),
                       )
@@ -197,8 +203,8 @@ class _BuyerOrdersScreenState extends ConsumerState<BuyerOrdersScreen> {
                             ? Center(
                                 child: Text(
                                   'No orders found',
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                   ),
                                 ),
                               )
@@ -451,6 +457,9 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                         onPressed: () async {
                           try {
                             await ref.read(buyerServiceProvider).updateOrderStatus(widget.order.id, 'delivered');
+                            if (mounted) {
+                              _showReviewDialog(context, ref);
+                            }
                           } catch (e) {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -460,6 +469,21 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
                           }
                         },
                         child: const Text('Mark as Received'),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // Show review button for delivered orders
+                if (widget.order.status == 'delivered') ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  ButtonBar(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => _showReviewDialog(context, ref),
+                        icon: const Icon(Icons.rate_review),
+                        label: const Text('Write Review'),
                       ),
                     ],
                   ),
@@ -593,6 +617,286 @@ class _OrderCardState extends ConsumerState<_OrderCard> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showReviewDialog(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(authServiceProvider).currentUser;
+    if (user == null) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => ReviewDialog(
+        order: widget.order,
+        user: user,
+        ref: ref,
+      ),
+    );
+  }
+}
+
+class ReviewDialog extends StatefulWidget {
+  final Order order;
+  final User user;
+  final WidgetRef ref;
+
+  const ReviewDialog({
+    super.key,
+    required this.order,
+    required this.user,
+    required this.ref,
+  });
+
+  @override
+  State<ReviewDialog> createState() => _ReviewDialogState();
+}
+
+class _ReviewDialogState extends State<ReviewDialog> {
+  late final TextEditingController _commentController;
+  double _rating = 5.0;
+  final List<String> _images = [];
+  final List<File> _imageFiles = [];
+  bool _isUploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _commentController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_isUploading,
+      child: Dialog(
+        child: SingleChildScrollView(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Rate Your Purchase',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (!_isUploading)
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text('Rating'),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    5,
+                    (index) => IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _rating = index + 1.0;
+                        });
+                      },
+                      icon: Icon(
+                        index < _rating ? Icons.star : Icons.star_border,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _commentController,
+                  decoration: const InputDecoration(
+                    labelText: 'Write your review',
+                    hintText: 'Share your experience with this product...',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Add Photos'),
+                    TextButton.icon(
+                      onPressed: _isUploading
+                          ? null
+                          : () async {
+                              try {
+                                final picker = ImagePicker();
+                                final pickedFile = await picker.pickImage(
+                                  source: ImageSource.gallery,
+                                  imageQuality: 70,
+                                );
+
+                                if (pickedFile != null && mounted) {
+                                  setState(() {
+                                    _imageFiles.add(File(pickedFile.path));
+                                  });
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed to pick image: $e')),
+                                  );
+                                }
+                              }
+                            },
+                      icon: const Icon(Icons.add_photo_alternate),
+                      label: const Text('Add Photo'),
+                    ),
+                  ],
+                ),
+                if (_imageFiles.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _imageFiles.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  _imageFiles[index],
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: IconButton(
+                                onPressed: _isUploading
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _imageFiles.removeAt(index);
+                                        });
+                                      },
+                                icon: const Icon(Icons.close),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  padding: const EdgeInsets.all(4),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: _isUploading 
+                        ? null 
+                        : () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: _isUploading
+                          ? null
+                          : () async {
+                              if (_commentController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Please write a review')),
+                                );
+                                return;
+                              }
+
+                              setState(() {
+                                _isUploading = true;
+                              });
+
+                              try {
+                                // Upload images if any
+                                if (_imageFiles.isNotEmpty) {
+                                  final storage = FirebaseStorage.instance;
+                                  for (var file in _imageFiles) {
+                                    final ref = storage.ref().child(
+                                        'reviews/${widget.order.id}/${DateTime.now().millisecondsSinceEpoch}_${_images.length + 1}.jpg');
+                                    await ref.putFile(file);
+                                    final url = await ref.getDownloadURL();
+                                    _images.add(url);
+                                  }
+                                }
+
+                                final review = Review(
+                                  id: '${widget.order.id}_${widget.user.uid}_${widget.order.items.first.productId}',
+                                  productId: widget.order.items.first.productId,
+                                  userId: widget.user.uid,
+                                  userName: widget.user.displayName ?? 'Anonymous',
+                                  userPhoto: widget.user.photoURL,
+                                  sellerId: widget.order.sellerId,
+                                  rating: _rating,
+                                  comment: _commentController.text.trim(),
+                                  images: _images.isEmpty ? null : _images,
+                                  createdAt: DateTime.now(),
+                                  isVerifiedPurchase: true,
+                                  orderId: widget.order.id,
+                                );
+
+                                await widget.ref.read(reviewServiceProvider).addReview(review);
+                                
+                                if (mounted) {
+                                  Navigator.of(context).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Review submitted successfully')),
+                                  );
+                                }
+                              } catch (e) {
+                                print('Review submission error: $e');
+                                if (mounted) {
+                                  setState(() {
+                                    _isUploading = false;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to submit review: ${e.toString()}'),
+                                      duration: const Duration(seconds: 5),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      child: Text(_isUploading ? 'Submitting...' : 'Submit'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
