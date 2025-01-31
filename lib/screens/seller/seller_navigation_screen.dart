@@ -5,6 +5,7 @@ import 'seller_orders_screen.dart';
 import 'seller_products_screen.dart';
 import 'seller_profile_screen.dart';
 import '../chat/chat_inbox_screen.dart';
+import '../../providers/chat_providers.dart';
 
 class SellerNavigationScreen extends ConsumerStatefulWidget {
   const SellerNavigationScreen({super.key});
@@ -26,6 +27,8 @@ class _SellerNavigationScreenState extends ConsumerState<SellerNavigationScreen>
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = ref.watch(unreadMessagesCountProvider);
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -38,25 +41,49 @@ class _SellerNavigationScreenState extends ConsumerState<SellerNavigationScreen>
             _currentIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.shopping_cart),
             label: 'Orders',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.inventory),
             label: 'Products',
           ),
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
+            icon: Badge(
+              isLabelVisible: unreadCount.when(
+                data: (count) => count > 0,
+                loading: () => false,
+                error: (_, __) => false,
+              ),
+              label: unreadCount.when(
+                data: (count) => Text('$count'),
+                loading: () => null,
+                error: (_, __) => null,
+              ),
+              child: const Icon(Icons.chat_bubble_outline),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: unreadCount.when(
+                data: (count) => count > 0,
+                loading: () => false,
+                error: (_, __) => false,
+              ),
+              label: unreadCount.when(
+                data: (count) => Text('$count'),
+                loading: () => null,
+                error: (_, __) => null,
+              ),
+              child: const Icon(Icons.chat_bubble),
+            ),
             label: 'Messages',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),

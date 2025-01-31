@@ -225,4 +225,22 @@ class ChatService {
       throw Exception('Failed to delete conversation: $e');
     }
   }
+
+  Stream<int> watchTotalUnreadCount() {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+
+    return _firestore
+        .collection('conversations')
+        .where('participants', arrayContains: user.uid)
+        .snapshots()
+        .map((snapshot) {
+      int totalUnread = 0;
+      for (var doc in snapshot.docs) {
+        final unreadCounts = Map<String, int>.from(doc.data()['unreadCounts'] as Map);
+        totalUnread += unreadCounts[user.uid] ?? 0;
+      }
+      return totalUnread;
+    });
+  }
 } 

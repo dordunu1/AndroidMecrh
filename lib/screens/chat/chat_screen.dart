@@ -13,17 +13,20 @@ import '../../services/seller_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/seller.dart';
 import '../../models/user.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
   final String otherUserName;
   final String productId;
+  final String otherParticipantId;
 
   const ChatScreen({
     super.key,
     required this.conversationId,
     required this.otherUserName,
     required this.productId,
+    required this.otherParticipantId,
   });
 
   @override
@@ -41,6 +44,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _sellerPhoto;
   String? _buyerPhoto;
   bool _isSellerView = false;
+  final _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -48,6 +52,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadMessages();
     _loadProduct();
     _loadUserPhotos();
+    // Mark messages as read when entering the chat
+    ref.read(chatServiceProvider).markAsRead(widget.conversationId);
   }
 
   @override
@@ -108,20 +114,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final currentUser = ref.read(authServiceProvider).currentUser;
       if (currentUser == null) return;
 
-      // Load seller profile
-      final seller = await ref.read(sellerServiceProvider).getSellerProfileById(_product?.sellerId ?? '');
-      if (seller != null) {
-        setState(() => _sellerPhoto = seller.logo);
-      }
+      // First, load the product to get seller ID
+      final product = await ref.read(productServiceProvider).getProduct(widget.productId);
+      if (product != null) {
+        setState(() => _product = product);
+        
+        // Check if current user is the seller
+        _isSellerView = currentUser.uid == product.sellerId;
 
-      // Check if current user is the seller
-      _isSellerView = currentUser.uid == _product?.sellerId;
+        // Load seller profile
+        final seller = await ref.read(sellerServiceProvider).getSellerProfileById(product.sellerId);
+        if (seller != null) {
+          setState(() => _sellerPhoto = seller.logo);
+        }
 
-      if (!_isSellerView) {
         // Load buyer profile
-        final buyer = await ref.read(authServiceProvider).getCurrentUser();
-        if (buyer != null) {
-          setState(() => _buyerPhoto = buyer.photoUrl);
+        if (_isSellerView) {
+          // If current user is seller, load the buyer's photo
+          final buyerDoc = await _firestore.collection('users')
+              .doc(widget.otherParticipantId)
+              .get();
+          if (buyerDoc.exists) {
+            setState(() => _buyerPhoto = buyerDoc.data()?['photoUrl']);
+          }
+        } else {
+          // If current user is buyer, load their own photo
+          final buyerDoc = await _firestore.collection('users')
+              .doc(currentUser.uid)
+              .get();
+          if (buyerDoc.exists) {
+            setState(() => _buyerPhoto = buyerDoc.data()?['photoUrl']);
+          }
         }
       }
     } catch (e) {
@@ -340,16 +363,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       CircleAvatar(
                                         radius: 16,
                                         backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                                        backgroundImage: _isSellerView 
-                                          ? (_buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null)
-                                          : (_sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null),
-                                        child: (_isSellerView ? _buyerPhoto : _sellerPhoto) == null
-                                          ? Icon(
-                                              _isSellerView ? Icons.person : Icons.store,
-                                              size: 16,
-                                              color: theme.colorScheme.onPrimary,
-                                            )
-                                          : null,
+                                        backgroundImage: isMe
+                                          ? (_isSellerView 
+                                              ? _sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null
+                                              : _buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null)
+                                          : (_isSellerView
+                                              ? _buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null
+                                              : _sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null),
+                                        child: (isMe
+                                            ? (_isSellerView ? _sellerPhoto : _buyerPhoto)
+                                            : (_isSellerView ? _buyerPhoto : _sellerPhoto)) == null
+                                            ? Icon(
+                                                isMe
+                                                    ? (_isSellerView ? Icons.store : Icons.person)
+                                                    : (_isSellerView ? Icons.person : Icons.store),
+                                                size: 16,
+                                                color: theme.colorScheme.onPrimary,
+                                              )
+                                            : null,
                                       ),
                                     const SizedBox(width: 8),
                                     Flexible(
@@ -405,16 +436,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                         child: CircleAvatar(
                                           radius: 16,
                                           backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                                          backgroundImage: _isSellerView 
-                                            ? (_sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null)
-                                            : (_buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null),
-                                          child: (_isSellerView ? _sellerPhoto : _buyerPhoto) == null
-                                            ? Icon(
-                                                _isSellerView ? Icons.store : Icons.person,
-                                                size: 16,
-                                                color: theme.colorScheme.onPrimary,
-                                              )
-                                            : null,
+                                          backgroundImage: isMe
+                                            ? (_isSellerView 
+                                                ? _sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null
+                                                : _buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null)
+                                            : (_isSellerView
+                                                ? _buyerPhoto != null ? CachedNetworkImageProvider(_buyerPhoto!) : null
+                                                : _sellerPhoto != null ? CachedNetworkImageProvider(_sellerPhoto!) : null),
+                                          child: (isMe
+                                              ? (_isSellerView ? _sellerPhoto : _buyerPhoto)
+                                              : (_isSellerView ? _buyerPhoto : _sellerPhoto)) == null
+                                              ? Icon(
+                                                  isMe
+                                                      ? (_isSellerView ? Icons.store : Icons.person)
+                                                      : (_isSellerView ? Icons.person : Icons.store),
+                                                  size: 16,
+                                                  color: theme.colorScheme.onPrimary,
+                                                )
+                                              : null,
                                         ),
                                       ),
                                   ],

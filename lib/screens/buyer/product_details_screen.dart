@@ -267,6 +267,48 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
     }
   }
 
+  Future<void> _contactStore() async {
+    if (_currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to contact the store')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final conversationId = await ref.read(chatServiceProvider).createOrGetConversation(
+        _product.sellerId,
+        _product.id,
+      );
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              conversationId: conversationId,
+              otherUserName: _seller?.storeName ?? 'Store',
+              productId: _product.id,
+              otherParticipantId: _product.sellerId,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -469,40 +511,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                         ),
                                         const SizedBox(width: 16),
                                         TextButton.icon(
-                                          onPressed: () async {
-                                            if (_currentUser == null) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Please sign in to contact the seller')),
-                                              );
-                                              return;
-                                            }
-                                            
-                                            try {
-                                              final conversationId = await ref.read(chatServiceProvider).createOrGetConversation(
-                                                widget.product.sellerId,
-                                                widget.product.id,
-                                              );
-                                              
-                                              if (mounted) {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) => ChatScreen(
-                                                      conversationId: conversationId,
-                                                      otherUserName: _seller?.storeName ?? 'Store',
-                                                      productId: widget.product.id,
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            } catch (e) {
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Error starting chat: $e')),
-                                                );
-                                              }
-                                            }
-                                          },
+                                          onPressed: _contactStore,
                                           icon: const Icon(Icons.chat_bubble_outline, size: 16),
                                           label: const Text('Contact Store'),
                                         ),

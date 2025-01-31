@@ -9,6 +9,7 @@ import 'cart_screen.dart';
 import '../chat/chat_inbox_screen.dart';
 import '../../widgets/seller_promotion_bubble.dart';
 import '../../widgets/feature_tour.dart';
+import '../../providers/chat_providers.dart';
 
 class BuyerNavigationScreen extends ConsumerStatefulWidget {
   const BuyerNavigationScreen({super.key});
@@ -86,6 +87,8 @@ class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = ref.watch(unreadMessagesCountProvider);
+    
     return Stack(
       children: [
         Scaffold(
@@ -127,8 +130,32 @@ class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
               ),
               NavigationDestination(
                 key: _navigationKeys[4],
-                icon: const Icon(Icons.chat_bubble_outline),
-                selectedIcon: const Icon(Icons.chat_bubble),
+                icon: Badge(
+                  isLabelVisible: unreadCount.when(
+                    data: (count) => count > 0,
+                    loading: () => false,
+                    error: (_, __) => false,
+                  ),
+                  label: unreadCount.when(
+                    data: (count) => Text('$count'),
+                    loading: () => null,
+                    error: (_, __) => null,
+                  ),
+                  child: const Icon(Icons.chat_bubble_outline),
+                ),
+                selectedIcon: Badge(
+                  isLabelVisible: unreadCount.when(
+                    data: (count) => count > 0,
+                    loading: () => false,
+                    error: (_, __) => false,
+                  ),
+                  label: unreadCount.when(
+                    data: (count) => Text('$count'),
+                    loading: () => null,
+                    error: (_, __) => null,
+                  ),
+                  child: const Icon(Icons.chat_bubble),
+                ),
                 label: 'Messages',
               ),
               NavigationDestination(

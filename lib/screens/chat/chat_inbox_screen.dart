@@ -15,15 +15,7 @@ class ChatInboxScreen extends ConsumerStatefulWidget {
 
 class _ChatInboxScreenState extends ConsumerState<ChatInboxScreen> {
   final _searchController = TextEditingController();
-  bool _isLoading = false;
-  List<ChatConversation> _conversations = [];
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadConversations();
-  }
+  String _searchQuery = '';
 
   @override
   void dispose() {
@@ -31,31 +23,10 @@ class _ChatInboxScreenState extends ConsumerState<ChatInboxScreen> {
     super.dispose();
   }
 
-  Future<void> _loadConversations() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final conversations = await ref.read(chatServiceProvider).getConversations(
-            search: _searchController.text.isEmpty ? null : _searchController.text,
-          );
-
-      setState(() {
-        _conversations = conversations;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final conversationsStream = ref.watch(chatServiceProvider).watchConversations();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Messages'),
@@ -68,75 +39,96 @@ class _ChatInboxScreenState extends ConsumerState<ChatInboxScreen> {
               controller: _searchController,
               label: 'Search conversations',
               prefixIcon: const Icon(Icons.search),
-              onChanged: (value) => _loadConversations(),
+              onChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
             ),
           ),
-          if (_error != null)
-            Container(
-              padding: const EdgeInsets.all(8),
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
-              ),
-            ),
           Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
-                : _conversations.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.chat_bubble_outline,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No conversations found',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey,
+            child: StreamBuilder<List<ChatConversation>>(
+              stream: conversationsStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error: ${snapshot.error}',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final conversations = snapshot.data!;
+                final filteredConversations = _searchQuery.isEmpty
+                    ? conversations
+                    : conversations.where((conv) =>
+                        conv.otherParticipantName
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ||
+                        (conv.lastMessage?.toLowerCase() ?? '')
+                            .contains(_searchQuery.toLowerCase())).toList();
+
+                if (filteredConversations.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.chat_bubble_outline,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isEmpty
+                              ? 'No conversations yet'
+                              : 'No conversations found',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    // No need to manually refresh as we're using a stream
+                    return;
+                  },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredConversations.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final conversation = filteredConversations[index];
+                      return _ConversationCard(
+                        conversation: conversation,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                conversationId: conversation.id,
+                                otherUserName: conversation.otherParticipantName,
+                                productId: conversation.productId ?? '',
+                                otherParticipantId: conversation.otherParticipantId,
                               ),
                             ),
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadConversations,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _conversations.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 16),
-                          itemBuilder: (context, index) {
-                            final conversation = _conversations[index];
-                            return _ConversationCard(
-                              conversation: conversation,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ChatScreen(
-                                      conversationId: conversation.id,
-                                      otherUserName: conversation.otherParticipantName,
-                                      productId: conversation.productId ?? '',
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -155,34 +147,57 @@ class _ConversationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasUnread = conversation.unreadCount > 0;
+
     return Card(
+      elevation: hasUnread ? 2 : 1,
       child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatScreen(
-                conversationId: conversation.id,
-                otherUserName: conversation.otherParticipantName,
-                productId: conversation.productId ?? '',
-              ),
-            ),
-          );
-        },
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                child: Text(
-                  conversation.otherParticipantName[0].toUpperCase(),
-                  style: TextStyle(
-                    color: Theme.of(context).primaryColor,
-                    fontWeight: FontWeight.bold,
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: hasUnread 
+                        ? theme.colorScheme.primary.withOpacity(0.2)
+                        : theme.colorScheme.primary.withOpacity(0.1),
+                    child: Text(
+                      conversation.otherParticipantName[0].toUpperCase(),
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
+                  if (hasUnread)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.scaffoldBackgroundColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: Text(
+                          '${conversation.unreadCount}',
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -194,8 +209,8 @@ class _ConversationCard extends StatelessWidget {
                       children: [
                         Text(
                           conversation.otherParticipantName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                          style: TextStyle(
+                            fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
                         if (conversation.lastMessageTime != null)
@@ -203,45 +218,25 @@ class _ConversationCard extends StatelessWidget {
                             timeago.format(conversation.lastMessageTime!),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(context).textTheme.bodySmall?.color,
+                              color: hasUnread 
+                                  ? theme.colorScheme.primary
+                                  : theme.textTheme.bodySmall?.color,
+                              fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            conversation.lastMessage ?? 'No messages yet',
-                            style: TextStyle(
-                              color: Theme.of(context).textTheme.bodySmall?.color,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (conversation.unreadCount > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${conversation.unreadCount}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
+                    Text(
+                      conversation.lastMessage ?? 'No messages yet',
+                      style: TextStyle(
+                        color: hasUnread 
+                            ? theme.colorScheme.primary
+                            : theme.textTheme.bodySmall?.color,
+                        fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
