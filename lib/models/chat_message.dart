@@ -4,6 +4,8 @@ class ChatMessage {
   final String content;
   final String? imageUrl;
   final DateTime timestamp;
+  final bool? isEdited;
+  final DateTime? editedAt;
 
   ChatMessage({
     required this.id,
@@ -11,6 +13,8 @@ class ChatMessage {
     required this.content,
     this.imageUrl,
     required this.timestamp,
+    this.isEdited,
+    this.editedAt,
   });
 
   ChatMessage copyWith({
@@ -19,6 +23,8 @@ class ChatMessage {
     String? content,
     String? imageUrl,
     DateTime? timestamp,
+    bool? isEdited,
+    DateTime? editedAt,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -26,6 +32,8 @@ class ChatMessage {
       content: content ?? this.content,
       imageUrl: imageUrl ?? this.imageUrl,
       timestamp: timestamp ?? this.timestamp,
+      isEdited: isEdited ?? this.isEdited,
+      editedAt: editedAt ?? this.editedAt,
     );
   }
 
@@ -36,6 +44,8 @@ class ChatMessage {
       'content': content,
       'imageUrl': imageUrl,
       'timestamp': timestamp.toIso8601String(),
+      'isEdited': isEdited,
+      'editedAt': editedAt?.toIso8601String(),
     };
   }
 
@@ -46,11 +56,13 @@ class ChatMessage {
       content: map['content'] as String,
       imageUrl: map['imageUrl'] as String?,
       timestamp: DateTime.parse(map['timestamp'] as String),
+      isEdited: map['isEdited'] as bool?,
+      editedAt: map['editedAt'] != null ? DateTime.parse(map['editedAt'] as String) : null,
     );
   }
 
   @override
   String toString() {
-    return 'ChatMessage(id: $id, senderId: $senderId, content: $content, imageUrl: $imageUrl, timestamp: $timestamp)';
+    return 'ChatMessage(id: $id, senderId: $senderId, content: $content, imageUrl: $imageUrl, timestamp: $timestamp, isEdited: $isEdited, editedAt: $editedAt)';
   }
 } 

@@ -14,6 +14,7 @@ import '../../services/auth_service.dart';
 import '../../models/seller.dart';
 import '../../models/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../buyer/product_details_screen.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -259,45 +260,61 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                 ),
               ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: CachedNetworkImage(
-                      imageUrl: _product!.images.first,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProductDetailsScreen(
+                        product: _product!,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _product!.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        Text(
-                          _product!.description,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                        Text(
-                          'GHS ${_product!.price.toStringAsFixed(2)}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                  );
+                },
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: _product!.images.first,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _product!.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall,
                           ),
-                        ),
-                      ],
+                          Text(
+                            _product!.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                          Text(
+                            'GHS ${_product!.price.toStringAsFixed(2)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
               ),
             ),
           // Messages List
@@ -384,49 +401,169 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       ),
                                     const SizedBox(width: 8),
                                     Flexible(
-                                      child: Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: isMe
-                                              ? theme.colorScheme.primary
-                                              : theme.colorScheme.surface,
-                                          borderRadius: BorderRadius.circular(16),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(0.1),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: isMe
-                                              ? CrossAxisAlignment.end
-                                              : CrossAxisAlignment.start,
-                                          children: [
-                                            if (message.imageUrl != null)
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(8),
-                                                child: CachedNetworkImage(
-                                                  imageUrl: message.imageUrl!,
-                                                  width: 200,
-                                                  fit: BoxFit.cover,
-                                                  placeholder: (context, url) => const Center(
-                                                    child: CircularProgressIndicator(),
+                                      child: GestureDetector(
+                                        onLongPress: isMe ? () {
+                                          showModalBottomSheet(
+                                            context: context,
+                                            builder: (context) => Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 20),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  ListTile(
+                                                    leading: const Icon(Icons.edit),
+                                                    title: const Text('Edit Message'),
+                                                    onTap: () async {
+                                                      Navigator.pop(context);
+                                                      final controller = TextEditingController(text: message.content);
+                                                      final result = await showDialog<String>(
+                                                        context: context,
+                                                        builder: (context) => AlertDialog(
+                                                          title: const Text('Edit Message'),
+                                                          content: TextField(
+                                                            controller: controller,
+                                                            decoration: const InputDecoration(
+                                                              hintText: 'Enter new message',
+                                                            ),
+                                                            maxLines: null,
+                                                          ),
+                                                          actions: [
+                                                            TextButton(
+                                                              onPressed: () => Navigator.pop(context),
+                                                              child: const Text('Cancel'),
+                                                            ),
+                                                            TextButton(
+                                                              onPressed: () => Navigator.pop(context, controller.text),
+                                                              child: const Text('Save'),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                      if (result != null && result.trim().isNotEmpty) {
+                                                        try {
+                                                          await ref.read(chatServiceProvider).editMessage(
+                                                            conversationId: widget.conversationId,
+                                                            messageId: message.id,
+                                                            newContent: result.trim(),
+                                                          );
+                                                        } catch (e) {
+                                                          if (mounted) {
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(content: Text(e.toString())),
+                                                            );
+                                                          }
+                                                        }
+                                                      }
+                                                    },
                                                   ),
-                                                  errorWidget: (context, url, error) => const Icon(Icons.error),
-                                                ),
+                                                  ListTile(
+                                                    leading: const Icon(Icons.delete),
+                                                    title: const Text('Delete Message'),
+                                                    onTap: () async {
+                                                      Navigator.pop(context);
+                                                      final confirm = await showDialog<bool>(
+                                                        context: context,
+                                                        builder: (context) => AlertDialog(
+                                                          title: const Text('Delete Message'),
+                                                          content: const Text('Are you sure you want to delete this message?'),
+                                                          actions: [
+                                                            TextButton(
+                                                              onPressed: () => Navigator.pop(context, false),
+                                                              child: const Text('Cancel'),
+                                                            ),
+                                                            TextButton(
+                                                              onPressed: () => Navigator.pop(context, true),
+                                                              child: const Text('Delete'),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                      if (confirm == true) {
+                                                        try {
+                                                          await ref.read(chatServiceProvider).deleteMessage(
+                                                            conversationId: widget.conversationId,
+                                                            messageId: message.id,
+                                                          );
+                                                        } catch (e) {
+                                                          if (mounted) {
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(content: Text(e.toString())),
+                                                            );
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                  ),
+                                                ],
                                               ),
-                                            if (message.content.isNotEmpty)
-                                              Text(
-                                                message.content,
-                                                style: TextStyle(
-                                                  color: isMe
-                                                      ? theme.colorScheme.onPrimary
-                                                      : theme.colorScheme.onSurface,
-                                                ),
+                                            ),
+                                          );
+                                        } : null,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: isMe
+                                                ? theme.colorScheme.primary
+                                                : theme.colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(16),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
                                               ),
-                                          ],
+                                            ],
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: isMe
+                                                ? CrossAxisAlignment.end
+                                                : CrossAxisAlignment.start,
+                                            children: [
+                                              if (message.imageUrl != null)
+                                                ClipRRect(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  child: CachedNetworkImage(
+                                                    imageUrl: message.imageUrl!,
+                                                    width: 200,
+                                                    fit: BoxFit.cover,
+                                                    placeholder: (context, url) => const Center(
+                                                      child: CircularProgressIndicator(),
+                                                    ),
+                                                    errorWidget: (context, url, error) => const Icon(Icons.error),
+                                                  ),
+                                                ),
+                                              if (message.content.isNotEmpty)
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        message.content,
+                                                        style: TextStyle(
+                                                          color: isMe
+                                                              ? theme.colorScheme.onPrimary
+                                                              : theme.colorScheme.onSurface,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (message.isEdited ?? false)
+                                                      Padding(
+                                                        padding: const EdgeInsets.only(left: 4),
+                                                        child: Text(
+                                                          '(edited)',
+                                                          style: TextStyle(
+                                                            fontSize: 10,
+                                                            color: isMe
+                                                                ? theme.colorScheme.onPrimary.withOpacity(0.7)
+                                                                : theme.colorScheme.onSurface.withOpacity(0.7),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),

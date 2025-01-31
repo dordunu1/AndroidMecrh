@@ -243,4 +243,107 @@ class ChatService {
       return totalUnread;
     });
   }
+
+  Future<void> editMessage({
+    required String conversationId,
+    required String messageId,
+    required String newContent,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final messageRef = _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageId);
+
+      final message = await messageRef.get();
+      if (!message.exists) throw Exception('Message not found');
+
+      // Verify the message belongs to the current user
+      if (message.data()?['senderId'] != user.uid) {
+        throw Exception('Not authorized to edit this message');
+      }
+
+      await messageRef.update({
+        'content': newContent,
+        'isEdited': true,
+        'editedAt': DateTime.now().toIso8601String(),
+      });
+
+      // Update conversation's last message if this was the last message
+      final conversationRef = _firestore.collection('conversations').doc(conversationId);
+      final conversation = await conversationRef.get();
+      
+      if (conversation.data()?['lastMessage'] == message.data()?['content']) {
+        await conversationRef.update({
+          'lastMessage': newContent,
+        });
+      }
+    } catch (e) {
+      throw Exception('Failed to edit message: $e');
+    }
+  }
+
+  Future<void> deleteMessage({
+    required String conversationId,
+    required String messageId,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final messageRef = _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageId);
+
+      final message = await messageRef.get();
+      if (!message.exists) throw Exception('Message not found');
+
+      // Verify the message belongs to the current user
+      if (message.data()?['senderId'] != user.uid) {
+        throw Exception('Not authorized to delete this message');
+      }
+
+      // Start a batch write
+      final batch = _firestore.batch();
+      batch.delete(messageRef);
+
+      // If this was the last message, update the conversation
+      final conversationRef = _firestore.collection('conversations').doc(conversationId);
+      final conversation = await conversationRef.get();
+      
+      if (conversation.data()?['lastMessage'] == message.data()?['content']) {
+        // Get the previous message
+        final previousMessages = await conversationRef
+            .collection('messages')
+            .orderBy('timestamp', descending: true)
+            .limit(2)
+            .get();
+
+        String? newLastMessage;
+        DateTime? newLastMessageTime;
+
+        if (previousMessages.docs.length > 1) {
+          // If there was more than one message, get the second-to-last one
+          final previousMessage = previousMessages.docs[1].data();
+          newLastMessage = previousMessage['content'];
+          newLastMessageTime = DateTime.parse(previousMessage['timestamp']);
+        }
+
+        batch.update(conversationRef, {
+          'lastMessage': newLastMessage,
+          'lastMessageTime': newLastMessageTime?.toIso8601String(),
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to delete message: $e');
+    }
+  }
 } 
