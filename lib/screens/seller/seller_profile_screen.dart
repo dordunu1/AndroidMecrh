@@ -118,6 +118,10 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
       final status = await ref.read(sellerServiceProvider).getSellerStatus();
       final currentUser = await ref.read(authServiceProvider).getCurrentUser();
       
+      print('Loaded seller data:');
+      print('Average Rating: ${seller.averageRating}');
+      print('Review Count: ${seller.reviewCount}');
+      
       if (mounted) {
         setState(() {
           _seller = seller;
@@ -127,6 +131,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
         });
       }
     } catch (e) {
+      print('Error loading seller profile: $e');
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -301,7 +306,7 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
               children: [
                 _buildStatItem(
                   Icons.star,
-                  '${_seller?.averageRating ?? 0.0}',
+                  _seller?.averageRating != null ? _seller!.averageRating.toStringAsFixed(1) : '0.0',
                   'Rating',
                 ),
                 _buildStatItem(
@@ -331,26 +336,65 @@ class _SellerProfileScreenState extends ConsumerState<SellerProfileScreen> {
   }
 
   Widget _buildStatItem(IconData icon, String value, String label) {
+    final theme = Theme.of(context);
+    
+    if (label == 'Rating') {
+      final rating = double.tryParse(value) ?? 0.0;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(5, (index) {
+              final starValue = index + 1;
+              if (starValue <= rating) {
+                return Icon(Icons.star, size: 16, color: theme.colorScheme.onPrimary);
+              } else if (starValue - rating < 1 && starValue - rating > 0) {
+                return Icon(Icons.star_half, size: 16, color: theme.colorScheme.onPrimary);
+              } else {
+                return Icon(Icons.star_border, size: 16, color: theme.colorScheme.onPrimary);
+              }
+            }),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: theme.colorScheme.onPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            'Rating',
+            style: TextStyle(
+              color: theme.colorScheme.onPrimary.withOpacity(0.9),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           icon,
           size: 16,
-          color: Theme.of(context).colorScheme.onPrimary,
+          color: theme.colorScheme.onPrimary,
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: theme.colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
+            color: theme.colorScheme.onPrimary.withOpacity(0.9),
             fontSize: 12,
           ),
         ),

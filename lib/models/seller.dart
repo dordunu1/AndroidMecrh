@@ -98,7 +98,7 @@ class Seller {
       updatedAt: map['updatedAt'],
       balance: (map['balance'] ?? 0.0).toDouble(),
       paymentDetails: map['paymentDetails'],
-      averageRating: (map['averageRating'] ?? 0.0).toDouble(),
+      averageRating: (map['rating'] ?? 0.0).toDouble(),
       reviewCount: map['reviewCount'] ?? 0,
       deliveryFee: (map['deliveryFee'] ?? 0.0).toDouble(),
       shippingInfo: map['shippingInfo'],
