@@ -1,45 +1,51 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AppNotification {
+enum NotificationType {
+  orderUpdate,
+  message,
+  statusUpdate,
+  promotion,
+}
+
+class Notification {
   final String id;
   final String userId;
   final String title;
   final String message;
-  final String type;
-  final Map<String, dynamic>? data;
+  final NotificationType type;
+  final String? orderId;
+  final String? chatId;
   final bool isRead;
   final DateTime createdAt;
-  final String? image;
-  final String? action;
-  final Map<String, dynamic>? actionData;
+  final Map<String, dynamic>? data;
 
-  AppNotification({
+  Notification({
     required this.id,
     required this.userId,
     required this.title,
     required this.message,
     required this.type,
-    this.data,
+    this.orderId,
+    this.chatId,
     this.isRead = false,
     required this.createdAt,
-    this.image,
-    this.action,
-    this.actionData,
+    this.data,
   });
 
-  factory AppNotification.fromMap(Map<String, dynamic> map, String id) {
-    return AppNotification(
+  factory Notification.fromMap(Map<String, dynamic> map, String id) {
+    return Notification(
       id: id,
-      userId: map['userId'] ?? '',
-      title: map['title'] ?? '',
-      message: map['message'] ?? '',
-      type: map['type'] ?? '',
-      data: map['data'],
-      isRead: map['isRead'] ?? false,
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      image: map['image'],
-      action: map['action'],
-      actionData: map['actionData'],
+      userId: map['userId'] as String,
+      title: map['title'] as String,
+      message: map['message'] as String,
+      type: NotificationType.values.firstWhere(
+        (e) => e.toString() == 'NotificationType.${map['type']}',
+      ),
+      orderId: map['orderId'] as String?,
+      chatId: map['chatId'] as String?,
+      isRead: map['isRead'] as bool? ?? false,
+      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      data: map['data'] as Map<String, dynamic>?,
     );
   }
 
@@ -48,31 +54,38 @@ class AppNotification {
       'userId': userId,
       'title': title,
       'message': message,
-      'type': type,
-      'data': data,
+      'type': type.toString().split('.').last,
+      'orderId': orderId,
+      'chatId': chatId,
       'isRead': isRead,
       'createdAt': Timestamp.fromDate(createdAt),
-      'image': image,
-      'action': action,
-      'actionData': actionData,
+      'data': data,
     };
   }
 
-  AppNotification copyWith({
+  Notification copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? message,
+    NotificationType? type,
+    String? orderId,
+    String? chatId,
     bool? isRead,
+    DateTime? createdAt,
+    Map<String, dynamic>? data,
   }) {
-    return AppNotification(
-      id: id,
-      userId: userId,
-      title: title,
-      message: message,
-      type: type,
-      data: data,
+    return Notification(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      type: type ?? this.type,
+      orderId: orderId ?? this.orderId,
+      chatId: chatId ?? this.chatId,
       isRead: isRead ?? this.isRead,
-      createdAt: createdAt,
-      image: image,
-      action: action,
-      actionData: actionData,
+      createdAt: createdAt ?? this.createdAt,
+      data: data ?? this.data,
     );
   }
 
