@@ -26,13 +26,27 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSellersAndFees();
-    // Load cart from Firestore
-    ref.read(cartProvider.notifier).loadCart();
+    _initializeCart();
+  }
+
+  Future<void> _initializeCart() async {
+    setState(() => _isLoading = true);
+    try {
+      // First load cart from Firestore
+      await ref.read(cartProvider.notifier).loadCart();
+      
+      // Then load sellers and fees
+      await _loadSellersAndFees();
+    } catch (e) {
+      print('Error initializing cart: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _loadSellersAndFees() async {
-    setState(() => _isLoading = true);
     try {
       final cartItems = ref.read(cartProvider);
       
@@ -40,16 +54,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final sellerIds = cartItems.map((item) => item.product.sellerId).toSet();
       for (final sellerId in sellerIds) {
         final seller = await ref.read(sellerServiceProvider).getSellerProfileById(sellerId);
-        setState(() {
-          _sellers[sellerId] = seller;
-        });
+        if (mounted) {
+          setState(() {
+            _sellers[sellerId] = seller;
+          });
+        }
       }
 
       await _calculateShippingFees();
     } catch (e) {
       print('Error loading sellers: $e');
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
