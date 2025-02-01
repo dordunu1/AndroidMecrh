@@ -12,6 +12,7 @@ import '../../services/seller_service.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../routes.dart';
+import '../buyer/order_confirmation_screen.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -33,7 +34,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _isProcessing = false;
   List<CartItem> _items = [];
   String? _error;
-  String? _selectedPaymentMethod;
+  Map<String, String> _selectedPaymentMethods = {}; // Track payment method per seller
   Map<String, double> _deliveryFees = {};
   ShippingAddress? _selectedAddress;
 
@@ -77,7 +78,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             _countryController.text = user.defaultShippingAddress!.country;
             _phoneController.text = user.defaultShippingAddress!.phone ?? '';
           }
-          _selectedPaymentMethod = null;
+          _selectedPaymentMethods = {};
         });
       }
 
@@ -157,11 +158,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _placeOrder() async {
-    if (_selectedPaymentMethod == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a payment method')),
-      );
-      return;
+    // Check if all sellers have payment methods selected
+    final itemsBySeller = <String, List<CartItem>>{};
+    for (var item in _items) {
+      if (!itemsBySeller.containsKey(item.product.sellerId)) {
+        itemsBySeller[item.product.sellerId] = [];
+      }
+      itemsBySeller[item.product.sellerId]!.add(item);
+    }
+
+    // Verify all sellers have payment methods selected
+    for (var sellerId in itemsBySeller.keys) {
+      if (!_selectedPaymentMethods.containsKey(sellerId)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select payment methods for all sellers')),
+        );
+        return;
+      }
     }
 
     if (_buyerPaymentNameController.text.trim().isEmpty) {
@@ -264,11 +277,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         final seller = await ref.read(sellerServiceProvider).getSellerProfileById(sellerId);
         if (seller == null) throw Exception('Seller not found');
         
-        if (!seller.acceptedPaymentMethods.contains(_selectedPaymentMethod)) {
+        if (!seller.acceptedPaymentMethods.contains(_selectedPaymentMethods[sellerId])) {
           throw Exception('Selected payment method not accepted by seller');
         }
 
-        final paymentPhoneNumber = seller.paymentPhoneNumbers[_selectedPaymentMethod];
+        final paymentPhoneNumber = seller.paymentPhoneNumbers[_selectedPaymentMethods[sellerId]];
         if (paymentPhoneNumber == null) throw Exception('Seller payment details not found');
 
         // Calculate total for this seller's items
@@ -291,7 +304,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             'zipCode': _zipController.text,
             'phone': _phoneController.text,
           },
-          paymentMethod: _selectedPaymentMethod!,
+          paymentMethod: _selectedPaymentMethods[sellerId]!,
           buyerPaymentName: _buyerPaymentNameController.text.trim(),
           total: total,
           deliveryFee: deliveryFee,
@@ -302,27 +315,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       await ref.read(cartProvider.notifier).clearCart();
 
       if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('Order Placed Successfully'),
-            content: const Text(
-              'Your order has been placed successfully!\n\n'
-              'The seller will be notified and will process your order once they confirm your payment.'
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/home',
-                    (route) => false,
-                  );
-                },
-                child: const Text('OK'),
-              ),
-            ],
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const OrderConfirmationScreen(),
           ),
+          (route) => false,
         );
       }
     } catch (e) {
@@ -551,7 +549,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               Wrap(
                                 spacing: 8,
                                 children: seller.acceptedPaymentMethods.map((method) {
-                                  final isSelected = _selectedPaymentMethod == method;
+                                  final isSelected = _selectedPaymentMethods[sellerId] == method;
                                   return ChoiceChip(
                                     label: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -567,12 +565,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     ),
                                     selected: isSelected,
                                     onSelected: (selected) {
-                                      setState(() => _selectedPaymentMethod = selected ? method : null);
+                                      setState(() {
+                                        if (selected) {
+                                          _selectedPaymentMethods[sellerId] = method;
+                                        } else {
+                                          _selectedPaymentMethods.remove(sellerId);
+                                        }
+                                      });
                                     },
                                   );
                                 }).toList(),
                               ),
-                              if (_selectedPaymentMethod != null) ...[
+                              if (_selectedPaymentMethods[sellerId] != null) ...[
                                 const SizedBox(height: 16),
                                 Row(
                                   children: [
@@ -585,7 +589,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                             children: [
                                               Expanded(
                                                 child: SelectableText(
-                                                  seller.paymentPhoneNumbers[_selectedPaymentMethod]!,
+                                                  seller.paymentPhoneNumbers[_selectedPaymentMethods[sellerId]]!,
                                                   style: const TextStyle(
                                                     fontSize: 20,
                                                     fontWeight: FontWeight.bold,
@@ -595,7 +599,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                               IconButton(
                                                 onPressed: () {
                                                   Clipboard.setData(ClipboardData(
-                                                    text: seller.paymentPhoneNumbers[_selectedPaymentMethod]!,
+                                                    text: seller.paymentPhoneNumbers[_selectedPaymentMethods[sellerId]]!,
                                                   ));
                                                   ScaffoldMessenger.of(context).showSnackBar(
                                                     const SnackBar(
@@ -610,7 +614,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                             ],
                                           ),
                                           Text(
-                                            'Name: ${seller.paymentNames[_selectedPaymentMethod]}',
+                                            'Name: ${seller.paymentNames[_selectedPaymentMethods[sellerId]]}',
                                             style: const TextStyle(fontWeight: FontWeight.w500),
                                           ),
                                         ],
@@ -629,7 +633,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 const SizedBox(height: 16),
 
                 // Buyer Payment Name
-                if (_selectedPaymentMethod != null)
+                if (_selectedPaymentMethods.isNotEmpty)
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),

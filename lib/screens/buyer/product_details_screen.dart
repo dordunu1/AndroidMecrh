@@ -250,20 +250,99 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         ),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Added to cart'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Added to cart')),
+      );
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _buyNow() async {
+    if (!mounted) return;
+
+    try {
+      // Validate size selection if product has sizes
+      if (widget.product.sizes.isNotEmpty && (_selectedSize == null || _selectedSize!.isEmpty)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          const SnackBar(content: Text('Please select a size')),
         );
+        return;
       }
+
+      // Get the color-specific image URL by finding the image URL (key) that maps to the selected color (value)
+      String? colorImage;
+      String? finalColor = _selectedColor;
+
+      // If no color is selected but we're on an image, try to find its color
+      if ((finalColor == null || finalColor.isEmpty) && widget.product.images.isNotEmpty) {
+        final currentImage = widget.product.images[_currentImageIndex];
+        finalColor = widget.product.imageColors[currentImage];
+        if (finalColor != null && finalColor.isNotEmpty) {
+          colorImage = currentImage;
+        }
+      }
+
+      // If we have a color but no image, find the matching image
+      if (finalColor != null && finalColor.isNotEmpty) {
+        if (colorImage == null) {
+          final currentImage = widget.product.images[_currentImageIndex];
+          if ((widget.product.imageColors[currentImage] ?? '').toLowerCase() == finalColor.toLowerCase()) {
+            colorImage = currentImage;
+          } else {
+            final colorEntry = widget.product.imageColors.entries.firstWhere(
+              (entry) => (entry.value ?? '').toLowerCase() == (finalColor ?? '').toLowerCase(),
+              orElse: () => MapEntry(widget.product.images.first, ''),
+            );
+            colorImage = colorEntry.key;
+            // If we found a valid color entry, make sure color matches exactly
+            if (colorEntry.value.isNotEmpty) {
+              finalColor = colorEntry.value; // Use exact case from the product data
+            }
+          }
+        }
+      } else {
+        // If still no color, use the first available color and its image
+        final firstColorEntry = widget.product.imageColors.entries.firstWhere(
+          (entry) => entry.value.isNotEmpty,
+          orElse: () => MapEntry(widget.product.images.first, ''),
+        );
+        colorImage = firstColorEntry.key;
+        finalColor = firstColorEntry.value;
+      }
+
+      // Clear the cart first
+      ref.read(cartProvider.notifier).clearCart();
+
+      // Add the current item to cart
+      ref.read(cartProvider.notifier).addToCart(
+        CartItem(
+          product: widget.product,
+          quantity: _quantity,
+          selectedSize: _selectedSize,
+          selectedColor: finalColor,
+          selectedColorImage: colorImage,
+        ),
+      );
+
+      if (!mounted) return;
+      
+      // Navigate directly to checkout
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CheckoutScreen(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
     }
   }
 
@@ -1221,72 +1300,20 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                       child: Row(
                         children: [
                           Expanded(
-                            child: SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _addToCart,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: theme.colorScheme.primary,
-                                  elevation: 0,
-                                  side: BorderSide(color: theme.colorScheme.primary),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: Text(
-                                  _isLoading ? 'Adding...' : 'Add to Cart',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
+                            child: CustomButton(
+                              onPressed: _addToCart,
+                              text: 'Add to Cart',
+                              backgroundColor: Colors.white,
+                              textColor: Theme.of(context).primaryColor,
+                              outlined: true,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 16),
                           Expanded(
-                            child: SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  // Validate color selection if product has variants
-                                  if (widget.product.hasVariants && _selectedColor == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Please select a color')),
-                                    );
-                                    return;
-                                  }
-
-                                  // Validate size selection if product has sizes
-                                  if (widget.product.sizes.isNotEmpty && _selectedSize == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Please select a size')),
-                                    );
-                                    return;
-                                  }
-
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const CheckoutScreen(),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Buy Now',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
+                            child: CustomButton(
+                              onPressed: _buyNow,
+                              text: 'Buy Now',
+                              backgroundColor: Theme.of(context).primaryColor,
                             ),
                           ),
                         ],
