@@ -52,8 +52,8 @@ class MessagingService {
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     print('Received foreground message: ${message.notification?.title}');
-    // Handle the message display logic here
-    // You can use a simple dialog or custom overlay
+    // The notification will be handled automatically by Firebase Messaging
+    // with the settings from AndroidManifest.xml
   }
 
   void _handleMessage(RemoteMessage message) {
