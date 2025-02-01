@@ -29,12 +29,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _zipController = TextEditingController();
   final _countryController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _buyerPaymentNameController = TextEditingController();
+  Map<String, TextEditingController> _buyerPaymentNameControllers = {};
   bool _isLoading = true;
   bool _isProcessing = false;
   List<CartItem> _items = [];
   String? _error;
-  Map<String, String> _selectedPaymentMethods = {}; // Track payment method per seller
+  Map<String, String> _selectedPaymentMethods = {};
   Map<String, double> _deliveryFees = {};
   ShippingAddress? _selectedAddress;
 
@@ -52,7 +52,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     _zipController.dispose();
     _countryController.dispose();
     _phoneController.dispose();
-    _buyerPaymentNameController.dispose();
+    // Dispose all payment name controllers
+    for (var controller in _buyerPaymentNameControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -65,6 +68,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       final items = ref.read(cartProvider);
       final user = await ref.read(buyerServiceProvider).getCurrentUser();
+
+      // Initialize payment name controllers for each seller
+      final itemsBySeller = <String, List<CartItem>>{};
+      for (var item in items) {
+        if (!itemsBySeller.containsKey(item.product.sellerId)) {
+          itemsBySeller[item.product.sellerId] = [];
+          _buyerPaymentNameControllers[item.product.sellerId] = TextEditingController();
+        }
+        itemsBySeller[item.product.sellerId]!.add(item);
+      }
 
       if (mounted) {
         setState(() {
@@ -167,7 +180,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       itemsBySeller[item.product.sellerId]!.add(item);
     }
 
-    // Verify all sellers have payment methods selected
+    // Verify all sellers have payment methods and names selected
     for (var sellerId in itemsBySeller.keys) {
       if (!_selectedPaymentMethods.containsKey(sellerId)) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -175,13 +188,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
         return;
       }
-    }
-
-    if (_buyerPaymentNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the name used for payment')),
-      );
-      return;
+      
+      final paymentName = _buyerPaymentNameControllers[sellerId]?.text.trim();
+      if (paymentName == null || paymentName.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter payment names for all sellers')),
+        );
+        return;
+      }
     }
 
     // Check for complete shipping details
@@ -305,7 +319,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             'phone': _phoneController.text,
           },
           paymentMethod: _selectedPaymentMethods[sellerId]!,
-          buyerPaymentName: _buyerPaymentNameController.text.trim(),
+          buyerPaymentName: _buyerPaymentNameControllers[sellerId]!.text.trim(),
           total: total,
           deliveryFee: deliveryFee,
         );
@@ -617,6 +631,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                             'Name: ${seller.paymentNames[_selectedPaymentMethods[sellerId]]}',
                                             style: const TextStyle(fontWeight: FontWeight.w500),
                                           ),
+                                          const SizedBox(height: 16),
+                                          CustomTextField(
+                                            controller: _buyerPaymentNameControllers[sellerId]!,
+                                            label: 'Your Payment Name for ${_selectedPaymentMethods[sellerId] == 'mtn_momo' ? 'MTN MoMo' : 'Telecel Cash'}',
+                                            validator: (value) {
+                                              if (value == null || value.isEmpty) {
+                                                return 'Please enter your payment name';
+                                              }
+                                              return null;
+                                            },
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -631,37 +656,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   );
                 }).toList(),
                 const SizedBox(height: 16),
-
-                // Buyer Payment Name
-                if (_selectedPaymentMethods.isNotEmpty)
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Your Payment Details',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          CustomTextField(
-                            controller: _buyerPaymentNameController,
-                            label: 'Your Payment Name',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your payment name';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
 
                 const SizedBox(height: 24),
                 CustomButton(
