@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate P2P App Icon</title>
+</head>
+<body>
+    <canvas id="iconCanvas" width="1024" height="1024" style="border:1px solid #000;"></canvas>
+    <br>
+    <canvas id="foregroundCanvas" width="1024" height="1024" style="border:1px solid #000;"></canvas>
+    <script>
+        function drawIcon(canvas, isForeground) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            if (!isForeground) {
+                // Background gradient
+                const gradient = ctx.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#E91E63');  // Primary color
+                gradient.addColorStop(1, '#F06292');  // Secondary color
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+            }
+            
+            // Set text properties
+            ctx.fillStyle = isForeground ? '#E91E63' : 'white';
+            ctx.font = 'bold ${isForeground ? 600 : 500}px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Draw text
+            ctx.fillText('P2P', width/2, height/2);
+            
+            // Save as PNG
+            const link = document.createElement('a');
+            link.download = isForeground ? 'app_icon_foreground.png' : 'app_icon.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Generate both icons
+        const iconCanvas = document.getElementById('iconCanvas');
+        const foregroundCanvas = document.getElementById('foregroundCanvas');
+        drawIcon(iconCanvas, false);
+        drawIcon(foregroundCanvas, true);
+    </script>
+</body>
+</html> 

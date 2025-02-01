@@ -1,0 +1,232 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    function isSeller() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/sellers/$(request.auth.uid));
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isConversationParticipant(conversationId) {
+      let conversation = get(/databases/$(database)/documents/conversations/$(conversationId));
+      return isAuthenticated() && 
+        request.auth.uid in conversation.data.participants;
+    }
+
+    function isMessageSender(conversationId, messageId) {
+      let message = get(/databases/$(database)/documents/conversations/$(conversationId)/messages/$(messageId));
+      return isAuthenticated() && 
+        message.data.senderId == request.auth.uid;
+    }
+
+    // Review functions
+    function isValidRating(rating) {
+      return rating is float && rating >= 1.0 && rating <= 5.0;
+    }
+
+    function hasOrderedProduct(orderId, productId) {
+      let order = get(/databases/$(database)/documents/orders/$(orderId));
+      return order != null && 
+             order.data.buyerId == request.auth.uid &&
+             order.data.status == 'delivered';
+    }
+
+    function canReviewProduct(orderId, productId) {
+      let existingReviews = exists(/databases/$(database)/documents/reviews/$(orderId + '_' + request.auth.uid + '_' + productId));
+      return !existingReviews;
+    }
+
+    // Admins collection
+    match /admins/{adminId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      allow write: if isOwner(userId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      
+      // Notification settings
+      match /settings/notifications {
+        allow read: if isAuthenticated() && isOwner(userId);
+        allow write: if isAuthenticated() && isOwner(userId);
+      }
+
+      // FCM tokens
+      match /tokens/fcm {
+        allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+        allow write: if isAuthenticated() && isOwner(userId);
+      }
+    }
+
+    // Carts collection
+    match /carts/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && isOwner(userId);
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Products collection
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isSeller();
+      allow update: if (
+        (isSeller() && resource.data.sellerId == request.auth.uid) ||
+        isAdmin() ||
+        (isAuthenticated() && 
+         (request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['stockQuantity', 'colorQuantities', 'soldCount', 'rating', 'reviewCount']) ||
+          hasOrderedProduct(request.resource.data.orderId, productId)))
+      );
+      allow delete: if isSeller() && (
+        resource.data.sellerId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.buyerId ||
+        request.auth.uid == resource.data.sellerId ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.sellerId == request.auth.uid ||
+        resource.data.buyerId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // Sellers collection
+    match /sellers/{sellerId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && sellerId == request.auth.uid;
+      allow update: if (
+        (isAuthenticated() && sellerId == request.auth.uid) ||
+        isAdmin() ||
+        (isAuthenticated() && 
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['totalOrders', 'balance', 'rating', 'reviewCount', 'updatedAt']))
+      );
+    }
+
+    // Withdrawals collection
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAuthenticated() && (
+        resource.data.sellerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSeller() && 
+        request.resource.data.sellerId == request.auth.uid;
+      allow update: if isAdmin();
+    }
+
+    // Refunds collection
+    match /refunds/{refundId} {
+      allow read: if isAuthenticated() && (
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.sellerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.buyerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow update: if isAdmin();
+    }
+
+    // Reviews collection
+    match /reviews/{reviewId} {
+      allow read: if true;
+      
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid
+        && isValidRating(request.resource.data.rating)
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() > 0
+        && request.resource.data.comment.size() <= 1000
+        && hasOrderedProduct(request.resource.data.orderId, request.resource.data.productId)
+        && reviewId == request.resource.data.orderId + '_' + request.auth.uid + '_' + request.resource.data.productId;
+      
+      allow update: if isAuthenticated()
+        && request.auth.uid == resource.data.userId
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.productId == resource.data.productId
+        && request.resource.data.orderId == resource.data.orderId
+        && isValidRating(request.resource.data.rating)
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() > 0
+        && request.resource.data.comment.size() <= 1000;
+      
+      allow delete: if isAuthenticated()
+        && request.auth.uid == resource.data.userId;
+    }
+
+    // Conversations collection
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && 
+        request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && 
+        request.auth.uid in request.resource.data.participants;
+      allow update: if isAuthenticated() && 
+        request.auth.uid in resource.data.participants;
+      allow delete: if isAuthenticated() && 
+        request.auth.uid in resource.data.participants;
+
+      // Messages in conversations
+      match /messages/{messageId} {
+        allow read: if isConversationParticipant(conversationId);
+        allow create: if isConversationParticipant(conversationId) && 
+          request.resource.data.senderId == request.auth.uid;
+        allow update: if isMessageSender(conversationId, messageId);
+        allow delete: if isMessageSender(conversationId, messageId);
+      }
+    }
+
+    // Analytics collection
+    match /analytics/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Platform Settings collection
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Transaction History collection
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if isAdmin();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
