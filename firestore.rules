@@ -66,6 +66,12 @@ service cloud.firestore {
         allow read: if isAuthenticated() && isOwner(userId);
         allow write: if isAuthenticated() && isOwner(userId);
       }
+
+      // FCM tokens
+      match /tokens/fcm {
+        allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+        allow write: if isAuthenticated() && isOwner(userId);
+      }
     }
 
     // Carts collection
@@ -117,7 +123,7 @@ service cloud.firestore {
         isAdmin() ||
         (isAuthenticated() && 
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['totalOrders', 'balance', 'rating', 'reviewCount']))
+           .hasOnly(['totalOrders', 'balance', 'rating', 'reviewCount', 'updatedAt']))
       );
     }
 

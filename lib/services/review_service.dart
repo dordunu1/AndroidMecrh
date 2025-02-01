@@ -90,7 +90,7 @@ class ReviewService {
           throw Exception('Seller not found');
         }
         
-        final currentRating = (sellerDoc.data()?['averageRating'] as num?)?.toDouble() ?? 0.0;
+        final currentRating = (sellerDoc.data()?['rating'] as num?)?.toDouble() ?? 0.0;
         final currentReviewCount = (sellerDoc.data()?['reviewCount'] as num?)?.toInt() ?? 0;
         
         // Calculate new average rating
@@ -98,7 +98,7 @@ class ReviewService {
         
         // Update seller document with new rating and review count
         transaction.update(sellerRef, {
-          'averageRating': newAverageRating,
+          'rating': newAverageRating,
           'reviewCount': currentReviewCount + 1,
           'updatedAt': FieldValue.serverTimestamp(),
         });

@@ -95,7 +95,9 @@ class Seller {
       email: map['email'] ?? '',
       isVerified: map['isVerified'] ?? false,
       createdAt: map['createdAt'] ?? '',
-      updatedAt: map['updatedAt'],
+      updatedAt: map['updatedAt'] is Timestamp 
+          ? (map['updatedAt'] as Timestamp).toDate().toIso8601String()
+          : map['updatedAt'],
       balance: (map['balance'] ?? 0.0).toDouble(),
       paymentDetails: map['paymentDetails'],
       averageRating: (map['rating'] ?? 0.0).toDouble(),
