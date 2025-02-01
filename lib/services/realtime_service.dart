@@ -82,12 +82,9 @@ class RealtimeService {
         return {
           'statistics': {
             'totalSales': totalSales,
-            'balance': (sellerStats.data() as Map<String, dynamic>)?['balance']?.toDouble() ?? 0.0,
             'totalOrders': ordersList.length,
             'processingOrders': processingOrders,
             'totalProducts': products.docs.length,
-            'averageRating': averageRating,
-            'reviewCount': reviews.docs.length,
           },
           'recentOrders': ordersList.take(5).toList(),
         };

@@ -391,12 +391,9 @@ class SellerService {
       return {
         'statistics': {
           'totalSales': totalSales,
-          'balance': sellerDoc.data()?['balance'] ?? 0.0,
           'totalOrders': orders.length,
           'processingOrders': processingOrders,
           'totalProducts': productsSnapshot.count,
-          'averageRating': sellerDoc.data()?['averageRating'] ?? 0.0,
-          'reviewCount': sellerDoc.data()?['reviewCount'] ?? 0,
         },
         'recentOrders': orders.take(5).toList(),
       };

@@ -113,12 +113,6 @@ class _SellerDashboardScreenState extends ConsumerState<SellerDashboardScreen> {
                             icon: Icons.attach_money,
                           ),
                           StatsCard(
-                            title: 'Available Balance',
-                            value: 'GHS ${_dashboardData!['statistics']['balance'].toStringAsFixed(2)}',
-                            subtitle: 'Ready to withdraw',
-                            icon: Icons.account_balance_wallet,
-                          ),
-                          StatsCard(
                             title: 'Total Orders',
                             value: _dashboardData!['statistics']['totalOrders'].toString(),
                             subtitle: 'All time',
@@ -135,12 +129,6 @@ class _SellerDashboardScreenState extends ConsumerState<SellerDashboardScreen> {
                             value: _dashboardData!['statistics']['totalProducts'].toString(),
                             subtitle: 'Active listings',
                             icon: Icons.inventory_2,
-                          ),
-                          StatsCard(
-                            title: 'Average Rating',
-                            value: _dashboardData!['statistics']['averageRating'].toStringAsFixed(1),
-                            subtitle: '${_dashboardData!['statistics']['reviewCount']} reviews',
-                            icon: Icons.star,
                           ),
                         ],
                       ),
