@@ -15,6 +15,8 @@ import '../../models/seller.dart';
 import '../../models/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../buyer/product_details_screen.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -190,28 +192,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _sendImage() async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery);
-    if (image == null) return;
+    final pickedImage = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024, // Limit image size
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+    
+    if (pickedImage == null) return;
 
     setState(() => _isSending = true);
 
     try {
-      // Upload image
-      final urls = await ref.read(storageServiceProvider).uploadFiles(
-        [File(image.path)],
-        'chats/images',
-      );
+      String imageUrl;
+      
+      if (kIsWeb) {
+        // Web platform - use bytes
+        final imageBytes = await pickedImage.readAsBytes();
+        imageUrl = await ref.read(storageServiceProvider).uploadFile(
+          imageBytes,
+          'chats/images',
+        );
+      } else {
+        // Mobile platform - use File
+        final urls = await ref.read(storageServiceProvider).uploadFiles(
+          [File(pickedImage.path)],
+          'chats/images',
+        );
+        imageUrl = urls.first;
+      }
 
       // Send message with image
       await ref.read(chatServiceProvider).sendMessage(
         conversationId: widget.conversationId,
         content: '',
-        imageUrl: urls.first,
+        imageUrl: imageUrl,
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text('Failed to send image: ${e.toString()}')),
         );
       }
     } finally {

@@ -8,6 +8,8 @@ import '../../services/storage_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../models/shipping_address.dart';
 import '../../widgets/common/cached_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -40,6 +42,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _countryController = TextEditingController();
   final _zipController = TextEditingController();
   final _shippingPhoneController = TextEditingController();
+
+  XFile? _pickedFile;
+  Uint8List? _webImage;
 
   @override
   void initState() {
@@ -100,7 +105,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _zipController.text != _user?.defaultShippingAddress?.zipCode ||
       _shippingPhoneController.text != _user?.defaultShippingAddress?.phone;
 
-    final hasFileChanges = _photoFile != null;
+    final hasFileChanges = _pickedFile != null || _photoFile != null;
 
     setState(() {
       _hasChanges = hasTextChanges || hasFileChanges;
@@ -161,8 +166,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       
       if (pickedFile != null) {
         setState(() {
-          _photoFile = File(pickedFile.path);
-          _hasChanges = true;
+          _pickedFile = pickedFile;
+          if (kIsWeb) {
+            pickedFile.readAsBytes().then((value) {
+              setState(() {
+                _webImage = value;
+                _hasChanges = true;
+              });
+            });
+          } else {
+            _photoFile = File(pickedFile.path);
+            _hasChanges = true;
+          }
         });
       }
     } catch (e) {
@@ -181,12 +196,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       String? photoUrl = _user?.photoUrl;
       
       // Upload new photo if selected
-      if (_photoFile != null) {
-        final urls = await ref.read(storageServiceProvider).uploadFiles(
-          [_photoFile!],
-          'users/photos',
-        );
-        photoUrl = urls.first;
+      if (_pickedFile != null) {
+        if (kIsWeb && _webImage != null) {
+          // Web upload - pass the bytes directly
+          photoUrl = await ref.read(storageServiceProvider).uploadFile(
+            _webImage!,
+            'users/photos',
+          );
+        } else if (!kIsWeb && _photoFile != null) {
+          // Mobile upload
+          final urls = await ref.read(storageServiceProvider).uploadFiles(
+            [_photoFile!],
+            'users/photos',
+          );
+          photoUrl = urls.first;
+        }
       }
 
       // Create shipping address
@@ -225,10 +249,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      setState(() => _error = e.toString());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating profile: $e')),
-      );
+      if (mounted) {
+        setState(() => _error = e.toString());
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating profile: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -242,46 +268,50 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         CircleAvatar(
           radius: 50,
           backgroundColor: Colors.grey[200],
-          child: _photoFile != null
+          child: _pickedFile != null
               ? ClipOval(
-                  child: Image.file(
-                    _photoFile!,
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                  ),
-                )
-              : _user?.photoUrl != null
-                  ? ClipOval(
-                      child: CachedImage(
-                        imageUrl: _user!.photoUrl!,
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                        placeholder: Container(
+                  child: kIsWeb
+                      ? _webImage != null
+                          ? Image.memory(
+                              _webImage!,
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            )
+                          : const CircularProgressIndicator()
+                      : Image.file(
+                          _photoFile!,
                           width: 100,
                           height: 100,
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          ),
+                          fit: BoxFit.cover,
                         ),
-                      ),
+                )
+              : _existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty
+                  ? CachedImage(
+                      imageUrl: _existingPhotoUrl!,
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      placeholder: const Icon(Icons.person, size: 50),
                     )
                   : const Icon(Icons.person, size: 50),
         ),
         Positioned(
           bottom: 0,
           right: 0,
-          child: CircleAvatar(
-            radius: 18,
-            backgroundColor: Theme.of(context).colorScheme.primary,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              shape: BoxShape.circle,
+            ),
             child: IconButton(
-              icon: const Icon(Icons.camera_alt, size: 18),
-              color: Colors.white,
+              icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
               onPressed: _pickPhoto,
+              constraints: const BoxConstraints(
+                minWidth: 36,
+                minHeight: 36,
+              ),
+              padding: const EdgeInsets.all(8),
             ),
           ),
         ),

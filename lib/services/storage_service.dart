@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 
 final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
@@ -25,17 +27,30 @@ class StorageService {
     }
   }
 
-  Future<String> uploadFile(File file, String folder) async {
+  Future<String> uploadFile(dynamic file, String path) async {
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}${p.extension(file.path)}';
-      final ref = _storage.ref().child('$folder/$fileName');
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}';
+      final ref = _storage.ref().child('$path/$fileName');
+      late UploadTask uploadTask;
       
-      final uploadTask = await ref.putFile(file);
-      if (uploadTask.state == TaskState.success) {
-        return await ref.getDownloadURL();
+      if (kIsWeb) {
+        if (file is! Uint8List) {
+          throw Exception('Web upload requires Uint8List data');
+        }
+        final metadata = SettableMetadata(
+          contentType: 'image/jpeg',
+          customMetadata: {'uploaded-from': 'web'},
+        );
+        uploadTask = ref.putData(file, metadata);
+      } else {
+        if (file is! File) {
+          throw Exception('Mobile upload requires File data');
+        }
+        uploadTask = ref.putFile(file);
       }
-      
-      throw Exception('Failed to upload file');
+
+      await uploadTask;
+      return await ref.getDownloadURL();
     } catch (e) {
       throw Exception('Failed to upload file: $e');
     }
