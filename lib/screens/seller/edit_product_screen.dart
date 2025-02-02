@@ -470,6 +470,55 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     });
   }
 
+  String? _validateToggleFields() {
+    // Validate discount fields
+    if (_hasDiscount) {
+      if (_discountPercentController.text.isEmpty) {
+        return 'Please enter a discount percentage';
+      }
+      if (_discountEndsAtController.text.isEmpty) {
+        return 'Please enter a discount end date';
+      }
+      final discountPercent = double.tryParse(_discountPercentController.text);
+      if (discountPercent == null || discountPercent <= 0 || discountPercent >= 100) {
+        return 'Discount percentage must be between 0 and 100';
+      }
+    }
+
+    // Validate variant fields
+    if (_hasVariants) {
+      if (_selectedColors.isEmpty) {
+        return 'Please select at least one color variant';
+      }
+      if (_colorQuantities.isEmpty) {
+        return 'Please set quantities for color variants';
+      }
+      // Check if any color quantity is empty or 0
+      for (var color in _selectedColors) {
+        final quantity = _colorQuantities[color];
+        if (quantity == null || quantity <= 0) {
+          return 'Please set valid quantities for all color variants';
+        }
+      }
+      // Check if all colors have associated images
+      for (var color in _selectedColors) {
+        if (!_imageColors.containsValue(color)) {
+          return 'Please assign images to all color variants';
+        }
+      }
+    }
+
+    // Validate size fields if sizes are selected
+    if (_selectedSizes.isNotEmpty && _hasVariants) {
+      // Add any specific size validation if needed
+      if (_selectedSizes.isEmpty) {
+        return 'Please select at least one size';
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -483,6 +532,15 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     if (_selectedSubCategory.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a subcategory')),
+      );
+      return;
+    }
+
+    // Validate toggle fields
+    final toggleError = _validateToggleFields();
+    if (toggleError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(toggleError), backgroundColor: Colors.red),
       );
       return;
     }
@@ -833,6 +891,29 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
       ),
       body: Form(
         key: _formKey,
+        onWillPop: () async {
+          if (_hasChanges) {
+            final result = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Discard Changes?'),
+                content: const Text('You have unsaved changes. Are you sure you want to discard them?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('CANCEL'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('DISCARD'),
+                  ),
+                ],
+              ),
+            );
+            return result ?? false;
+          }
+          return true;
+        },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
