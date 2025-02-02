@@ -177,6 +177,7 @@ class _MerchAppState extends ConsumerState<MerchApp> {
       themeMode: ThemeMode.light,
       initialRoute: Routes.splash,
       routes: Routes.getRoutes(),
+      onGenerateRoute: Routes.generateRoute,
     );
   }
 } 

@@ -573,26 +573,62 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 12),
                                     Row(
                                       children: [
-                                        Icon(
-                                          Icons.store,
-                                          size: 16,
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _seller?.storeName ?? 'Loading...',
-                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.primary.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Icon(
+                                            Icons.store,
+                                            size: 24,
                                             color: theme.colorScheme.primary,
                                           ),
                                         ),
-                                        const SizedBox(width: 16),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () => Navigator.pushNamed(
+                                              context,
+                                              '/store',
+                                              arguments: {'sellerId': widget.product.sellerId},
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _seller?.storeName ?? 'Loading...',
+                                                  style: theme.textTheme.titleMedium?.copyWith(
+                                                    color: theme.colorScheme.primary,
+                                                    fontWeight: FontWeight.w600,
+                                                    decoration: TextDecoration.underline,
+                                                  ),
+                                                ),
+                                                if (_seller?.city != null || _seller?.country != null)
+                                                  Text(
+                                                    [
+                                                      if (_seller?.city != null) _seller!.city,
+                                                      if (_seller?.country != null) _seller!.country,
+                                                    ].where((e) => e != null).join(', '),
+                                                    style: theme.textTheme.bodySmall?.copyWith(
+                                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
                                         TextButton.icon(
                                           onPressed: _contactStore,
-                                          icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                                          label: const Text('Contact Store'),
+                                          icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                                          label: const Text('Chat'),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: theme.colorScheme.primary,
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          ),
                                         ),
                                       ],
                                     ),

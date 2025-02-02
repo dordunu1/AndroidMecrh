@@ -38,6 +38,7 @@ class Seller {
   final String? whatsappNumber;
   final String? instagramHandle;
   final String? tiktokHandle;
+  final int totalSoldProducts;
 
   Seller({
     required this.id,
@@ -77,6 +78,7 @@ class Seller {
     this.whatsappNumber,
     this.instagramHandle,
     this.tiktokHandle,
+    this.totalSoldProducts = 0,
   });
 
   factory Seller.fromMap(Map<String, dynamic> map, String id) {
@@ -120,6 +122,7 @@ class Seller {
       whatsappNumber: map['whatsappNumber'],
       instagramHandle: map['instagramHandle'],
       tiktokHandle: map['tiktokHandle'],
+      totalSoldProducts: map['totalSoldProducts'] ?? 0,
     );
   }
 
@@ -161,6 +164,7 @@ class Seller {
       'whatsappNumber': whatsappNumber,
       'instagramHandle': instagramHandle,
       'tiktokHandle': tiktokHandle,
+      'totalSoldProducts': totalSoldProducts,
     };
   }
 
@@ -202,6 +206,7 @@ class Seller {
     String? whatsappNumber,
     String? instagramHandle,
     String? tiktokHandle,
+    int? totalSoldProducts,
   }) {
     return Seller(
       id: id ?? this.id,
@@ -241,6 +246,7 @@ class Seller {
       whatsappNumber: whatsappNumber ?? this.whatsappNumber,
       instagramHandle: instagramHandle ?? this.instagramHandle,
       tiktokHandle: tiktokHandle ?? this.tiktokHandle,
+      totalSoldProducts: totalSoldProducts ?? this.totalSoldProducts,
     );
   }
 } 

@@ -32,6 +32,7 @@ class Product {
   final String? sellerCountry;
   final Map<String, int>? variantQuantities;
   final double deliveryFee;
+  final double? discountPrice;
 
   Product({
     required this.id,
@@ -65,6 +66,7 @@ class Product {
     this.sellerCountry,
     this.variantQuantities,
     this.deliveryFee = 0.0,
+    this.discountPrice,
   });
 
   String? get imageUrl => images.isNotEmpty ? images.first : null;
@@ -123,6 +125,7 @@ class Product {
           ? Map<String, int>.from(map['variantQuantities'])
           : null,
       deliveryFee: (map['deliveryFee'] ?? 0.0).toDouble(),
+      discountPrice: map['discountPrice']?.toDouble(),
     );
   }
 
@@ -158,6 +161,7 @@ class Product {
       'sellerCountry': sellerCountry,
       'variantQuantities': variantQuantities,
       'deliveryFee': deliveryFee,
+      'discountPrice': discountPrice,
     };
   }
 
@@ -193,6 +197,7 @@ class Product {
     String? sellerCountry,
     Map<String, int>? variantQuantities,
     double? deliveryFee,
+    double? discountPrice,
   }) {
     return Product(
       id: id ?? this.id,
@@ -226,6 +231,7 @@ class Product {
       sellerCountry: sellerCountry ?? this.sellerCountry,
       variantQuantities: variantQuantities ?? this.variantQuantities,
       deliveryFee: deliveryFee ?? this.deliveryFee,
+      discountPrice: discountPrice ?? this.discountPrice,
     );
   }
 } 

@@ -144,4 +144,21 @@ class ProductService {
         .snapshots()
         .map((doc) => Product.fromMap(doc.data()!, doc.id));
   }
+
+  Future<List<Product>> getSellerProducts(String sellerId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('products')
+          .where('sellerId', isEqualTo: sellerId)
+          .where('isActive', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => Product.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch seller products: $e');
+    }
+  }
 } 

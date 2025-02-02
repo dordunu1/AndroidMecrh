@@ -13,6 +13,8 @@ import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/notifications_settings_screen.dart';
 import 'screens/profile/privacy_policy_screen.dart';
 import 'screens/profile/terms_conditions_screen.dart';
+import 'screens/store/store_profile_screen.dart';
+import 'screens/buyer/product_details_screen.dart';
 
 class Routes {
   static const String splash = '/';
@@ -29,6 +31,8 @@ class Routes {
   static const String notificationsSettings = '/notifications-settings';
   static const String privacyPolicy = '/privacy-policy';
   static const String termsConditions = '/terms-conditions';
+  static const String storeProfile = '/store';
+  static const String productDetails = '/product-details';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -47,5 +51,32 @@ class Routes {
       privacyPolicy: (context) => const PrivacyPolicyScreen(),
       termsConditions: (context) => const TermsConditionsScreen(),
     };
+  }
+
+  static Route<dynamic> generateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case storeProfile:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => StoreProfileScreen(
+            sellerId: args['sellerId'] as String,
+          ),
+        );
+      case productDetails:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => ProductDetailsScreen(
+            product: args['product'],
+          ),
+        );
+      default:
+        return MaterialPageRoute(
+          builder: (_) => Scaffold(
+            body: Center(
+              child: Text('No route defined for ${settings.name}'),
+            ),
+          ),
+        );
+    }
   }
 } 

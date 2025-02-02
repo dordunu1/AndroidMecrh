@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+enum CustomButtonStyle {
+  filled,
+  outlined,
+  text
+}
+
 class CustomButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final String? text;
@@ -11,6 +17,10 @@ class CustomButton extends StatelessWidget {
   final double borderRadius;
   final EdgeInsetsGeometry? padding;
   final bool outlined;
+  final bool isLoading;
+  final CustomButtonStyle style;
+  final Color? color;
+  final IconData? icon;
 
   const CustomButton({
     super.key,
@@ -24,12 +34,37 @@ class CustomButton extends StatelessWidget {
     this.borderRadius = 8,
     this.padding,
     this.outlined = false,
+    this.isLoading = false,
+    this.style = CustomButtonStyle.filled,
+    this.color,
+    this.icon,
   }) : assert(text != null || child != null, 'Either text or child must be provided');
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primaryColor = theme.primaryColor;
+    final buttonColor = color ?? theme.colorScheme.primary;
+
+    Widget child = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 20),
+          const SizedBox(width: 8),
+        ],
+        if (text != null) ...[
+          Text(
+            text!,
+            style: TextStyle(
+              color: textColor ?? Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ],
+    );
 
     return SizedBox(
       width: width,
@@ -37,7 +72,7 @@ class CustomButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? primaryColor,
+          backgroundColor: backgroundColor ?? buttonColor,
           foregroundColor: textColor ?? Colors.white,
           padding: padding ?? const EdgeInsets.symmetric(horizontal: 16),
           shape: RoundedRectangleBorder(
@@ -46,16 +81,7 @@ class CustomButton extends StatelessWidget {
           ),
           elevation: 0,
         ),
-        child: text != null
-            ? Text(
-                text!,
-                style: TextStyle(
-                  color: textColor ?? Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              )
-            : child!,
+        child: child,
       ),
     );
   }
