@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:ui';  // Add this import for ImageFilter
 import '../../models/seller.dart';
 import '../../models/product.dart';
 import '../../services/seller_service.dart';
@@ -554,13 +555,134 @@ class _StoreProfileScreenState extends ConsumerState<StoreProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Hot Deals Section
+        if (_products.any((p) => p.hasDiscount && p.discountPercent > 0)) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Text(
+              'Hot Deals 🔥',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 200,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              itemCount: _products.where((p) => p.hasDiscount && p.discountPercent > 0).length,
+              itemBuilder: (context, index) {
+                final product = _products.where((p) => p.hasDiscount && p.discountPercent > 0).toList()[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: GestureDetector(
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/product-details',
+                      arguments: {'product': product},
+                    ),
+                    child: Container(
+                      width: 160,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                                child: CachedImage(
+                                  imageUrl: product.images.first,
+                                  height: 120,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'GHS ${product.price}',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              decoration: TextDecoration.lineThrough,
+                                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.primary,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            '-${product.discountPercent.toInt()}%',
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+        
+        // All Products Section
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Products',
+                'All Products',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -593,19 +715,102 @@ class _StoreProfileScreenState extends ConsumerState<StoreProfileScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final crossAxisCount = (constraints.maxWidth / 180).floor();
+                final spacing = 12.0;
+                final availableWidth = constraints.maxWidth - (spacing * (crossAxisCount - 1));
+                final itemWidth = availableWidth / crossAxisCount;
+                
                 return GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: crossAxisCount,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
+                    childAspectRatio: itemWidth / (itemWidth * 1.4),
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
                   ),
                   itemCount: _products.length,
+                  padding: EdgeInsets.zero,
                   itemBuilder: (context, index) {
                     final product = _products[index];
-                    return ProductCard(product: product);
+                    return GestureDetector(
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        '/product-details',
+                        arguments: {'product': product},
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: product.hasDiscount && product.discountPercent > 0
+                              ? Border.all(color: theme.colorScheme.primary)
+                              : null,
+                        ),
+                        child: Card(
+                          clipBehavior: Clip.antiAlias,
+                          margin: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AspectRatio(
+                                aspectRatio: 1,
+                                child: CachedImage(
+                                  imageUrl: product.images.first,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        if (product.hasDiscount && product.discountPrice != null) ...[
+                                          Text(
+                                            'GHS ${product.discountPrice!.toStringAsFixed(2)}',
+                                            style: theme.textTheme.titleMedium?.copyWith(
+                                              color: theme.colorScheme.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'GHS ${product.price.toStringAsFixed(2)}',
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              decoration: TextDecoration.lineThrough,
+                                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                            ),
+                                          ),
+                                        ] else
+                                          Text(
+                                            'GHS ${product.price.toStringAsFixed(2)}',
+                                            style: theme.textTheme.titleMedium?.copyWith(
+                                              color: theme.colorScheme.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
                   },
                 );
               },

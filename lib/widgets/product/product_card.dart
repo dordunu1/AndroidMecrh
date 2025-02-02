@@ -6,11 +6,15 @@ import '../../routes.dart';
 class ProductCard extends StatelessWidget {
   final Product product;
   final bool showSellerInfo;
+  final int? nameMaxLines;
+  final TextStyle? nameStyle;
 
   const ProductCard({
     super.key,
     required this.product,
     this.showSellerInfo = true,
+    this.nameMaxLines,
+    this.nameStyle,
   });
 
   @override
@@ -48,9 +52,9 @@ class ProductCard extends StatelessWidget {
                     children: [
                       Text(
                         product.name,
-                        maxLines: 2,
+                        maxLines: nameMaxLines ?? 2,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall,
+                        style: nameStyle ?? theme.textTheme.titleSmall,
                       ),
                       const SizedBox(height: 4),
                       if (showSellerInfo) ...[
