@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
@@ -188,16 +189,30 @@ class AuthService {
 
   Future<UserCredential> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) throw Exception('Google Sign-In cancelled');
+      UserCredential userCredential;
+      if (kIsWeb) {
+        // Web-specific Google Sign-in
+        GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.setCustomParameters({
+          'prompt': 'select_account'
+        });
+        userCredential = await _auth.signInWithPopup(googleProvider);
+      } else {
+        // Mobile Google Sign-in
+        final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+        if (googleUser == null) throw Exception('Google Sign-In cancelled');
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
 
-      final userCredential = await _auth.signInWithCredential(credential);
+        userCredential = await _auth.signInWithCredential(credential);
+      }
+
+      // Check if user exists in Firestore and create/update profile
       final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
       
       if (!userDoc.exists) {
@@ -215,6 +230,7 @@ class AuthService {
           'preferences': {},
         });
       } else {
+        // Update last login timestamp
         await _firestore.collection('users').doc(userCredential.user!.uid).update({
           'lastLoginAt': FieldValue.serverTimestamp(),
         });

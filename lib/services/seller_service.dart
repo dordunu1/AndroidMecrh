@@ -773,4 +773,66 @@ class SellerService {
       }
     });
   }
+
+  Future<void> processRefund({
+    required String refundId,
+    required bool approved,
+    String? message,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('User not authenticated');
+
+      final refundDoc = await _firestore.collection('refunds').doc(refundId).get();
+      if (!refundDoc.exists) throw Exception('Refund not found');
+
+      final refund = Refund.fromMap(refundDoc.data()!, refundDoc.id);
+      
+      // Verify seller owns this refund
+      if (refund.sellerId != user.uid) {
+        throw Exception('Not authorized to process this refund');
+      }
+
+      final orderDoc = await _firestore.collection('orders').doc(refund.orderId).get();
+      if (!orderDoc.exists) throw Exception('Order not found');
+
+      final batch = _firestore.batch();
+
+      // Update refund status
+      batch.update(_firestore.collection('refunds').doc(refundId), {
+        'status': approved ? 'approved' : 'rejected',
+        'resolvedAt': DateTime.now().toIso8601String(),
+        if (message != null) 'sellerNote': message,
+      });
+
+      // If approved:
+      // 1. Update seller balance
+      // 2. Update seller total sales
+      // 3. Update order status
+      if (approved) {
+        // Update seller balance and stats
+        batch.update(_firestore.collection('sellers').doc(user.uid), {
+          'balance': FieldValue.increment(-refund.amount),
+          'totalSales': FieldValue.increment(-refund.amount),
+          'totalOrders': FieldValue.increment(-1),
+        });
+
+        // Update order status to refunded
+        batch.update(_firestore.collection('orders').doc(refund.orderId), {
+          'status': 'refunded',
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+      } else {
+        // If rejected, update order status back to previous state
+        batch.update(_firestore.collection('orders').doc(refund.orderId), {
+          'status': 'cancelled',
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to process refund: $e');
+    }
+  }
 } 

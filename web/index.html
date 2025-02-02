@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Your one-stop merch store for all your needs">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Merch Store">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  
+  <!-- Splash screen for iOS -->
+  <link rel="apple-touch-startup-image" href="splash/splash.png">
+
+  <!-- PWA meta tags -->
+  <meta name="theme-color" content="#E91E63">
+  <link rel="manifest" href="manifest.json">
+
+  <title>Merch Store</title>
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <style>
+    body {
+      background-color: #E91E63;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: white;
+    }
+
+    .loading-logo {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 20px;
+      animation: pulse 2s infinite;
+    }
+
+    .loading-text {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 4px solid white;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <script src="flutter.js" defer></script>
+</head>
+<body>
+  <div class="loading-container" id="loading">
+    <img class="loading-logo" src="icons/Icon-192.png" alt="Merch Store Logo"/>
+    <div class="loading-text">Merch Store</div>
+    <div class="loading-spinner"></div>
+  </div>
+
+  <script>
+    window.addEventListener('load', function() {
+      var loading = document.querySelector('#loading');
+      
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: '{{flutter_service_worker_version}}',
+        },
+        onEntrypointLoaded: function(engineInitializer) {
+          loading.classList.add('main_done');
+          engineInitializer.initializeEngine().then(function(appRunner) {
+            loading.classList.add('init_done');
+            return appRunner.runApp();
+          }).then(function(app) {
+            // Wait a few milliseconds so users can see the "zoooom" animation
+            // before getting rid of the "loading" div.
+            window.setTimeout(function() {
+              loading.remove();
+            }, 200);
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html> 

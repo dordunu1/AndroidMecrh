@@ -22,25 +22,62 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
-  // Configure FCM for background messages
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  if (kIsWeb) {
+    // Web-specific Firebase initialization
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyDPxnrmBdz3z9QsiNEhbQ1zitXVBVLApYQ",
+        authDomain: "androind-merch.firebaseapp.com",
+        projectId: "androind-merch",
+        storageBucket: "androind-merch.firebasestorage.app",
+        messagingSenderId: "984904295859",
+        appId: "1:984904295859:web:dc1736ac3a7b520ed157c6",
+        measurementId: "G-F6M0GV6HQL",
+      ),
+    );
 
-  // Request notification permissions
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-    provisional: false,
-  );
+    // Web-specific notification handling
+    try {
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
-  // Handle foreground messages
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print("Received foreground message: ${message.notification?.title}");
-  });
+      // Configure FCM for background messages
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+      // Handle foreground messages
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        print("Received foreground message: ${message.notification?.title}");
+      });
+    } catch (e) {
+      print('Error setting up web notifications: $e');
+    }
+  } else {
+    // Mobile Firebase initialization - uses google-services.json automatically
+    await Firebase.initializeApp();
+    
+    // Mobile-specific notification setup
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+
+    // Configure FCM for background messages
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // Handle foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("Received foreground message: ${message.notification?.title}");
+    });
+  }
 
   await dotenv.load(fileName: ".env");
   

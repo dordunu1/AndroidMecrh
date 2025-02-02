@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "https://androind-merch.web.app",
+      "https://androind-merch.firebaseapp.com",
+      "http://localhost:3000",
+      "http://localhost:5000"
+    ],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "x-goog-resumable"]
+  }
+] 
