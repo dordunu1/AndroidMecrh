@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/seller.dart';
@@ -22,9 +24,11 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
   bool _isLoading = true;
   String? _error;
   Seller? _seller;
-  File? _logoFile;
-  File? _bannerFile;
+  dynamic _logoFile; // Changed to dynamic to support both File and XFile
+  dynamic _bannerFile; // Changed to dynamic to support both File and XFile
   bool _hasChanges = false;
+  Uint8List? _webLogoBytes;
+  Uint8List? _webBannerBytes;
   
   // Controllers
   final _storeNameController = TextEditingController();
@@ -186,12 +190,27 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
   Future<void> _pickLogo() async {
     try {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
       
       if (pickedFile != null) {
         setState(() {
-          _logoFile = File(pickedFile.path);
-          _hasChanges = true;
+          if (kIsWeb) {
+            _logoFile = pickedFile;
+            pickedFile.readAsBytes().then((bytes) {
+              setState(() {
+                _webLogoBytes = bytes;
+                _hasChanges = true;
+              });
+            });
+          } else {
+            _logoFile = File(pickedFile.path);
+            _hasChanges = true;
+          }
         });
       }
     } catch (e) {
@@ -213,8 +232,18 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
       
       if (pickedFile != null) {
         setState(() {
-          _bannerFile = File(pickedFile.path);
-          _hasChanges = true;
+          if (kIsWeb) {
+            _bannerFile = pickedFile;
+            pickedFile.readAsBytes().then((bytes) {
+              setState(() {
+                _webBannerBytes = bytes;
+                _hasChanges = true;
+              });
+            });
+          } else {
+            _bannerFile = File(pickedFile.path);
+            _hasChanges = true;
+          }
         });
       }
     } catch (e) {
@@ -232,12 +261,21 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
           backgroundColor: Colors.grey[200],
           child: _logoFile != null
               ? ClipOval(
-                  child: Image.file(
-                    _logoFile!,
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                  ),
+                  child: kIsWeb
+                      ? _webLogoBytes != null
+                          ? Image.memory(
+                              _webLogoBytes!,
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            )
+                          : const CircularProgressIndicator()
+                      : Image.file(
+                          _logoFile as File,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
                 )
               : _seller?.logo != null
                   ? ClipOval(
@@ -291,9 +329,9 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.file(
-                    _bannerFile!,
-                    fit: BoxFit.cover,
-                  ),
+                          _bannerFile as File,
+                          fit: BoxFit.cover,
+                        ),
                 )
               : _seller?.banner != null
                   ? ClipRRect(
@@ -548,18 +586,39 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
                       CircleAvatar(
                         radius: 50,
                         backgroundColor: colorScheme.primary,
-                        backgroundImage: _logoFile != null
-                            ? FileImage(_logoFile!) as ImageProvider
-                            : _seller?.logo != null
-                                ? NetworkImage(_seller!.logo!) as ImageProvider
-                                : null,
-                        child: _seller?.logo == null && _logoFile == null
-                            ? Icon(
-                                Icons.store,
-                                size: 50,
-                                color: colorScheme.onPrimary,
-                              )
-                            : null,
+                        child: ClipOval(
+                          child: _logoFile != null
+                              ? kIsWeb
+                                  ? _webLogoBytes != null
+                                      ? Image.memory(
+                                          _webLogoBytes!,
+                                          width: 100,
+                                          height: 100,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : const CircularProgressIndicator()
+                                  : Image.file(
+                                      _logoFile as File,
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                    )
+                              : _seller?.logo != null
+                                  ? CachedImage(
+                                      imageUrl: _seller!.logo!,
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                      placeholder: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.store,
+                                      size: 50,
+                                      color: colorScheme.onPrimary,
+                                    ),
+                        ),
                       ),
                       Positioned(
                         right: 0,
@@ -779,18 +838,36 @@ class _SellerEditProfileScreenState extends ConsumerState<SellerEditProfileScree
       
       // Upload new logo if selected
       if (_logoFile != null) {
-        logoUrl = await ref.read(storageServiceProvider).uploadSellerFile(
-          _logoFile!,
-          'logo',
-        );
+        if (kIsWeb) {
+          // For web, pass the XFile directly
+          logoUrl = await ref.read(storageServiceProvider).uploadSellerFile(
+            _logoFile,  // Pass XFile directly
+            'logo',
+          );
+        } else {
+          // For mobile, use File
+          logoUrl = await ref.read(storageServiceProvider).uploadSellerFile(
+            _logoFile as File,
+            'logo',
+          );
+        }
       }
 
       // Upload new banner if selected
       if (_bannerFile != null) {
-        bannerUrl = await ref.read(storageServiceProvider).uploadSellerFile(
-          _bannerFile!,
-          'banner',
-        );
+        if (kIsWeb) {
+          // For web, pass the XFile directly
+          bannerUrl = await ref.read(storageServiceProvider).uploadSellerFile(
+            _bannerFile,  // Pass XFile directly
+            'banner',
+          );
+        } else {
+          // For mobile, use File
+          bannerUrl = await ref.read(storageServiceProvider).uploadSellerFile(
+            _bannerFile as File,
+            'banner',
+          );
+        }
       }
 
       // Create maps for payment information

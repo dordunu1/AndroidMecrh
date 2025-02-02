@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -240,7 +242,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   // Product Data
   String _selectedCategory = '';
   String _selectedSubCategory = '';
-  List<File> _selectedImages = [];
+  List<dynamic> _selectedImages = [];
   bool _hasVariants = false;
   List<String> _selectedSizes = [];
   List<String> _selectedColors = [];
@@ -307,9 +309,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           // Limit to 10 images
           final remainingSlots = 10 - _selectedImages.length;
           if (remainingSlots > 0) {
-            _selectedImages.addAll(
-              images.take(remainingSlots).map((image) => File(image.path))
-            );
+            if (kIsWeb) {
+              // For web, store XFile directly
+              _selectedImages.addAll(images.take(remainingSlots));
+            } else {
+              // For mobile, convert to File
+              _selectedImages.addAll(
+                images.take(remainingSlots).map((image) => File(image.path))
+              );
+            }
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -661,16 +669,21 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                       );
                                     }
 
-                                    final imageKey = _selectedImages[index].path;
-                                    final color = _imageColors[imageKey];
+                                    final image = _selectedImages[index];
+                                    final color = _imageColors[kIsWeb ? image.path : (image as File).path];
 
                                     return Stack(
                                       children: [
                                         Center(
-                                          child: Image.file(
-                                            _selectedImages[index],
-                                            fit: BoxFit.cover,
-                                          ),
+                                          child: kIsWeb
+                                              ? Image.network(
+                                                  (image as XFile).path,
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : Image.file(
+                                                  image as File,
+                                                  fit: BoxFit.cover,
+                                                ),
                                         ),
                                         Positioned(
                                           top: 8,
@@ -1329,12 +1342,22 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           _uploadProgress = (i / _selectedImages.length) * 40; // First 40% for images
         });
         
-        final file = _selectedImages[i];
-        final url = await storageService.uploadProductImage(file);
+        final image = _selectedImages[i];
+        String url;
+        
+        if (kIsWeb) {
+          // For web, read the XFile as bytes
+          final bytes = await (image as XFile).readAsBytes();
+          url = await storageService.uploadProductImageBytes(bytes, image.name);
+        } else {
+          // For mobile, use the File directly
+          url = await storageService.uploadProductImage(image as File);
+        }
+        
         imageUrls.add(url);
         
-        // Transfer the color from local path to uploaded URL
-        final color = _imageColors[file.path];
+        // Transfer the color mapping
+        final color = _imageColors[kIsWeb ? image.path : (image as File).path];
         if (color != null) {
           newImageColors[url] = color;
         }

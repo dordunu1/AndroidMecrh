@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart' show XFile;
 
 final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();
@@ -49,9 +50,10 @@ class StorageService {
         uploadTask = ref.putFile(file);
       }
 
-      await uploadTask;
-      return await ref.getDownloadURL();
+      final snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
     } catch (e) {
+      debugPrint('Error uploading file: $e');
       throw Exception('Failed to upload file: $e');
     }
   }
@@ -122,21 +124,43 @@ class StorageService {
     }
   }
 
-  Future<String> uploadSellerFile(File file, String type) async {
+  Future<String> uploadSellerFile(dynamic file, String type) async {
     final userId = currentUserId;
     if (userId == null) throw Exception('User not authenticated');
     
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}${p.extension(file.path)}';
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}';
       final ref = _storage.ref().child('seller_${type}s/$userId/$fileName');
       
-      final uploadTask = await ref.putFile(file);
-      if (uploadTask.state == TaskState.success) {
-        return await ref.getDownloadURL();
+      late UploadTask uploadTask;
+      
+      if (kIsWeb) {
+        // For web, always convert to bytes first
+        Uint8List bytes;
+        if (file is Uint8List) {
+          bytes = file;
+        } else if (file is XFile) {
+          bytes = await file.readAsBytes();
+        } else {
+          throw Exception('Invalid file type for web upload');
+        }
+        
+        final metadata = SettableMetadata(
+          contentType: 'image/jpeg',
+          customMetadata: {'uploaded-from': 'web'}
+        );
+        uploadTask = ref.putData(bytes, metadata);
+      } else {
+        if (file is! File) {
+          throw Exception('Invalid file type for mobile upload');
+        }
+        uploadTask = ref.putFile(file);
       }
       
-      throw Exception('Failed to upload file');
+      final snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
     } catch (e) {
+      debugPrint('Error uploading seller file: $e');
       throw Exception('Failed to upload file: $e');
     }
   }
@@ -157,6 +181,30 @@ class StorageService {
       throw Exception('Failed to upload product image');
     } catch (e) {
       throw Exception('Failed to upload product image: $e');
+    }
+  }
+
+  Future<String> uploadProductImageBytes(Uint8List bytes, String fileName) async {
+    try {
+      final ref = _storage.ref().child('products/${DateTime.now().millisecondsSinceEpoch}_$fileName');
+      
+      // Create metadata
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {'picked-file-path': fileName}
+      );
+
+      // Upload the file
+      final uploadTask = ref.putData(bytes, metadata);
+      
+      // Get download URL
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      
+      return downloadUrl;
+    } catch (e) {
+      debugPrint('Error uploading image bytes: $e');
+      throw Exception('Failed to upload image: $e');
     }
   }
 
