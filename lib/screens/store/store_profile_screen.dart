@@ -363,68 +363,125 @@ class _StoreProfileScreenState extends ConsumerState<StoreProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (_seller?.acceptedPaymentMethods.isNotEmpty ?? false)
-              ..._seller!.acceptedPaymentMethods.map((method) {
-                String logoPath = '';
-                String label = '';
-                String? number;
-                String? name;
-                
-                switch (method) {
-                  case 'mtn_momo':
-                    logoPath = 'public/mtn.png';
-                    label = 'MTN Mobile Money';
-                    number = _seller?.paymentPhoneNumbers['mtn_momo'];
-                    name = _seller?.paymentNames['mtn_momo'];
-                    break;
-                  case 'telecel_cash':
-                    logoPath = 'public/telecel.png';
-                    label = 'Telecel Cash';
-                    number = _seller?.paymentPhoneNumbers['telecel_cash'];
-                    name = _seller?.paymentNames['telecel_cash'];
-                    break;
-                  default:
-                    return const SizedBox.shrink();
-                }
-                
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Row(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Payment Methods Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Image.asset(
-                        logoPath,
-                        height: 40,
-                        width: 40,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              label,
-                              style: theme.textTheme.titleSmall,
-                            ),
-                            if (name != null)
-                              Text(
-                                name,
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            if (number != null)
-                              Text(
-                                number,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w500,
+                      if (_seller?.acceptedPaymentMethods.isNotEmpty ?? false)
+                        ..._seller!.acceptedPaymentMethods.map((method) {
+                          String logoPath = '';
+                          String label = '';
+                          String? number;
+                          String? name;
+                          
+                          switch (method) {
+                            case 'mtn_momo':
+                              logoPath = 'public/mtn.png';
+                              label = 'MTN Mobile Money';
+                              number = _seller?.paymentPhoneNumbers['mtn_momo'];
+                              name = _seller?.paymentNames['mtn_momo'];
+                              break;
+                            case 'telecel_cash':
+                              logoPath = 'public/telecel.png';
+                              label = 'Telecel Cash';
+                              number = _seller?.paymentPhoneNumbers['telecel_cash'];
+                              name = _seller?.paymentNames['telecel_cash'];
+                              break;
+                            default:
+                              return const SizedBox.shrink();
+                          }
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              children: [
+                                Image.asset(
+                                  logoPath,
+                                  height: 40,
+                                  width: 40,
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        label,
+                                        style: theme.textTheme.titleSmall,
+                                      ),
+                                      if (name != null)
+                                        Text(
+                                          name,
+                                          style: theme.textTheme.bodyMedium,
+                                        ),
+                                      if (number != null)
+                                        Text(
+                                          number,
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+                // Contact Information Column
+                if (_seller?.phone != null)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Contact Information',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.phone,
+                              size: 24,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Phone Number',
+                                    style: theme.textTheme.titleSmall,
+                                  ),
+                                  Text(
+                                    _seller!.phone,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
             const Divider(height: 32),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
