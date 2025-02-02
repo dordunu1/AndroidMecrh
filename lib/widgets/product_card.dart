@@ -5,11 +5,15 @@ import '../models/product.dart';
 class ProductCard extends StatefulWidget {
   final Product product;
   final VoidCallback onTap;
+  final int? nameMaxLines;
+  final TextStyle? nameStyle;
 
   const ProductCard({
     super.key,
     required this.product,
     required this.onTap,
+    this.nameMaxLines,
+    this.nameStyle,
   });
 
   @override
@@ -126,10 +130,10 @@ class _ProductCardState extends State<ProductCard> {
                   children: [
                     Text(
                       widget.product.name,
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: widget.nameStyle ?? theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 2,
+                      maxLines: widget.nameMaxLines ?? 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),

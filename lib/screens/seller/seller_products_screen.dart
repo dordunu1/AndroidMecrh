@@ -326,6 +326,11 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                                   ProductCard(
                                     product: product,
                                     onTap: () => _editProduct(product),
+                                    nameMaxLines: 1,
+                                    nameStyle: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                   Positioned(
                                     top: 8,

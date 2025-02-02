@@ -254,6 +254,8 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   double _discountPercent = 0.0;
   DateTime? _discountEndsAt;
   String _selectedJewelryType = '';
+  List<String> _selectedColors = [];
+  double? _discountedPrice;
 
   bool get isFootwearProduct => 
     _selectedCategory == 'clothing' && 
@@ -276,17 +278,6 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
     super.initState();
     _selectedJewelryType = '';
     _loadProduct();
-    // Show color variants by default if product has variants
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_originalProduct?.hasVariants ?? false) {
-        setState(() {
-          _hasVariants = true;
-          // Restore color quantities and image colors
-          _colorQuantities = Map<String, int>.from(_originalProduct?.colorQuantities ?? {});
-          _imageColors = Map<String, String>.from(_originalProduct?.imageColors ?? {});
-        });
-      }
-    });
   }
 
   @override
@@ -304,39 +295,35 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   Future<void> _loadProduct() async {
     try {
       final product = await ref.read(productServiceProvider).getProduct(widget.productId);
+      if (product == null) throw Exception('Product not found');
+
       setState(() {
         _originalProduct = product;
-        _nameController.text = product.name ?? '';
-        _descriptionController.text = product.description ?? '';
+        _nameController.text = product.name;
+        _descriptionController.text = product.description;
         _priceController.text = product.price.toString();
         _stockController.text = product.stockQuantity.toString();
         _shippingInfoController.text = product.shippingInfo ?? '';
         _selectedCategory = product.category;
         _selectedSubCategory = product.subCategory ?? '';
-        _existingImages = List<String>.from(product.images);
+        _existingImages = List.from(product.images);
         _hasVariants = product.hasVariants;
-        _selectedSizes = List<String>.from(product.sizes);
-        _colorQuantities = Map<String, int>.from(product.colorQuantities);
-        _imageColors = Map<String, String>.from(product.imageColors);
+        _selectedSizes = List.from(product.sizes);
+        _selectedColors = List.from(product.colors);
+        _colorQuantities = Map.from(product.colorQuantities);
+        _imageColors = Map.from(product.imageColors);
+        
+        // Load discount information
         _hasDiscount = product.hasDiscount;
-        _discountPercent = product.discountPercent;
-        _discountEndsAt = product.discountEndsAt;
-        if (_hasDiscount) {
-          _discountPercentController.text = _discountPercent.toString();
-          if (_discountEndsAt != null) {
-            _discountEndsAtController.text = DateFormat('yyyy-MM-dd').format(_discountEndsAt!);
+        if (product.hasDiscount) {
+          _discountPercentController.text = product.discountPercent.toString();
+          _discountedPrice = product.discountedPrice;
+          if (product.discountEndsAt != null) {
+            _discountEndsAt = product.discountEndsAt;
+            _discountEndsAtController.text = DateFormat('yyyy-MM-dd HH:mm').format(product.discountEndsAt!);
           }
         }
-        // Load jewelry type if it exists
-        if (_selectedSubCategory.endsWith('Jewelry') && _selectedSizes.isNotEmpty) {
-          if (_selectedSizes.any((size) => size.contains('inches'))) {
-            _selectedJewelryType = 'Necklaces';
-          } else if (_selectedSizes.any((size) => size.contains('cm'))) {
-            _selectedJewelryType = 'Bracelets';
-          } else {
-            _selectedJewelryType = 'Rings';
-          }
-        }
+        
         _isLoading = false;
       });
     } catch (e) {
@@ -344,6 +331,30 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
         setState(() {
           _error = e.toString();
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _updateVariantFields() {
+    if (_hasVariants) {
+      // If switching to variants and we have colors but no quantities
+      if (_selectedColors.isNotEmpty && _colorQuantities.isEmpty) {
+        setState(() {
+          // Initialize quantities for each color and preserve imageColors mapping
+          for (var color in _selectedColors) {
+            _colorQuantities[color] = int.tryParse(_stockController.text) ?? 0;
+            // Preserve existing imageColors mapping if it exists
+            if (!_imageColors.containsValue(color)) {
+              // Find first image without a color and assign it
+              for (var image in _existingImages) {
+                if (!_imageColors.containsKey(image)) {
+                  _imageColors[image] = color;
+                  break;
+                }
+              }
+            }
+          }
         });
       }
     }
@@ -1135,11 +1146,10 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
                           onChanged: (value) {
                             setState(() {
                               _hasVariants = value;
-                              if (!value) {
-                                _colorQuantities = {};
-                                _imageColors = {};
+                              _changedFields['hasVariants'] = true;
+                              if (value) {
+                                _updateVariantFields();
                               }
-                              _markFieldAsChanged('hasVariants');
                             });
                           },
                         ),
