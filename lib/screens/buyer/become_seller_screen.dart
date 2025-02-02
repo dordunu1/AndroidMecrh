@@ -13,6 +13,7 @@ import '../../services/auth_service.dart';
 import '../../routes.dart';
 import '../../services/buyer_service.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class SellerTerms {
   static const List<Map<String, dynamic>> terms = [
@@ -81,68 +82,87 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
   }
 
   Future<void> _checkLocationPermission() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) {
-        // Show dialog but keep track of its context
-        BuildContext? dialogContext;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            dialogContext = context;
-            return AlertDialog(
-              title: const Text('Location Required'),
-              content: const Text(
-                'Your store location is required for registration. '
-                'Please enable GPS location services to continue.'
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () async {
-                    // Open location settings
-                    await Geolocator.openLocationSettings();
-                    
-                    // Start checking for GPS to be enabled
-                    if (mounted) {
-                      _checkGPSStatus(dialogContext);
-                    }
-                  },
-                  child: const Text('Open Settings'),
-                ),
-              ],
-            );
-          },
-        );
-      }
-      return;
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Location permission is required to register your store'),
-              duration: Duration(seconds: 3),
-            ),
-          );
+          if (kIsWeb) {
+            // For web, show a simpler dialog as we can't open settings directly
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Text('Location Required'),
+                content: const Text(
+                  'Your store location is required for registration. '
+                  'Please enable location services in your browser and try again.'
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _getCurrentLocation(); // Try getting location again
+                    },
+                    child: const Text('Try Again'),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            // Mobile dialog with settings option
+            BuildContext? dialogContext;
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) {
+                dialogContext = context;
+                return AlertDialog(
+                  title: const Text('Location Required'),
+                  content: const Text(
+                    'Your store location is required for registration. '
+                    'Please enable GPS location services to continue.'
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () async {
+                        await Geolocator.openLocationSettings();
+                        if (mounted) {
+                          _checkGPSStatus(dialogContext);
+                        }
+                      },
+                      child: const Text('Open Settings'),
+                    ),
+                  ],
+                );
+              },
+            );
+          }
         }
         return;
       }
-    }
 
-    if (permission == LocationPermission.deniedForever) {
-      if (mounted) {
-        BuildContext? dialogContext;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            dialogContext = context;
-            return AlertDialog(
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Location permission is required to register your store'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever && !kIsWeb) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
               title: const Text('Location Permission Required'),
               content: const Text(
                 'Location permission is required to register your store. '
@@ -152,26 +172,37 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
                 TextButton(
                   onPressed: () async {
                     await Geolocator.openAppSettings();
-                    // Start checking for permission to be granted
                     if (mounted) {
-                      _checkPermissionStatus(dialogContext);
+                      Navigator.pop(context);
+                      _getCurrentLocation();
                     }
                   },
                   child: const Text('Open Settings'),
                 ),
               ],
-            );
-          },
+            ),
+          );
+        }
+        return;
+      }
+
+      _getCurrentLocation();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking location permission: $e'),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
-      return;
     }
-
-    _getCurrentLocation();
   }
 
   Future<void> _checkGPSStatus(BuildContext? dialogContext) async {
-    // Check GPS status every second
+    if (kIsWeb) return; // Skip for web platform
+    
+    // Check GPS status every second for mobile
     bool isChecking = true;
     while (isChecking && mounted) {
       await Future.delayed(const Duration(seconds: 1));
@@ -183,16 +214,9 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
         if (dialogContext != null && mounted) {
           Navigator.of(dialogContext).pop();
         }
-        // Proceed with location permission check
+        // Proceed with permission status check
         if (mounted) {
-          LocationPermission permission = await Geolocator.checkPermission();
-          if (permission == LocationPermission.denied) {
-            permission = await Geolocator.requestPermission();
-          }
-          if (permission == LocationPermission.whileInUse || 
-              permission == LocationPermission.always) {
-            _getCurrentLocation();
-          }
+          _checkPermissionStatus(dialogContext);
         }
       }
     }
@@ -205,7 +229,7 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
       await Future.delayed(const Duration(seconds: 1));
       final permission = await Geolocator.checkPermission();
       
-      if (permission == LocationPermission.whileInUse || 
+      if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
         isChecking = false;
         // Close the dialog if it's still showing
@@ -224,7 +248,8 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
     setState(() => _isLoading = true);
     try {
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: kIsWeb ? 10 : 30), // Longer timeout for mobile
       );
       if (mounted) {
         setState(() {
@@ -234,13 +259,15 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error getting location: $e');
       if (mounted) {
         setState(() => _isLoading = false);
+        String errorMessage = kIsWeb
+            ? 'Failed to get location. Please ensure you have allowed location access in your browser settings.'
+            : 'Failed to get location. Please check your GPS settings and try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to get location. Please try again.'),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
