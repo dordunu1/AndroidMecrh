@@ -19,6 +19,7 @@ import '../chat/chat_screen.dart';
 import '../checkout/checkout_screen.dart';
 import '../../services/realtime_service.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
 
 class ProductDetailsScreen extends ConsumerStatefulWidget {
   final Product product;
@@ -752,7 +753,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
-                                          'Ends: Feb 1, 07:59',
+                                          'Ends: ${DateFormat('MMM d, HH:mm').format(widget.product.discountEndsAt ?? DateTime.now())}',
                                           style: TextStyle(
                                             color: theme.colorScheme.primary,
                                             fontSize: 11,
@@ -1204,29 +1205,51 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                                 ),
                                                 const SizedBox(height: 4),
                                                 if (product.hasDiscount) ...[
-                                                  Text(
-                                                    'GHS ${product.price.toStringAsFixed(2)}',
-                                                    style: theme.textTheme.bodySmall?.copyWith(
-                                                      decoration: TextDecoration.lineThrough,
-                                                      color: theme.colorScheme.outline,
+                                                  Card(
+                                                    color: theme.colorScheme.error.withOpacity(0.1),
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.all(12),
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                            Icons.local_offer_outlined,
+                                                            color: theme.colorScheme.error,
+                                                          ),
+                                                          const SizedBox(width: 8),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                                              children: [
+                                                                Text(
+                                                                  '${product.discountPercent.toStringAsFixed(0)}% OFF',
+                                                                  style: theme.textTheme.titleMedium?.copyWith(
+                                                                    color: theme.colorScheme.error,
+                                                                    fontWeight: FontWeight.bold,
+                                                                  ),
+                                                                ),
+                                                                if (product.discountEndsAt != null)
+                                                                  Text(
+                                                                    'Ends on ${DateFormat('MMM d, HH:mm').format(product.discountEndsAt!)}',
+                                                                    style: theme.textTheme.bodySmall?.copyWith(
+                                                                      color: theme.colorScheme.error,
+                                                                    ),
+                                                                  ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
                                                   ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    'GHS ${(product.price * (1 - product.discountPercent / 100)).toStringAsFixed(2)}',
-                                                    style: theme.textTheme.titleSmall?.copyWith(
-                                                      color: theme.colorScheme.primary,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
+                                                  const SizedBox(height: 16),
+                                                ],
+                                                Text(
+                                                  'GHS ${product.price.toStringAsFixed(2)}',
+                                                  style: theme.textTheme.titleSmall?.copyWith(
+                                                    color: theme.colorScheme.primary,
+                                                    fontWeight: FontWeight.bold,
                                                   ),
-                                                ] else
-                                                  Text(
-                                                    'GHS ${product.price.toStringAsFixed(2)}',
-                                                    style: theme.textTheme.titleSmall?.copyWith(
-                                                      color: theme.colorScheme.primary,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
+                                                ),
                                               ],
                                             ),
                                           ),
