@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/notification.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
@@ -82,24 +81,16 @@ class NotificationService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      final tokenData = {
-        'token': token,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      // Add platform info only for non-web platforms
-      if (!kIsWeb) {
-        tokenData['platform'] = Platform.operatingSystem;
-      } else {
-        tokenData['platform'] = 'web';
-      }
-
       await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('tokens')
           .doc('fcm')
-          .set(tokenData, SetOptions(merge: true));
+          .set({
+        'token': token,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'platform': Platform.operatingSystem,
+      }, SetOptions(merge: true));
     } catch (e) {
       throw Exception('Failed to update FCM token: $e');
     }

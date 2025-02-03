@@ -301,6 +301,8 @@ exports.onOrderUpdate = onDocumentUpdated({
             newStatus: newOrder.status 
         });
 
+        const statusMessage = getStatusMessage(newOrder.status);
+
         // Get buyer's FCM token
         const buyerTokenDoc = await admin.firestore()
             .collection('users')
@@ -309,11 +311,10 @@ exports.onOrderUpdate = onDocumentUpdated({
             .doc('fcm')
             .get();
 
+        // Send notification to buyer
         if (buyerTokenDoc.exists) {
             const token = buyerTokenDoc.data().token;
             console.log('Retrieved buyer FCM token:', { buyerId: newOrder.buyerId, tokenExists: !!token });
-
-            const statusMessage = getStatusMessage(newOrder.status);
 
             // Notification for buyer
             const buyerPayload = {
@@ -329,9 +330,9 @@ exports.onOrderUpdate = onDocumentUpdated({
             };
 
             // Send notification to buyer
-            const success = await sendNotification(token, buyerPayload, newOrder.buyerId);
+            const buyerSuccess = await sendNotification(token, buyerPayload, newOrder.buyerId);
 
-            if (success) {
+            if (buyerSuccess) {
                 // Add to buyer's notifications
                 await admin.firestore()
                     .collection('notifications')
@@ -347,8 +348,73 @@ exports.onOrderUpdate = onDocumentUpdated({
             }
         }
 
-    } catch (error) {
-        console.error('Error in onOrderUpdate function:', error);
+        // Get seller's FCM token
+        const sellerTokenDoc = await admin.firestore()
+            .collection('users')
+            .doc(newOrder.sellerId)
+            .collection('tokens')
+            .doc('fcm')
+            .get();
+
+        // Send notification to seller for important status changes
+        if (sellerTokenDoc.exists && ['delivered', 'refund_requested'].includes(newOrder.status)) {
+            const token = sellerTokenDoc.data().token;
+            console.log('Retrieved seller FCM token:', { sellerId: newOrder.sellerId, tokenExists: !!token });
+
+            // Get buyer's name for the notification
+            const buyerDoc = await admin.firestore()
+                .collection('users')
+                .doc(newOrder.buyerId)
+                .get();
+
+            const buyerName = buyerDoc.exists ? buyerDoc.data().displayName || 'A customer' : 'A customer';
+
+            // Customize message based on status
+            let title = 'Order Status Updated';
+            let message = '';
+            
+            if (newOrder.status === 'delivered') {
+                title = 'Order Delivered';
+                message = `${buyerName} has received order #${orderId}`;
+            } else if (newOrder.status === 'refund_requested') {
+                title = 'Refund Requested';
+                message = `${buyerName} has requested a refund for order #${orderId}`;
+            }
+
+            // Notification for seller
+            const sellerPayload = {
+                notification: {
+                    title: title,
+                    body: message,
+                    clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+                },
+                data: {
+                    type: 'order',
+                    orderId: orderId,
+                    buyerId: newOrder.buyerId,
+                }
+            };
+
+            // Send notification to seller
+            const sellerSuccess = await sendNotification(token, sellerPayload, newOrder.sellerId);
+
+            if (sellerSuccess) {
+                // Add to seller's notifications
+                await admin.firestore()
+                    .collection('notifications')
+                    .add({
+                        userId: newOrder.sellerId,
+                        title: title,
+                        message: message,
+                        type: 'orderUpdate',
+                        orderId: orderId,
+                        isRead: false,
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+            }
+        }
+    } catch (e) {
+        console.error('Error in onOrderUpdate:', e);
     }
 });
 
