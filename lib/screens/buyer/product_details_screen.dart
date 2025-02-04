@@ -1192,7 +1192,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                         ),
                                         Expanded(
                                           child: Padding(
-                                            padding: const EdgeInsets.all(8),
+                                            padding: const EdgeInsets.all(6),
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               mainAxisSize: MainAxisSize.min,
@@ -1203,53 +1203,67 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                                   overflow: TextOverflow.ellipsis,
                                                   style: theme.textTheme.bodyMedium,
                                                 ),
-                                                const SizedBox(height: 4),
+                                                const SizedBox(height: 2),
                                                 if (product.hasDiscount) ...[
                                                   Card(
+                                                    margin: EdgeInsets.zero,
                                                     color: theme.colorScheme.error.withOpacity(0.1),
                                                     child: Padding(
-                                                      padding: const EdgeInsets.all(12),
+                                                      padding: const EdgeInsets.all(6),
                                                       child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
                                                         children: [
-                                                          Icon(
-                                                            Icons.local_offer_outlined,
-                                                            color: theme.colorScheme.error,
-                                                          ),
-                                                          const SizedBox(width: 8),
-                                                          Expanded(
-                                                            child: Column(
-                                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                                              children: [
-                                                                Text(
-                                                                  '${product.discountPercent.toStringAsFixed(0)}% OFF',
-                                                                  style: theme.textTheme.titleMedium?.copyWith(
-                                                                    color: theme.colorScheme.error,
-                                                                    fontWeight: FontWeight.bold,
-                                                                  ),
-                                                                ),
-                                                                if (product.discountEndsAt != null)
-                                                                  Text(
-                                                                    'Ends on ${DateFormat('MMM d, HH:mm').format(product.discountEndsAt!)}',
-                                                                    style: theme.textTheme.bodySmall?.copyWith(
-                                                                      color: theme.colorScheme.error,
-                                                                    ),
-                                                                  ),
-                                                              ],
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(
+                                                              horizontal: 4,
+                                                              vertical: 2,
                                                             ),
+                                                            decoration: BoxDecoration(
+                                                              color: theme.colorScheme.error,
+                                                              borderRadius: BorderRadius.circular(4),
+                                                            ),
+                                                            child: Text(
+                                                              '-${product.discountPercent.toStringAsFixed(0)}%',
+                                                              style: theme.textTheme.labelSmall?.copyWith(
+                                                                color: Colors.white,
+                                                                fontWeight: FontWeight.bold,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(width: 6),
+                                                          Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              Text(
+                                                                'GHS ${product.discountedPrice?.toStringAsFixed(2)}',
+                                                                style: theme.textTheme.labelSmall?.copyWith(
+                                                                  color: theme.colorScheme.primary,
+                                                                  fontWeight: FontWeight.bold,
+                                                                ),
+                                                              ),
+                                                              Text(
+                                                                'GHS ${product.price.toStringAsFixed(2)}',
+                                                                style: theme.textTheme.labelSmall?.copyWith(
+                                                                  color: theme.colorScheme.outline,
+                                                                  decoration: TextDecoration.lineThrough,
+                                                                  fontSize: 10,
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
                                                         ],
                                                       ),
                                                     ),
                                                   ),
-                                                  const SizedBox(height: 16),
-                                                ],
-                                                Text(
-                                                  'GHS ${product.price.toStringAsFixed(2)}',
-                                                  style: theme.textTheme.titleSmall?.copyWith(
-                                                    color: theme.colorScheme.primary,
-                                                    fontWeight: FontWeight.bold,
+                                                ] else
+                                                  Text(
+                                                    'GHS ${product.price.toStringAsFixed(2)}',
+                                                    style: theme.textTheme.labelSmall?.copyWith(
+                                                      color: theme.colorScheme.primary,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
                                                   ),
-                                                ),
                                               ],
                                             ),
                                           ),
