@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/chat_conversation.dart';
 import '../../services/chat_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import 'chat_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatInboxScreen extends ConsumerStatefulWidget {
   const ChatInboxScreen({super.key});
@@ -145,6 +147,25 @@ class _ConversationCard extends StatelessWidget {
     required this.onTap,
   });
 
+  Future<String?> _getParticipantPhoto(BuildContext context) async {
+    final firestore = FirebaseFirestore.instance;
+    final otherParticipantId = conversation.otherParticipantId;
+    
+    // First try to get from sellers collection
+    final sellerDoc = await firestore.collection('sellers').doc(otherParticipantId).get();
+    if (sellerDoc.exists) {
+      return sellerDoc.data()?['logo'] as String?;
+    }
+    
+    // If not a seller, try users collection
+    final userDoc = await firestore.collection('users').doc(otherParticipantId).get();
+    if (userDoc.exists) {
+      return userDoc.data()?['photoUrl'] as String?;
+    }
+    
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -160,23 +181,53 @@ class _ConversationCard extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: hasUnread 
-                        ? theme.colorScheme.primary.withOpacity(0.2)
-                        : theme.colorScheme.primary.withOpacity(0.1),
-                    child: Text(
-                      conversation.otherParticipantName[0].toUpperCase(),
-                      style: TextStyle(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  FutureBuilder<String?>(
+                    future: _getParticipantPhoto(context),
+                    builder: (context, snapshot) {
+                      final photoUrl = snapshot.data;
+                      
+                      return CircleAvatar(
+                        radius: 24,
+                        backgroundColor: hasUnread 
+                            ? theme.colorScheme.primary.withOpacity(0.2)
+                            : theme.colorScheme.primary.withOpacity(0.1),
+                        child: photoUrl != null && photoUrl.isNotEmpty
+                            ? ClipOval(
+                                child: CachedNetworkImage(
+                                  imageUrl: photoUrl,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) => Text(
+                                    conversation.otherParticipantName[0].toUpperCase(),
+                                    style: TextStyle(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                conversation.otherParticipantName[0].toUpperCase(),
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      );
+                    },
                   ),
                   if (hasUnread)
                     Positioned(
-                      right: 0,
-                      top: 0,
+                      right: -2,
+                      top: -2,
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
@@ -207,10 +258,14 @@ class _ConversationCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          conversation.otherParticipantName,
-                          style: TextStyle(
-                            fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
+                        Expanded(
+                          child: Text(
+                            conversation.otherParticipantName,
+                            style: TextStyle(
+                              fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (conversation.lastMessageTime != null)

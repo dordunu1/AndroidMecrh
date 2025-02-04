@@ -4,6 +4,7 @@ class ChatConversation {
   final String id;
   final List<String> participants;
   final Map<String, String> participantNames;
+  final Map<String, String?> participantPhotos;
   final String? lastMessage;
   final DateTime? lastMessageTime;
   final Map<String, int> unreadCounts;
@@ -15,6 +16,7 @@ class ChatConversation {
     required this.id,
     required this.participants,
     required this.participantNames,
+    required this.participantPhotos,
     this.lastMessage,
     this.lastMessageTime,
     required this.unreadCounts,
@@ -29,12 +31,15 @@ class ChatConversation {
 
   String get otherParticipantName => participantNames[otherParticipantId] ?? 'Unknown';
 
+  String? get otherParticipantPhoto => participantPhotos[otherParticipantId];
+
   int get unreadCount => unreadCounts[currentUserId] ?? 0;
 
   ChatConversation copyWith({
     String? id,
     List<String>? participants,
     Map<String, String>? participantNames,
+    Map<String, String?>? participantPhotos,
     String? lastMessage,
     DateTime? lastMessageTime,
     Map<String, int>? unreadCounts,
@@ -46,6 +51,7 @@ class ChatConversation {
       id: id ?? this.id,
       participants: participants ?? this.participants,
       participantNames: participantNames ?? this.participantNames,
+      participantPhotos: participantPhotos ?? this.participantPhotos,
       lastMessage: lastMessage ?? this.lastMessage,
       lastMessageTime: lastMessageTime ?? this.lastMessageTime,
       unreadCounts: unreadCounts ?? this.unreadCounts,
@@ -60,6 +66,7 @@ class ChatConversation {
       'id': id,
       'participants': participants,
       'participantNames': participantNames,
+      'participantPhotos': participantPhotos,
       'lastMessage': lastMessage,
       'lastMessageTime': lastMessageTime?.toIso8601String(),
       'unreadCounts': unreadCounts,
@@ -74,6 +81,9 @@ class ChatConversation {
       id: map['id'] as String,
       participants: List<String>.from(map['participants'] as List),
       participantNames: Map<String, String>.from(map['participantNames'] as Map),
+      participantPhotos: map['participantPhotos'] != null 
+          ? Map<String, String?>.from(map['participantPhotos'] as Map)
+          : {},
       lastMessage: map['lastMessage'] as String?,
       lastMessageTime: map['lastMessageTime'] != null
           ? DateTime.parse(map['lastMessageTime'] as String)
@@ -87,6 +97,6 @@ class ChatConversation {
 
   @override
   String toString() {
-    return 'ChatConversation(id: $id, participants: $participants, participantNames: $participantNames, lastMessage: $lastMessage, lastMessageTime: $lastMessageTime, unreadCounts: $unreadCounts, createdAt: $createdAt, productId: $productId, productName: $productName)';
+    return 'ChatConversation(id: $id, participants: $participants, participantNames: $participantNames, participantPhotos: $participantPhotos, lastMessage: $lastMessage, lastMessageTime: $lastMessageTime, unreadCounts: $unreadCounts, createdAt: $createdAt, productId: $productId, productName: $productName)';
   }
 } 

@@ -6,6 +6,7 @@ import '../../models/product.dart';
 import '../../services/buyer_service.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/product_skeleton.dart';
+import '../../widgets/hot_deals_carousel.dart';
 import 'product_details_screen.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../services/realtime_service.dart';
@@ -127,6 +128,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       }
     }
   }
+
+  List<Product> get _hotDeals => _products
+      .where((product) => product.hasDiscount && product.discountPercent > 0)
+      .toList()
+    ..sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
 
   @override
   Widget build(BuildContext context) {
@@ -251,73 +257,74 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               ),
             ),
 
-            // Products Grid
+            // Main Content
             Expanded(
               child: _isLoading
-                  ? GridView.builder(
-                      padding: const EdgeInsets.all(8),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.9,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                      ),
-                      itemCount: 6,
-                      itemBuilder: (context, index) => const ProductSkeleton(),
-                    )
-                  : _error != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Error loading products',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _error!,
-                                style: Theme.of(context).textTheme.bodySmall,
-                                textAlign: TextAlign.center,
-                              ),
-                              TextButton(
-                                onPressed: _setupRealtimeUpdates,
-                                child: const Text('Retry'),
-                              ),
-                            ],
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Error loading products',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                        )
-                      : _products.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.shopping_bag_outlined,
-                                    size: 48,
-                                    color: Theme.of(context).disabledColor,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No products found',
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  if (_selectedCategory != null || _searchController.text.isNotEmpty)
-                                    TextButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          _selectedCategory = null;
-                                          _searchController.clear();
-                                        });
-                                        _setupRealtimeUpdates();
-                                      },
-                                      child: const Text('Clear filters'),
-                                    ),
-                                ],
+                          const SizedBox(height: 8),
+                          Text(
+                            _error!,
+                            style: Theme.of(context).textTheme.bodySmall,
+                            textAlign: TextAlign.center,
+                          ),
+                          TextButton(
+                            onPressed: _setupRealtimeUpdates,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _products.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 48,
+                              color: Theme.of(context).disabledColor,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No products found',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            if (_selectedCategory != null || _searchController.text.isNotEmpty)
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedCategory = null;
+                                    _searchController.clear();
+                                  });
+                                  _setupRealtimeUpdates();
+                                },
+                                child: const Text('Clear filters'),
                               ),
-                            )
-                          : GridView.builder(
-                              padding: const EdgeInsets.all(8),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _setupRealtimeUpdates,
+                        child: ListView(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          children: [
+                            // Hot Deals Section
+                            if (_hotDeals.isNotEmpty)
+                              HotDealsCarousel(products: _hotDeals),
+
+                            // Regular Products Grid
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
                                 childAspectRatio: 0.645,
@@ -330,6 +337,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                                 return _ProductCard(product: product);
                               },
                             ),
+                          ],
+                        ),
+                      ),
             ),
           ],
         ),

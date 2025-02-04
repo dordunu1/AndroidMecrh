@@ -55,6 +55,7 @@ class ChatService {
     return _firestore
         .collection('conversations')
         .where('participants', arrayContains: user.uid)
+        .orderBy('lastMessageTime', descending: true)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
@@ -70,21 +71,43 @@ class ChatService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      // Check if conversation already exists for this product
-      final existingConversation = await _firestore
+      // First check if there's any existing conversation with this seller/buyer pair
+      final existingConversations = await _firestore
           .collection('conversations')
           .where('participants', arrayContains: user.uid)
-          .where('productId', isEqualTo: productId)
           .get();
 
-      if (existingConversation.docs.isNotEmpty) {
-        return existingConversation.docs.first.id;
+      // Find conversation with the same seller/buyer pair
+      QueryDocumentSnapshot<Map<String, dynamic>>? existingConversation;
+      for (var doc in existingConversations.docs) {
+        final participants = List<String>.from(doc.data()['participants'] as List);
+        if (participants.contains(sellerId)) {
+          existingConversation = doc;
+          break;
+        }
       }
 
+      if (existingConversation != null) {
+        // Update the existing conversation with the new product if different
+        if (existingConversation.data()['productId'] != productId) {
+          await existingConversation.reference.update({
+            'productId': productId,
+            'updatedAt': DateTime.now().toIso8601String(),
+          });
+        }
+        return existingConversation.id;
+      }
+
+      // If no existing conversation, create a new one
       // Get seller info
       final sellerDoc = await _firestore.collection('sellers').doc(sellerId).get();
       if (!sellerDoc.exists) throw Exception('Seller not found');
       final sellerName = sellerDoc.data()!['storeName'] as String? ?? 'Unknown Store';
+      final sellerPhoto = sellerDoc.data()!['logo'] as String?;
+
+      // Get buyer info
+      final buyerDoc = await _firestore.collection('users').doc(user.uid).get();
+      final buyerPhoto = buyerDoc.data()?['photoUrl'] as String?;
 
       // Get product info
       final productDoc = await _firestore.collection('products').doc(productId).get();
@@ -99,6 +122,10 @@ class ChatService {
           user.uid: user.displayName ?? 'Unknown',
           sellerId: sellerName,
         },
+        'participantPhotos': {
+          user.uid: buyerPhoto,
+          sellerId: sellerPhoto,
+        },
         'productId': productId,
         'productName': productName,
         'lastMessage': null,
@@ -108,6 +135,7 @@ class ChatService {
           sellerId: 0,
         },
         'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
       };
 
       await conversationRef.set(conversation);

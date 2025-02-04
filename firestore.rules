@@ -58,8 +58,12 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isOwner(userId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-      allow write: if isOwner(userId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow read: if isAuthenticated() && (
+        isOwner(userId) || 
+        isAdmin() ||
+        isSeller() // Allow sellers to read user profiles
+      );
+      allow write: if isOwner(userId) || isAdmin();
       
       // Notification settings
       match /settings/notifications {
@@ -69,7 +73,7 @@ service cloud.firestore {
 
       // FCM tokens
       match /tokens/fcm {
-        allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+        allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || isSeller());
         allow write: if isAuthenticated() && isOwner(userId);
       }
     }
