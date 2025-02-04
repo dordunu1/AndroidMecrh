@@ -9,6 +9,8 @@ import '../../widgets/common/custom_text_field.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../constants/size_standards.dart';
+import '../../utils/image_validator.dart';
+import 'package:flutter/foundation.dart';
 
 Future<DateTime?> showDateTimePicker({
   required BuildContext context,
@@ -418,8 +420,36 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
   Future<void> _pickImages() async {
     try {
       final images = await ImagePicker().pickMultiImage();
-      if (images != null) {
-        if (_existingImages.length + _newImages.length + images.length > 10) {
+      if (images != null && images.isNotEmpty) {
+        // Validate formats
+        final [validImages, errorMessage] = await ImageValidator.filterValidImages(images);
+        
+        if (errorMessage != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(errorMessage),
+                    const SizedBox(height: 4),
+                    Text(
+                      ImageValidator.supportedFormatsText,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+
+        if (validImages.isEmpty) return;
+
+        if (_existingImages.length + _newImages.length + validImages.length > 10) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Maximum 10 images allowed')),
@@ -427,8 +457,15 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
           }
           return;
         }
+
         setState(() {
-          _newImages.addAll(images.map((image) => File(image.path)));
+          if (kIsWeb) {
+            // For web, store XFile directly
+            _newImages.addAll(validImages);
+          } else {
+            // For mobile, convert to File
+            _newImages.addAll(validImages.map((image) => image as File));
+          }
           _markFieldAsChanged('images');  // Mark as changed when new images are added
         });
       }

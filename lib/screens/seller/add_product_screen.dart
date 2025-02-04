@@ -16,6 +16,9 @@ import '../../constants/size_standards.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../routes.dart';
+import '../../utils/image_validator.dart';
+// Conditional import for web
+import 'web_image_utils.dart' if (dart.library.html) 'dart:html' as web;
 
 Future<DateTime?> showDateTimePicker({
   required BuildContext context,
@@ -242,7 +245,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   // Product Data
   String _selectedCategory = '';
   String _selectedSubCategory = '';
-  List<dynamic> _selectedImages = [];
+  final List<dynamic> _selectedImages = [];
   bool _hasVariants = false;
   List<String> _selectedSizes = [];
   List<String> _selectedColors = [];
@@ -258,6 +261,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   double _uploadProgress = 0;
   String _uploadStatus = '';
+
+  final Map<String, String> _imageUrls = {}; // Store web URLs for images
 
   bool get isFootwearProduct => 
     _selectedCategory == 'clothing' && 
@@ -298,24 +303,115 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _discountPercentController.dispose();
     _colorController.dispose();
     _colorQuantityControllers.values.forEach((controller) => controller.dispose());
+    // Clean up object URLs when disposing
+    if (kIsWeb) {
+      for (var url in _imageUrls.values) {
+        _revokeObjectUrl(url);
+      }
+    }
     super.dispose();
+  }
+
+  void _revokeObjectUrl(String url) {
+    if (kIsWeb) {
+      try {
+        web.Url.revokeObjectUrl(url);
+      } catch (e) {
+        print('Error revoking URL: $e');
+      }
+    }
+  }
+
+  Future<String?> _createObjectUrlFromBytes(Uint8List bytes) async {
+    if (kIsWeb) {
+      try {
+        final blob = web.Blob([bytes]);
+        return web.Url.createObjectUrl(blob);
+      } catch (e) {
+        print('Error creating object URL: $e');
+        return null;
+      }
+    }
+    return null;
   }
 
   Future<void> _pickImages() async {
     try {
       final images = await ImagePicker().pickMultiImage();
-      if (images != null) {
+      if (images != null && images.isNotEmpty) {
+        // Check both formats and sizes
+        final oversizedFiles = <String>[];
+        final invalidFormats = <String>[];
+        final validImages = <XFile>[];
+
+        for (final image in images) {
+          // Check format first - use image.name for extension check
+          final ext = ImageValidator.getFileExtension(image.name);
+          print('Checking image: ${image.name} with extension: $ext'); // Debug log
+          
+          if (!ImageValidator.supportedFormats.contains(ext)) {
+            invalidFormats.add('${image.name} (${ext.toUpperCase()})');
+            continue;
+          }
+
+          // Then check size
+          if (!await ImageValidator.isValidFileSize(image)) {
+            oversizedFiles.add(image.name);
+            continue;
+          }
+
+          validImages.add(image);
+        }
+
+        // Show errors if any
+        if (invalidFormats.isNotEmpty || oversizedFiles.isNotEmpty) {
+          if (mounted) {
+            final List<String> errorMessages = [];
+            
+            if (invalidFormats.isNotEmpty) {
+              errorMessages.add('Unsupported format: ${invalidFormats.join(', ')}');
+            }
+            if (oversizedFiles.isNotEmpty) {
+              errorMessages.add('Files exceeding 10MB: ${oversizedFiles.join(', ')}');
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...errorMessages.map((msg) => Text(msg)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Supported formats: ${ImageValidator.supportedFormats.map((e) => e.toUpperCase()).join(', ')}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    const Text(
+                      'Maximum file size: 10MB',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+          if (validImages.isEmpty) return;
+        }
+
         setState(() {
           // Limit to 10 images
           final remainingSlots = 10 - _selectedImages.length;
           if (remainingSlots > 0) {
             if (kIsWeb) {
-              // For web, store XFile directly
-              _selectedImages.addAll(images.take(remainingSlots));
+              for (var image in validImages.take(remainingSlots)) {
+                _selectedImages.add(image);
+              }
             } else {
-              // For mobile, convert to File
               _selectedImages.addAll(
-                images.take(remainingSlots).map((image) => File(image.path))
+                validImages.take(remainingSlots).map((image) => File(image.path))
               );
             }
           } else {
@@ -621,7 +717,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Add up to 10 images (2MB each)',
+                          'Add up to 10 images (10MB each)',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 16),
@@ -676,9 +772,19 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                       children: [
                                         Center(
                                           child: kIsWeb
-                                              ? Image.network(
-                                                  (image as XFile).path,
-                                                  fit: BoxFit.cover,
+                                              ? FutureBuilder<Uint8List>(
+                                                  future: (image as XFile).readAsBytes(),
+                                                  builder: (context, snapshot) {
+                                                    if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                                                      return Image.memory(
+                                                        snapshot.data!,
+                                                        fit: BoxFit.cover,
+                                                      );
+                                                    }
+                                                    return const Center(
+                                                      child: CircularProgressIndicator(),
+                                                    );
+                                                  },
                                                 )
                                               : Image.file(
                                                   image as File,
@@ -1346,9 +1452,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         String url;
         
         if (kIsWeb) {
-          // For web, read the XFile as bytes
-          final bytes = await (image as XFile).readAsBytes();
-          url = await storageService.uploadProductImageBytes(bytes, image.name);
+          // For web, we need to read the XFile and create a URL
+          url = await storageService.uploadProductImageBytes(await (image as XFile).readAsBytes(), image.name);
         } else {
           // For mobile, use the File directly
           url = await storageService.uploadProductImage(image as File);
