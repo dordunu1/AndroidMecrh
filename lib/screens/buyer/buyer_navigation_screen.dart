@@ -12,14 +12,19 @@ import '../../widgets/feature_tour.dart';
 import '../../providers/chat_providers.dart';
 
 class BuyerNavigationScreen extends ConsumerStatefulWidget {
-  const BuyerNavigationScreen({super.key});
+  final int initialIndex;
+  
+  const BuyerNavigationScreen({
+    super.key,
+    this.initialIndex = 0,
+  });
 
   @override
   ConsumerState<BuyerNavigationScreen> createState() => _BuyerNavigationScreenState();
 }
 
 class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
-  int _currentIndex = 0;
+  late int _selectedIndex;
   bool _showFeatureTour = false;
   final List<GlobalKey> _navigationKeys = List.generate(6, (_) => GlobalKey());
 
@@ -35,6 +40,7 @@ class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
     _checkFirstTime();
   }
 
@@ -93,14 +99,14 @@ class _BuyerNavigationScreenState extends ConsumerState<BuyerNavigationScreen> {
       children: [
         Scaffold(
           body: IndexedStack(
-            index: _currentIndex,
+            index: _selectedIndex,
             children: _screens,
           ),
           bottomNavigationBar: NavigationBar(
-            selectedIndex: _currentIndex,
+            selectedIndex: _selectedIndex,
             onDestinationSelected: (index) {
               setState(() {
-                _currentIndex = index;
+                _selectedIndex = index;
               });
             },
             destinations: [

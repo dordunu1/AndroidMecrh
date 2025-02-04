@@ -58,11 +58,12 @@ class OrderConfirmationScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   CustomButton(
                     onPressed: () {
-                      Navigator.pushReplacement(
+                      Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const BuyerOrdersScreen(),
+                          builder: (context) => const BuyerNavigationScreen(initialIndex: 2),
                         ),
+                        (route) => false,
                       );
                     },
                     text: 'View Orders',
