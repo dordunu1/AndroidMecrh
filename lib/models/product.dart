@@ -26,6 +26,7 @@ class Product {
   final DateTime? discountEndsAt;
   final double? discountedPrice;
   final int soldCount;
+  final int cartCount;
   final double rating;
   final int reviewCount;
   final String? sellerCity;
@@ -60,6 +61,7 @@ class Product {
     this.discountEndsAt,
     this.discountedPrice,
     required this.soldCount,
+    this.cartCount = 0,
     required this.rating,
     required this.reviewCount,
     this.sellerCity,
@@ -117,6 +119,7 @@ class Product {
       discountEndsAt: parseDateTime(map['discountEndsAt']),
       discountedPrice: (map['discountedPrice'] ?? 0.0).toDouble(),
       soldCount: map['soldCount'] ?? 0,
+      cartCount: map['cartCount'] ?? 0,
       rating: (map['rating'] ?? 0.0).toDouble(),
       reviewCount: map['reviewCount'] ?? 0,
       sellerCity: map['sellerCity'],
@@ -155,6 +158,7 @@ class Product {
       'discountEndsAt': discountEndsAt?.toIso8601String(),
       'discountedPrice': discountedPrice,
       'soldCount': soldCount,
+      'cartCount': cartCount,
       'rating': rating,
       'reviewCount': reviewCount,
       'sellerCity': sellerCity,
@@ -191,6 +195,7 @@ class Product {
     DateTime? discountEndsAt,
     double? discountedPrice,
     int? soldCount,
+    int? cartCount,
     double? rating,
     int? reviewCount,
     String? sellerCity,
@@ -225,6 +230,7 @@ class Product {
       discountEndsAt: discountEndsAt ?? this.discountEndsAt,
       discountedPrice: discountedPrice ?? this.discountedPrice,
       soldCount: soldCount ?? this.soldCount,
+      cartCount: cartCount ?? this.cartCount,
       rating: rating ?? this.rating,
       reviewCount: reviewCount ?? this.reviewCount,
       sellerCity: sellerCity ?? this.sellerCity,

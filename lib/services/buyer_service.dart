@@ -88,6 +88,12 @@ class BuyerService {
             'selectedColorImage': selectedColorImage,
           }],
         });
+        
+        // Initialize and increment cartCount for new cart item
+        final productRef = _firestore.collection('products').doc(productId);
+        await productRef.set({
+          'cartCount': 1
+        }, SetOptions(merge: true));
       } else {
         final items = List<Map<String, dynamic>>.from(cartDoc.data()!['items'] as List);
         final existingItemIndex = items.indexWhere((item) => 
@@ -109,6 +115,12 @@ class BuyerService {
             'selectedColor': selectedColor,
             'selectedColorImage': selectedColorImage,
           });
+          
+          // Increment cartCount for new cart item
+          final productRef = _firestore.collection('products').doc(productId);
+          await productRef.set({
+            'cartCount': FieldValue.increment(1)
+          }, SetOptions(merge: true));
         }
 
         await cartRef.update({'items': items});
@@ -163,15 +175,20 @@ class BuyerService {
       if (!cartDoc.exists) return;
 
       final items = List<Map<String, dynamic>>.from(cartDoc.data()!['items'] as List);
-      items.removeWhere((item) => item['productId'] == productId);
+      final existingItemIndex = items.indexWhere((item) => item['productId'] == productId);
 
-      if (items.isEmpty) {
-        await cartRef.delete();
-      } else {
+      if (existingItemIndex != -1) {
+        items.removeAt(existingItemIndex);
         await cartRef.update({'items': items});
+
+        // Decrement cartCount when item is removed
+        final productRef = _firestore.collection('products').doc(productId);
+        await productRef.set({
+          'cartCount': FieldValue.increment(-1)
+        }, SetOptions(merge: true));
       }
     } catch (e) {
-      throw Exception('Failed to remove from cart: $e');
+      throw Exception('Failed to remove item from cart: $e');
     }
   }
 

@@ -95,7 +95,7 @@ service cloud.firestore {
         isAdmin() ||
         (isAuthenticated() && 
          (request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['stockQuantity', 'colorQuantities', 'soldCount', 'rating', 'reviewCount']) ||
+           .hasOnly(['stockQuantity', 'colorQuantities', 'soldCount', 'cartCount', 'rating', 'reviewCount']) ||
           hasOrderedProduct(request.resource.data.orderId, productId)))
       );
       allow delete: if isSeller() && (
