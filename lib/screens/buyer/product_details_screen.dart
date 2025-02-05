@@ -171,18 +171,31 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
   }
 
   void _onImageTapped(int index) {
+    final imageUrl = widget.product.images[index];
+    final color = widget.product.imageColors[imageUrl];
+    final quantity = color != null ? widget.product.colorQuantities[color] : null;
+    
+    // Check if the variant is sold out
+    if (quantity != null && quantity == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$color is sold out'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _currentImageIndex = index;
       _pageController.jumpToPage(index);
       // Update selected color based on the image
-      final imageUrl = widget.product.images[index];
-      final color = widget.product.imageColors[imageUrl];
-      // Always set the color, even for the first image
-      _selectedColor = color ?? widget.product.colors.firstWhere(
-        (c) => widget.product.imageColors.values.contains(c),
-        orElse: () => '',
-      );
-      print('Selected color: $_selectedColor'); // Debug print
+      if (color != null) {
+        _selectedColor = color;
+        _selectedColorImage = imageUrl;
+      }
     });
   }
 
@@ -194,6 +207,28 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
       if (widget.product.sizes.isNotEmpty && (_selectedSize == null || _selectedSize!.isEmpty)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select a size')),
+        );
+        return;
+      }
+
+      // Check if selected color is sold out
+      if (_selectedColor != null) {
+        final quantity = widget.product.colorQuantities[_selectedColor] ?? 0;
+        if (quantity == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$_selectedColor is sold out'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      } else if (widget.product.stockQuantity == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This product is sold out'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
@@ -239,7 +274,19 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         finalColor = firstColorEntry.value;
       }
 
-      print('Adding to cart - Color: $finalColor, Image: $colorImage, Size: $_selectedSize'); // Debug print
+      // Check if the final selected color is sold out
+      if (finalColor != null && finalColor.isNotEmpty) {
+        final quantity = widget.product.colorQuantities[finalColor] ?? 0;
+        if (quantity == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$finalColor is sold out'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
 
       ref.read(cartProvider.notifier).addToCart(
         CartItem(
@@ -251,14 +298,15 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         ),
       );
 
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Added to cart')),
+        const SnackBar(
+          content: Text('Added to cart'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(content: Text(e.toString())),
       );
     }
   }
@@ -485,10 +533,22 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                             final color = widget.product.imageColors[imageUrl];
                             if (color != null) {
                               final quantity = widget.product.colorQuantities[color];
+                              final isSoldOut = quantity == null || quantity == 0;
                               return Stack(
                                 children: [
                                   GestureDetector(
-                                    onTap: () => _onImageTapped(index),
+                                    onTap: () {
+                                      if (isSoldOut) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('$color is sold out'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      _onImageTapped(index);
+                                    },
                                     child: Container(
                                       width: 64,
                                       height: 64,
@@ -502,12 +562,48 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                           width: 2,
                                         ),
                                       ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: CachedNetworkImage(
-                                          imageUrl: imageUrl,
-                                          fit: BoxFit.cover,
-                                        ),
+                                      child: Stack(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: ColorFiltered(
+                                              colorFilter: ColorFilter.matrix(
+                                                isSoldOut ? [
+                                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                                  0.2126, 0.7152, 0.0722, 0, 0,
+                                                  0, 0, 0, 1, 0,
+                                                ] : [
+                                                  1, 0, 0, 0, 0,
+                                                  0, 1, 0, 0, 0,
+                                                  0, 0, 1, 0, 0,
+                                                  0, 0, 0, 1, 0,
+                                                ],
+                                              ),
+                                              child: CachedNetworkImage(
+                                                imageUrl: imageUrl,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isSoldOut)
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.5),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Center(
+                                                child: Text(
+                                                  'SOLD OUT',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -538,12 +634,21 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
-                                            if (quantity != null)
+                                            if (!isSoldOut && quantity != null)
                                               Text(
                                                 '$quantity left',
                                                 style: theme.textTheme.bodySmall?.copyWith(
                                                   color: Colors.white70,
                                                   fontSize: 10,
+                                                ),
+                                              ),
+                                            if (isSoldOut)
+                                              Text(
+                                                'Sold Out',
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: Colors.red[300],
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ),
                                           ],
