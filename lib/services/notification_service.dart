@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/notification.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -89,7 +90,7 @@ class NotificationService {
           .set({
         'token': token,
         'updatedAt': FieldValue.serverTimestamp(),
-        'platform': Platform.operatingSystem,
+        'platform': kIsWeb ? 'web' : Platform.operatingSystem,
       }, SetOptions(merge: true));
     } catch (e) {
       throw Exception('Failed to update FCM token: $e');

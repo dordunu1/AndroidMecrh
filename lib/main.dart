@@ -41,20 +41,39 @@ Future<void> main() async {
 
     // Web-specific notification handling
     try {
-      await FirebaseMessaging.instance.requestPermission(
+      final messaging = FirebaseMessaging.instance;
+      
+      // Request permission and get token
+      NotificationSettings settings = await messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
         provisional: false,
       );
 
-      // Configure FCM for background messages
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        // Get FCM token
+        String? token = await messaging.getToken(
+          vapidKey: 'BAMS2lCtry6mKr9mQB28zCsE9lYcmAuVHL7Tcilf7KlV6m1jzUg27j1Xqnz7q_nwd1JONU_UZ6CMphr2ZOjp_ME', // You need to add your VAPID key here
+        );
+        print('FCM Token: $token');
 
-      // Handle foreground messages
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        print("Received foreground message: ${message.notification?.title}");
-      });
+        // Listen for token refresh
+        messaging.onTokenRefresh.listen((token) {
+          print('FCM Token refreshed: $token');
+          // Update token in your backend if needed
+        });
+
+        // Handle foreground messages
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          print("Received foreground message: ${message.notification?.title}");
+        });
+
+        // Handle message clicks when app is in background
+        FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+          print("Message clicked: ${message.notification?.title}");
+        });
+      }
     } catch (e) {
       print('Error setting up web notifications: $e');
     }

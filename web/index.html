@@ -12,17 +12,18 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Merch Store">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="assets/images/app_icon.png">
+  <link rel="icon" href="assets/images/app_icon.png">
   
   <!-- Splash screen for iOS -->
-  <link rel="apple-touch-startup-image" href="splash/splash.png">
+  <link rel="apple-touch-startup-image" href="assets/images/app_icon.png">
 
   <!-- PWA meta tags -->
   <meta name="theme-color" content="#E91E63">
   <link rel="manifest" href="manifest.json">
 
   <title>Merch Store</title>
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="assets/images/app_icon.png"/>
 
   <style>
     body {
@@ -93,7 +94,8 @@
       
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
-          serviceWorkerVersion: '{{flutter_service_worker_version}}',
+          serviceWorkerVersion: window.flutterServiceWorkerVersion || null,
+          serviceWorkerUrl: window.flutterServiceWorkerUrl || null
         },
         onEntrypointLoaded: function(engineInitializer) {
           loading.classList.add('main_done');
@@ -101,11 +103,37 @@
             loading.classList.add('init_done');
             return appRunner.runApp();
           }).then(function(app) {
-            // Wait a few milliseconds so users can see the "zoooom" animation
-            // before getting rid of the "loading" div.
             window.setTimeout(function() {
               loading.remove();
             }, 200);
+          }).catch(function(error) {
+            console.error('Error initializing app:', error);
+            // Enhanced error handling
+            if (error.toString().includes('service worker')) {
+              console.log('Service worker error detected, attempting recovery...');
+              // Clear service worker and cache before reload
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                  registration.unregister();
+                }
+                caches.keys().then(function(cacheNames) {
+                  return Promise.all(
+                    cacheNames.map(function(cacheName) {
+                      return caches.delete(cacheName);
+                    })
+                  );
+                }).then(function() {
+                  window.location.reload();
+                });
+              });
+            } else {
+              // For other types of errors
+              console.log('Attempting to recover from error...');
+              loading.innerHTML = '<div class="loading-text">Something went wrong. Retrying...</div>';
+              setTimeout(() => {
+                window.location.reload();
+              }, 3000);
+            }
           });
         }
       });

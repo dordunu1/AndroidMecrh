@@ -145,47 +145,6 @@ class _ProductCardState extends State<ProductCard> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    // Rating and Cart Count Row
-                    Row(
-                      children: [
-                        // Star Rating
-                        Icon(
-                          Icons.star,
-                          size: 16,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          widget.product.rating.toStringAsFixed(1),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '(${widget.product.reviewCount})',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const Spacer(),
-                        // Cart Count
-                        Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${widget.product.soldCount}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
                     const Spacer(),
                     Row(
                       children: [

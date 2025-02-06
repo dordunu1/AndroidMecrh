@@ -228,22 +228,33 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Electronics',
-                        selected: _selectedCategory == 'electronics',
+                        label: 'Clothing',
+                        selected: _selectedCategory == 'clothing',
                         onSelected: (selected) {
                           if (selected) {
-                            setState(() => _selectedCategory = 'electronics');
+                            setState(() => _selectedCategory = 'clothing');
                             _setupRealtimeUpdates();
                           }
                         },
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Fashion',
-                        selected: _selectedCategory == 'fashion',
+                        label: 'Accessories',
+                        selected: _selectedCategory == 'accessories',
                         onSelected: (selected) {
                           if (selected) {
-                            setState(() => _selectedCategory = 'fashion');
+                            setState(() => _selectedCategory = 'accessories');
+                            _setupRealtimeUpdates();
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _FilterChip(
+                        label: 'Electronics',
+                        selected: _selectedCategory == 'electronics',
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() => _selectedCategory = 'electronics');
                             _setupRealtimeUpdates();
                           }
                         },
@@ -261,22 +272,22 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Beauty',
-                        selected: _selectedCategory == 'beauty',
+                        label: 'Art',
+                        selected: _selectedCategory == 'art',
                         onSelected: (selected) {
                           if (selected) {
-                            setState(() => _selectedCategory = 'beauty');
+                            setState(() => _selectedCategory = 'art');
                             _setupRealtimeUpdates();
                           }
                         },
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Sports',
-                        selected: _selectedCategory == 'sports',
+                        label: 'Collectibles',
+                        selected: _selectedCategory == 'collectibles',
                         onSelected: (selected) {
                           if (selected) {
-                            setState(() => _selectedCategory = 'sports');
+                            setState(() => _selectedCategory = 'collectibles');
                             _setupRealtimeUpdates();
                           }
                         },
